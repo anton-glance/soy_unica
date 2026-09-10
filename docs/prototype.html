@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Soy Única · Prototipo de sistema</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Prata&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ivory:#FBF7F1; --paper:#FFFFFF; --linen:#F2EBE1; --tape:#E3D8C9;
+  --ink:#332A2E; --ink-soft:#6E6167; --ink-faint:#9C8F94;
+  --brass:#A8834B; --brass-soft:#EDE0CB;
+  --sage:#6F7A63; --sage-soft:#E6EADF;
+  --clay:#9A5B45; --clay-soft:#F3E3DC;
+  --wine:#7B3B4A;
+  --radius:14px; --tap:68px;
+  --font-ui:'Jost',system-ui,-apple-system,sans-serif;
+  --font-display:'Prata',Georgia,serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ivory:#221C1E; --paper:#2B2426; --linen:#332B2D; --tape:#4A3F42;
+    --ink:#F4EDE4; --ink-soft:#C3B5B8; --ink-faint:#9A8C90;
+    --brass:#D9B378; --brass-soft:#4A3B29;
+    --sage:#A8B79A; --sage-soft:#333B2E;
+    --clay:#D9987E; --clay-soft:#43302A;
+  }
+}
+:root[data-theme="dark"]{
+  --ivory:#221C1E; --paper:#2B2426; --linen:#332B2D; --tape:#4A3F42;
+  --ink:#F4EDE4; --ink-soft:#C3B5B8; --ink-faint:#9A8C90;
+  --brass:#D9B378; --brass-soft:#4A3B29;
+  --sage:#A8B79A; --sage-soft:#333B2E;
+  --clay:#D9987E; --clay-soft:#43302A;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--ivory);color:var(--ink);font-family:var(--font-ui);font-weight:300;font-size:17px;-webkit-tap-highlight-color:transparent}
+button{font-family:inherit;font-size:inherit;color:inherit;cursor:pointer;border:0;background:none}
+h1,h2,h3{font-family:var(--font-display);font-weight:400;margin:0}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* prototype switcher */
+.proto{display:flex;align-items:center;gap:10px;padding:10px 20px;background:var(--linen);border-bottom:1px solid var(--tape);flex-wrap:wrap}
+.proto span{color:var(--ink-faint);font-size:14px;letter-spacing:.02em}
+.proto button{padding:9px 18px;border-radius:999px;border:1px solid var(--tape);font-size:15px}
+.proto button[aria-current="true"]{background:var(--ink);color:var(--ivory);border-color:var(--ink)}
+
+.screen{display:none}
+.screen.on{display:block}
+
+/* ---------- kiosk ---------- */
+.k-top{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:22px 34px 14px}
+.k-brand{display:flex;align-items:baseline;gap:14px}
+.k-brand h1{font-size:30px;letter-spacing:.01em}
+.k-brand em{font-style:normal;color:var(--ink-faint);font-size:15px}
+.k-session{display:flex;align-items:center;gap:14px}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:999px;background:var(--sage-soft);color:var(--sage);font-size:14px}
+.dot{width:7px;height:7px;border-radius:50%;background:currentColor}
+.btn-quiet{min-height:52px;padding:0 22px;border-radius:999px;border:1px solid var(--tape);color:var(--ink-soft)}
+
+.k-filters{display:flex;gap:12px;padding:6px 34px 18px;overflow-x:auto;scrollbar-width:none}
+.k-filters::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;min-height:56px;padding:0 24px;border-radius:999px;background:var(--paper);border:1px solid var(--tape);color:var(--ink-soft);font-size:16px}
+.chip[aria-pressed="true"]{background:var(--brass-soft);border-color:var(--brass);color:var(--brass)}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:26px;padding:0 34px 150px}
+.card{position:relative;background:var(--paper);border:1px solid var(--tape);border-radius:var(--radius);overflow:hidden;text-align:left;padding:0;transition:transform .12s ease}
+.card:active{transform:scale(.985)}
+.card .art{aspect-ratio:3/4;display:block;width:100%}
+.card .meta{padding:16px 18px 18px}
+.card .name{font-family:var(--font-display);font-size:21px;line-height:1.2}
+.card .brand{color:var(--ink-faint);font-size:14px;margin-top:4px}
+.card .price{margin-top:10px;font-size:18px;color:var(--ink)}
+.heart{position:absolute;top:12px;right:12px;width:56px;height:56px;border-radius:50%;background:var(--paper);border:1px solid var(--tape);display:grid;place-items:center;font-size:24px;color:var(--ink-faint)}
+.heart[aria-pressed="true"]{color:var(--wine);border-color:var(--wine);background:var(--paper)}
+.tag{position:absolute;top:14px;left:14px;padding:7px 12px;border-radius:8px;font-size:13px;background:var(--clay-soft);color:var(--clay);max-width:78%}
+.card.busy .art{opacity:.5}
+.card.mine .tag{background:var(--brass-soft);color:var(--brass)}
+
+.tray{position:sticky;bottom:0;display:flex;align-items:center;justify-content:space-between;gap:18px;padding:18px 34px;background:var(--linen);border-top:1px solid var(--tape)}
+.tray p{margin:0;color:var(--ink-soft);font-size:16px}
+.btn-main{min-height:var(--tap);padding:0 34px;border-radius:999px;background:var(--ink);color:var(--ivory);font-size:18px}
+.btn-main[disabled]{opacity:.35}
+
+/* overlay */
+.veil{position:absolute;inset:0;background:rgba(51,42,46,.55);display:none;align-items:center;justify-content:center;padding:28px;z-index:20}
+.veil.on{display:flex}
+.sheet{background:var(--paper);border-radius:20px;max-width:940px;width:100%;max-height:100%;overflow:auto;padding:28px}
+.sheet-narrow{max-width:520px}
+.detail{display:grid;grid-template-columns:300px 1fr;gap:30px}
+.detail h2{font-size:34px;margin-bottom:6px}
+.detail dl{display:grid;grid-template-columns:auto 1fr;gap:10px 20px;margin:22px 0 28px;font-size:16px}
+.detail dt{color:var(--ink-faint)}
+.detail dd{margin:0}
+.row{display:flex;gap:14px;flex-wrap:wrap}
+.fav-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:18px}
+.fav-list figure{margin:0}
+.fav-list figcaption{font-family:var(--font-display);font-size:16px;padding-top:8px}
+
+.pinpad{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:22px 0}
+.pinpad button{min-height:72px;border-radius:12px;background:var(--linen);font-size:24px}
+.pindots{letter-spacing:14px;font-size:30px;min-height:42px;color:var(--ink)}
+.err{color:var(--clay);font-size:15px;min-height:22px;margin:4px 0 0}
+
+/* ---------- forms ---------- */
+.wrap{max-width:1180px;margin:0 auto;padding:30px 34px 90px}
+.wrap h2{font-size:28px;margin-bottom:6px}
+.lede{color:var(--ink-soft);margin:0 0 26px;max-width:62ch}
+.panel{background:var(--paper);border:1px solid var(--tape);border-radius:var(--radius);padding:26px;margin-bottom:22px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+label{display:block;font-size:15px;color:var(--ink-soft);margin-bottom:8px}
+input[type=text],input[type=number],input[type=date],select,textarea{width:100%;min-height:60px;padding:0 16px;border:1px solid var(--tape);border-radius:12px;background:var(--ivory);color:var(--ink);font-family:inherit;font-size:18px}
+textarea{min-height:96px;padding:14px 16px;line-height:1.5}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+.field{margin-bottom:20px}
+.money{font-size:26px}
+.sched{width:100%;border-collapse:collapse;font-size:16px}
+.sched th{text-align:left;font-weight:400;color:var(--ink-faint);padding:8px 10px;border-bottom:1px solid var(--tape)}
+.sched td{padding:14px 10px;border-bottom:1px solid var(--linen)}
+.sched tr.due td{background:var(--brass-soft)}
+.state{font-size:14px;padding:5px 10px;border-radius:8px;background:var(--sage-soft);color:var(--sage)}
+.state.wait{background:var(--linen);color:var(--ink-soft)}
+.state.late{background:var(--clay-soft);color:var(--clay)}
+.shot{display:flex;align-items:center;gap:16px;padding:16px;border:1px dashed var(--tape);border-radius:12px;background:var(--ivory)}
+.shot b{font-weight:400}
+.result{padding:16px 18px;border-radius:12px;background:var(--linen);margin-bottom:12px;display:flex;justify-content:space-between;gap:16px;align-items:center;width:100%;text-align:left}
+.toast{position:sticky;bottom:20px;margin:0 34px;padding:18px 24px;border-radius:14px;background:var(--sage);color:#fff;display:none}
+.toast.on{display:block}
+.hist{font-size:16px;color:var(--ink-soft)}
+.hist div{padding:12px 0;border-bottom:1px solid var(--linen);display:flex;justify-content:space-between;gap:14px}
+/* ---------- inventory ---------- */
+.inv-bar{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:18px}
+.inv-bar .field{margin:0}
+.tbl{width:100%;border-collapse:collapse;font-size:16px;background:var(--paper);border:1px solid var(--tape);border-radius:var(--radius);overflow:hidden}
+.tbl th{text-align:left;font-weight:400;color:var(--ink-soft);padding:14px 12px;border-bottom:1px solid var(--tape);white-space:nowrap;cursor:pointer;user-select:none;background:var(--linen)}
+.tbl th .ar{color:var(--brass)}
+.tbl td{padding:16px 12px;border-bottom:1px solid var(--linen)}
+.tbl tr:last-child td{border-bottom:0}
+.tbl tbody tr{cursor:pointer}
+.tbl tbody tr:active{background:var(--linen)}
+.tbl .mono{font-variant-numeric:tabular-nums;color:var(--ink-soft)}
+.bdg{font-size:14px;padding:6px 11px;border-radius:8px;white-space:nowrap}
+.bdg.ok{background:var(--sage-soft);color:var(--sage)}
+.bdg.warn{background:var(--brass-soft);color:var(--brass)}
+.bdg.clay{background:var(--clay-soft);color:var(--clay)}
+.bdg.mute{background:var(--linen);color:var(--ink-soft)}
+.veil.full{padding:0;align-items:stretch}
+.veil.full .sheet{max-width:100%;border-radius:0;padding:30px 40px}
+.inv-head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:24px}
+.inv-grid{display:grid;grid-template-columns:280px 1fr;gap:36px}
+.f3{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.danger{min-height:60px;padding:0 26px;border-radius:999px;border:1px solid var(--clay);color:var(--clay)}
+@media (max-width:820px){.detail,.two,.inv-grid,.f3{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<h1 class="sr">Prototipo del sistema Soy Única Novias</h1>
+
+<nav class="proto">
+  <span>Prototipo</span>
+  <button data-go="kiosk" aria-current="true">Kiosco (tableta)</button>
+  <button data-go="pago">Registrar pago</button>
+  <button data-go="gasto">Registrar gasto</button>
+  <button data-go="inv">Inventario</button>
+  <span id="ctx">Sucursal Monterrey</span>
+  <button id="roleBtn" style="margin-left:auto">Entrar como vendedora</button>
+</nav>
+
+<!-- ================= KIOSK ================= -->
+<section class="screen on" id="kiosk" style="position:relative">
+  <div class="k-top">
+    <div class="k-brand">
+      <h1>Soy Única</h1>
+      <em>Monterrey · San Nicolás</em>
+    </div>
+    <div class="k-session">
+      <span class="pill"><span class="dot"></span><span id="sesLabel">Sesión abierta · 1:24 restante</span></span>
+      <button class="btn-quiet" id="closeSes">Cerrar sesión</button>
+    </div>
+  </div>
+
+  <div class="k-filters" id="filters"></div>
+  <div class="grid" id="grid"></div>
+
+  <div class="tray">
+    <p id="trayMsg">Toca el corazón de los vestidos que te gusten. La vendedora los traerá para probar.</p>
+    <button class="btn-main" id="showFavs" disabled>Ver mis favoritos</button>
+  </div>
+
+  <div class="veil" id="veilDetail"><div class="sheet" id="detailBody"></div></div>
+  <div class="veil" id="veilFavs"><div class="sheet" id="favsBody"></div></div>
+  <div class="veil" id="veilPin"><div class="sheet sheet-narrow" id="pinBody"></div></div>
+</section>
+
+<!-- ================= PAGO ================= -->
+<section class="screen" id="pago">
+  <div class="wrap">
+    <h2>Registrar pago</h2>
+    <p class="lede">Busca por nombre, teléfono, folio de contrato o modelo del vestido. Todo pago necesita la foto de la nota.</p>
+
+    <div class="panel">
+      <div class="field" style="margin-bottom:14px">
+        <label for="q">Buscar</label>
+        <input type="text" id="q" placeholder="Ana, 8112..., MTY-0142, Amaranta" autocomplete="off">
+      </div>
+      <div id="results"></div>
+    </div>
+
+    <div id="contractArea"></div>
+  </div>
+  <div class="toast" id="toastPago"></div>
+</section>
+
+<!-- ================= GASTO ================= -->
+<section class="screen" id="gasto">
+  <div class="wrap">
+    <h2>Registrar gasto</h2>
+    <p class="lede">Primero la foto del comprobante, luego el monto y el motivo. Tres toques y listo.</p>
+    <div class="panel">
+      <div class="field">
+        <label>Comprobante</label>
+        <div class="shot">
+          <button class="btn-quiet" id="shotGasto">Tomar foto</button>
+          <b id="shotGastoName" style="color:var(--ink-faint)">Sin foto todavía</b>
+        </div>
+        <p class="err" id="errFoto"></p>
+      </div>
+      <div class="two">
+        <div class="field">
+          <label for="gMonto">Monto</label>
+          <input type="number" id="gMonto" class="money" placeholder="0.00" inputmode="decimal">
+          <p class="err" id="errMonto"></p>
+        </div>
+        <div class="field">
+          <label for="gFecha">Fecha</label>
+          <input type="date" id="gFecha">
+        </div>
+      </div>
+      <div class="field">
+        <label>Categoría</label>
+        <div class="row" id="cats"></div>
+        <p class="err" id="errCat"></p>
+      </div>
+      <div class="two">
+        <div class="field">
+          <label for="gProv">Pagado a</label>
+          <input type="text" id="gProv" placeholder="Arrendador, Telcel, costurera...">
+        </div>
+        <div class="field">
+          <label for="gNota">Nota</label>
+          <input type="text" id="gNota" placeholder="Renta de octubre">
+        </div>
+      </div>
+      <button class="btn-main" id="saveGasto">Guardar gasto</button>
+    </div>
+    <div class="panel">
+      <h3 style="font-size:20px;margin-bottom:14px">Gastos de hoy · <span id="gTotal">$0</span></h3>
+      <div class="hist" id="gList"><div><span>Todavía no hay gastos registrados hoy.</span></div></div>
+    </div>
+  </div>
+  <div class="toast" id="toastGasto"></div>
+</section>
+
+<!-- ================= INVENTARIO ================= -->
+<section class="screen" id="inv">
+  <div class="wrap">
+    <h2>Inventario</h2>
+    <p class="lede">Vestidos y accesorios de esta sucursal. Se busca por SKU, código interno, modelo o marca. Toca cualquier renglón para ver y editar la ficha completa.</p>
+    <div class="inv-bar">
+      <div class="field" style="flex:1;min-width:260px">
+        <label for="iq">Buscar</label>
+        <input type="text" id="iq" placeholder="MTY-0142, Amaranta, Lanesta, código 38-B" autocomplete="off">
+      </div>
+      <div class="field" style="min-width:180px">
+        <label for="ikind">Tipo</label>
+        <select id="ikind"><option value="todos">Vestidos y accesorios</option><option value="dress">Solo vestidos</option><option value="accessory">Solo accesorios</option></select>
+      </div>
+      <button class="btn-main" id="addInv">Agregar al inventario</button>
+    </div>
+    <div class="row" id="istats" style="margin-bottom:20px"></div>
+    <p id="icount" style="color:var(--ink-faint);font-size:15px;margin:0 0 12px"></p>
+    <div style="overflow-x:auto"><table class="tbl" id="itbl"></table></div>
+  </div>
+  <div class="toast" id="toastInv"></div>
+  <div class="veil full" id="veilInv"><div class="sheet" id="invBody"></div></div>
+</section>
+
+<script>
+const MXN = n => '$' + n.toLocaleString('es-MX', {minimumFractionDigits:0});
+const el = id => document.getElementById(id);
+
+/* ---- gown placeholder art ---- */
+function art(seed){
+  const tints = [['#F2EBE1','#E3D8C9'],['#EFE8E6','#DFD2CE'],['#EDEAE1','#DBD6C7'],['#F1E9EA','#E0D2D4'],['#EAEBE5','#D6D9CE']];
+  const t = tints[seed % tints.length];
+  return `<svg class="art" viewBox="0 0 300 400" role="img" aria-label="Foto del vestido"><rect width="300" height="400" fill="${t[0]}"/><path d="M150 44c14 0 26 8 26 8l-14 46c8 40 46 92 62 246H76c16-154 54-206 62-246l-14-46s12-8 26-8z" fill="${t[1]}"/><path d="M150 44v300" stroke="${t[0]}" stroke-width="2" fill="none"/></svg>`;
+}
+
+/* ---- inventory ---- */
+const dresses = [
+  {id:1, name:'Amaranta', brand:'Lanesta', price:22800, size:'M', cut:'Princesa', st:'available'},
+  {id:2, name:'Enigma', brand:'Lanesta', price:38000, size:'S', cut:'Sirena', st:'watched'},
+  {id:3, name:'Cherry', brand:'Kira Nova', price:20000, size:'M', cut:'Princesa', st:'available'},
+  {id:4, name:'Lavine', brand:'Elena Morar', price:28000, size:'L', cut:'Princesa', st:'available'},
+  {id:5, name:'Poem', brand:'Ricca Sposa', price:33200, size:'S', cut:'Princesa', st:'available'},
+  {id:6, name:'Katrina', brand:'Soy Única', price:13500, size:'M', cut:'Corte A', st:'available'},
+  {id:7, name:'Odette', brand:'Innocentia', price:30600, size:'M', cut:'Princesa', st:'watched'},
+  {id:8, name:'Charm', brand:'Armonía', price:18000, size:'XS', cut:'Corte A', st:'available'},
+  {id:9, name:'Marinet', brand:'Annie Victor', price:22500, size:'L', cut:'Princesa', st:'available'},
+  {id:10, name:'Kimberly', brand:'Lanesta', price:32000, size:'M', cut:'Sirena', st:'available'},
+  {id:11, name:'Krinola', brand:'Ricca Sposa', price:49900, size:'S', cut:'Princesa', st:'available'},
+  {id:12, name:'Baily II', brand:'Kira Nova', price:26000, size:'M', cut:'Sirena', st:'available'}
+];
+const favs = new Set(); const mine = new Set();
+let filter = 'todos';
+const filters = [['todos','Todos'],['Princesa','Corte princesa'],['Sirena','Corte sirena'],['Corte A','Corte A'],['-25000','Hasta $25,000'],['S','Talla S'],['M','Talla M']];
+
+function match(d){
+  if(filter==='todos') return true;
+  if(filter==='-25000') return d.price<=25000;
+  if(['S','M','L','XS'].includes(filter)) return d.size===filter;
+  return d.cut===filter;
+}
+
+function drawFilters(){
+  el('filters').innerHTML = filters.map(([v,l]) =>
+    `<button class="chip" aria-pressed="${filter===v}" data-f="${v}">${l}</button>`).join('');
+}
+
+function drawGrid(){
+  el('grid').innerHTML = dresses.filter(match).map(d => {
+    const busyOther = d.st==='watched' && !mine.has(d.id);
+    const busyMine = mine.has(d.id);
+    let tag = '';
+    if(busyOther) tag = '<span class="tag">La está viendo otra clienta</span>';
+    else if(busyMine) tag = '<span class="tag">Lo estás viendo</span>';
+    return `<div class="card ${busyOther?'busy':''} ${busyMine?'mine':''}">
+      <button style="display:block;width:100%;text-align:left;padding:0" data-open="${d.id}" aria-label="Ver ${d.name}">
+        ${art(d.id)}
+        <span class="meta" style="display:block">
+          <span class="name" style="display:block">${d.name}</span>
+          <span class="brand" style="display:block">${d.brand} · talla ${d.size}</span>
+          <span class="price" style="display:block">${MXN(d.price)}</span>
+        </span>
+      </button>
+      ${tag}
+      <button class="heart" data-fav="${d.id}" aria-pressed="${favs.has(d.id)}" aria-label="Me gusta ${d.name}">${favs.has(d.id)?'&#9829;':'&#9825;'}</button>
+    </div>`;
+  }).join('');
+  const n = favs.size;
+  el('showFavs').disabled = n===0;
+  el('showFavs').textContent = n===0 ? 'Ver mis favoritos' : `Ver mis favoritos (${n})`;
+  el('trayMsg').textContent = n===0
+    ? 'Toca el corazón de los vestidos que te gusten. La vendedora los traerá para probar.'
+    : `${n} ${n===1?'vestido guardado':'vestidos guardados'}. Muéstrale la lista a la vendedora cuando quieras probártelos.`;
+}
+
+el('filters').addEventListener('click', e => {
+  const b = e.target.closest('[data-f]'); if(!b) return;
+  filter = b.dataset.f; drawFilters(); drawGrid();
+});
+
+el('grid').addEventListener('click', e => {
+  const f = e.target.closest('[data-fav]');
+  if(f){ const id = +f.dataset.fav; favs.has(id)?favs.delete(id):favs.add(id); mine.add(id); markWatch(id); drawGrid(); return; }
+  const o = e.target.closest('[data-open]');
+  if(o){ openDetail(+o.dataset.open); }
+});
+
+function markWatch(id){ const d = dresses.find(x=>x.id===id); if(d.st==='available'){ d.st='watched'; } }
+
+function openDetail(id){
+  const d = dresses.find(x=>x.id===id);
+  mine.add(id); markWatch(id); drawGrid();
+  const other = d.st==='watched' && !mine.has(id);
+  el('detailBody').innerHTML = `<div class="detail">
+    <div>${art(d.id)}</div>
+    <div>
+      <h2>${d.name}</h2>
+      <p style="color:var(--ink-faint);margin:0">${d.brand}</p>
+      <dl>
+        <dt>Precio</dt><dd>${MXN(d.price)}</dd>
+        <dt>Talla</dt><dd>${d.size}</dd>
+        <dt>Corte</dt><dd>${d.cut}</dd>
+        <dt>Disponibilidad</dt><dd>${other?'La está viendo otra clienta':'Disponible en esta sucursal'}</dd>
+      </dl>
+      <div class="row">
+        <button class="btn-main" data-fav2="${d.id}">${favs.has(d.id)?'Quitar de favoritos':'Me gusta'}</button>
+        <button class="btn-quiet" data-close="1">Seguir viendo</button>
+      </div>
+    </div></div>`;
+  el('veilDetail').classList.add('on');
+}
+
+el('veilDetail').addEventListener('click', e => {
+  const f = e.target.closest('[data-fav2]');
+  if(f){ const id=+f.dataset.fav2; favs.has(id)?favs.delete(id):favs.add(id); drawGrid(); el('veilDetail').classList.remove('on'); return; }
+  if(e.target.closest('[data-close]') || e.target === el('veilDetail')) el('veilDetail').classList.remove('on');
+});
+
+el('showFavs').addEventListener('click', () => {
+  const list = dresses.filter(d=>favs.has(d.id));
+  el('favsBody').innerHTML = `<h2 style="font-size:30px">Mis favoritos</h2>
+    <p style="color:var(--ink-soft);margin:8px 0 24px">La vendedora traerá estos vestidos al probador.</p>
+    <div class="fav-list">${list.map(d=>`<figure>${art(d.id)}<figcaption>${d.name}</figcaption>
+      <button class="btn-quiet" style="margin-top:8px;min-height:44px" data-un="${d.id}">Quitar</button></figure>`).join('')}</div>
+    <div class="row" style="margin-top:28px"><button class="btn-main" data-closef="1">Seguir viendo vestidos</button></div>`;
+  el('veilFavs').classList.add('on');
+});
+el('veilFavs').addEventListener('click', e => {
+  const u = e.target.closest('[data-un]');
+  if(u){ favs.delete(+u.dataset.un); drawGrid(); el('showFavs').click(); return; }
+  if(e.target.closest('[data-closef]') || e.target === el('veilFavs')) el('veilFavs').classList.remove('on');
+});
+
+/* ---- session close: PIN then reason ---- */
+let pin = '';
+const reasons = ['Precio','No le gustaron los modelos','Quiere pensarlo','Va a comparar en otra tienda','No hay su talla','Otro'];
+function pinScreen(){
+  pin='';
+  el('pinBody').innerHTML = `<h2 style="font-size:26px">Cerrar la sesión</h2>
+    <p style="color:var(--ink-soft);margin:8px 0 18px">Se borran los favoritos y las marcas de “viendo ahora”. Pide el PIN a la vendedora.</p>
+    <div class="pindots" id="dots"></div><p class="err" id="errPin"></p>
+    <div class="pinpad">${[1,2,3,4,5,6,7,8,9].map(n=>`<button data-n="${n}">${n}</button>`).join('')}
+      <button data-del="1">borrar</button><button data-n="0">0</button><button data-ok="1">✓</button></div>
+    <button class="btn-quiet" style="width:100%" data-cancel="1">Cancelar, seguir en la sesión</button>`;
+  el('veilPin').classList.add('on');
+}
+function reasonScreen(){
+  el('pinBody').innerHTML = `<h2 style="font-size:26px">¿Por qué no continuó?</h2>
+    <p style="color:var(--ink-soft);margin:8px 0 18px">Una línea nada más. Sirve para el reporte semanal.</p>
+    <div class="row" id="rr">${reasons.map(r=>`<button class="chip" data-r="${r}">${r}</button>`).join('')}</div>
+    <p class="err" id="errR"></p>
+    <div class="field" style="margin-top:18px"><label for="rNota">Detalle opcional</label><input type="text" id="rNota" placeholder="Le gustó Amaranta pero regresa con su mamá"></div>
+    <button class="btn-main" style="width:100%" data-fin="1">Cerrar sesión</button>`;
+}
+el('closeSes').addEventListener('click', pinScreen);
+el('veilPin').addEventListener('click', e => {
+  const n = e.target.closest('[data-n]');
+  if(n){ if(pin.length<6){ pin += n.dataset.n; el('dots').textContent = '•'.repeat(pin.length); el('errPin').textContent=''; } return; }
+  if(e.target.closest('[data-del]')){ pin = pin.slice(0,-1); el('dots').textContent='•'.repeat(pin.length); return; }
+  if(e.target.closest('[data-ok]')){
+    if(pin.length<4){ el('errPin').textContent='Escribe el PIN de 4 dígitos.'; return; }
+    reasonScreen(); return;
+  }
+  if(e.target.closest('[data-cancel]')){ el('veilPin').classList.remove('on'); return; }
+  const r = e.target.closest('[data-r]');
+  if(r){ [...document.querySelectorAll('[data-r]')].forEach(x=>x.setAttribute('aria-pressed','false')); r.setAttribute('aria-pressed','true'); el('errR').textContent=''; return; }
+  if(e.target.closest('[data-fin]')){
+    const picked = document.querySelector('[data-r][aria-pressed="true"]');
+    if(!picked){ el('errR').textContent='Elige un motivo.'; return; }
+    favs.clear(); mine.clear(); dresses.forEach(d=>{ if(d.st==='watched') d.st='available'; });
+    filter='todos'; drawFilters(); drawGrid();
+    el('pinBody').innerHTML = `<h2 style="font-size:26px">Sesión cerrada</h2>
+      <p style="color:var(--ink-soft);margin:10px 0 22px">Motivo guardado: ${picked.dataset.r}. No se guardó ningún dato de la clienta.</p>
+      <button class="btn-main" style="width:100%" data-cancel="1">Abrir nueva sesión</button>`;
+  }
+});
+
+/* ---- payments ---- */
+const contracts = [{
+  folio:'MTY-2026-0143', name:'Ana Sofía Treviño', phone:'81 1234 5678', wedding:'2027-03-20',
+  dress:'Amaranta · MTY-0142', total:22800, plan:'40/30/30', seller:'Alejandra',
+  sched:[
+    {n:1, due:'2026-08-15', amt:9120, paid:true, when:'2026-08-15', folio:'A-1841'},
+    {n:2, due:'2026-09-15', amt:6840, paid:false},
+    {n:3, due:'2026-10-15', amt:6840, paid:false}
+  ]
+}];
+let sel = null;
+
+el('q').addEventListener('input', () => {
+  const v = el('q').value.trim().toLowerCase();
+  if(!v){ el('results').innerHTML=''; return; }
+  const hits = contracts.filter(c => (c.name+c.phone+c.folio+c.dress).toLowerCase().includes(v));
+  el('results').innerHTML = hits.length
+    ? hits.map((c,i)=>`<button class="result" data-c="${i}"><span><b style="font-weight:400">${c.name}</b><br><span style="color:var(--ink-faint);font-size:15px">${c.phone} · ${c.dress} · ${c.folio}</span></span><span class="state wait">saldo ${MXN(balance(c))}</span></button>`).join('')
+    : `<p style="color:var(--ink-faint)">Nada con “${el('q').value}”. Prueba con el teléfono o el folio.</p>`;
+});
+function balance(c){ return c.sched.filter(s=>!s.paid).reduce((a,s)=>a+s.amt,0); }
+
+el('results').addEventListener('click', e => {
+  const b = e.target.closest('[data-c]'); if(!b) return;
+  sel = contracts[+b.dataset.c]; drawContract();
+});
+
+let photo = null;
+function drawContract(){
+  const c = sel, next = c.sched.find(s=>!s.paid);
+  el('contractArea').innerHTML = `
+  <div class="panel">
+    <h3 style="font-size:22px">${c.name}</h3>
+    <p style="color:var(--ink-faint);margin:6px 0 20px">${c.phone} · boda 20/03/2027 · ${c.dress} · plan ${c.plan} · vendió ${c.seller}</p>
+    <table class="sched"><thead><tr><th>Pago</th><th>Vence</th><th>Monto</th><th>Estado</th></tr></thead><tbody>
+      ${c.sched.map(s=>`<tr class="${!s.paid && s===next ?'due':''}"><td>${s.n} de ${c.sched.length}</td><td>${s.due.split('-').reverse().join('/')}</td><td>${MXN(s.amt)}</td>
+      <td>${s.paid?`<span class="state">pagado ${s.when.split('-').reverse().join('/')} · nota ${s.folio}</span>`:`<span class="state ${s===next?'late':'wait'}">${s===next?'toca ahora':'pendiente'}</span>`}</td></tr>`).join('')}
+    </tbody></table>
+    <p style="margin:18px 0 0;font-size:20px">Saldo: ${MXN(balance(c))}</p>
+  </div>
+  ${next ? `<div class="panel">
+    <h3 style="font-size:22px;margin-bottom:18px">Nuevo pago</h3>
+    <div class="two">
+      <div class="field"><label for="pMonto">Monto recibido</label><input type="number" id="pMonto" class="money" value="${next.amt}"><p class="err" id="errPMonto"></p></div>
+      <div class="field"><label for="pFecha">Fecha</label><input type="date" id="pFecha" value="${new Date().toISOString().slice(0,10)}"></div>
+    </div>
+    <div class="two">
+      <div class="field"><label for="pMet">Forma de pago</label><select id="pMet"><option>Efectivo</option><option>Transferencia</option></select></div>
+      <div class="field"><label for="pFolio">Folio de la nota</label><input type="text" id="pFolio" placeholder="A-1842"><p class="err" id="errPFolio"></p></div>
+    </div>
+    <div class="field">
+      <label>Comprobante (obligatorio)</label>
+      <div class="shot"><button class="btn-quiet" id="shotPago">Tomar foto de la nota</button><b id="shotPagoName" style="color:var(--ink-faint)">Sin foto todavía</b></div>
+      <p class="err" id="errPFoto"></p>
+    </div>
+    <button class="btn-main" id="savePago">Registrar pago de ${MXN(next.amt)}</button>
+    <p style="color:var(--ink-faint);font-size:15px;margin:16px 0 0">Los pagos no se pueden editar después. Si hay un error, la dueña lo cancela y se registra de nuevo.</p>
+  </div>` : ''}`;
+  photo = null;
+  if(next){
+    el('shotPago').onclick = () => { photo = 'nota_' + Math.floor(Math.random()*9000+1000) + '.jpg'; el('shotPagoName').textContent = photo + ' · adjuntada'; el('errPFoto').textContent=''; };
+    el('savePago').onclick = savePago;
+  }
+}
+
+function savePago(){
+  const c = sel, next = c.sched.find(s=>!s.paid);
+  const amt = parseFloat(el('pMonto').value), folio = el('pFolio').value.trim();
+  let bad = false;
+  el('errPMonto').textContent=''; el('errPFolio').textContent=''; el('errPFoto').textContent='';
+  if(!amt || amt<=0){ el('errPMonto').textContent='Escribe el monto recibido.'; bad=true; }
+  if(!folio){ el('errPFolio').textContent='Escribe el folio de la nota de papel.'; bad=true; }
+  if(!photo){ el('errPFoto').textContent='Falta la foto de la nota. Sin foto no se registra el pago.'; bad=true; }
+  if(bad) return;
+  next.paid = true; next.when = el('pFecha').value; next.folio = folio; next.amt = amt;
+  drawContract();
+  const t = el('toastPago');
+  t.textContent = `Pago de ${MXN(amt)} registrado. ${balance(c) ? 'Saldo ' + MXN(balance(c)) + '. Próximo pago 15/10/2026.' : 'Contrato liquidado, el vestido pasa a listo para entrega.'}`;
+  t.classList.add('on'); setTimeout(()=>t.classList.remove('on'), 5000);
+}
+
+/* ---- expenses ---- */
+const cats = ['Renta','Nómina','Publicidad','Servicios','Insumos','Costurera','Otro'];
+let cat = null, gPhoto = null, gastos = [];
+el('cats').innerHTML = cats.map(c=>`<button class="chip" data-cat="${c}">${c}</button>`).join('');
+el('gFecha').value = new Date().toISOString().slice(0,10);
+el('cats').addEventListener('click', e => {
+  const b = e.target.closest('[data-cat]'); if(!b) return;
+  cat = b.dataset.cat;
+  [...document.querySelectorAll('[data-cat]')].forEach(x=>x.setAttribute('aria-pressed', String(x===b)));
+  el('errCat').textContent='';
+});
+el('shotGasto').onclick = () => { gPhoto = 'gasto_' + Math.floor(Math.random()*9000+1000) + '.jpg'; el('shotGastoName').textContent = gPhoto + ' · adjuntada'; el('errFoto').textContent=''; };
+el('saveGasto').onclick = () => {
+  const m = parseFloat(el('gMonto').value); let bad=false;
+  el('errFoto').textContent=''; el('errMonto').textContent=''; el('errCat').textContent='';
+  if(!gPhoto){ el('errFoto').textContent='Toma la foto del comprobante primero.'; bad=true; }
+  if(!m || m<=0){ el('errMonto').textContent='Escribe el monto.'; bad=true; }
+  if(!cat){ el('errCat').textContent='Elige una categoría.'; bad=true; }
+  if(bad) return;
+  gastos.push({m, cat, prov: el('gProv').value.trim() || '—', nota: el('gNota').value.trim(), photo: gPhoto});
+  el('gList').innerHTML = gastos.map(g=>`<div><span>${g.cat} · ${g.prov}${g.nota?' · '+g.nota:''} <span style="color:var(--ink-faint)">${g.photo}</span></span><span>${MXN(g.m)}</span></div>`).join('');
+  el('gTotal').textContent = MXN(gastos.reduce((a,g)=>a+g.m,0));
+  el('gMonto').value=''; el('gProv').value=''; el('gNota').value='';
+  gPhoto=null; el('shotGastoName').textContent='Sin foto todavía';
+  cat=null; [...document.querySelectorAll('[data-cat]')].forEach(x=>x.setAttribute('aria-pressed','false'));
+  const t = el('toastGasto'); t.textContent='Gasto guardado. Aparecerá en el reporte de hoy.'; t.classList.add('on'); setTimeout(()=>t.classList.remove('on'),4000);
+};
+
+/* ---- inventory ---- */
+let role = 'admin';
+const ST = {
+  available:['Disponible','ok'], watching:['Viendo ahora','warn'], reserved:['Reservado','warn'],
+  tailoring:['En costura','clay'], tailored:['Costura lista','clay'], ready:['Listo para entrega','ok'],
+  sold:['Vendido','mute'], retired:['Retirado','mute']
+};
+let inv = dresses.map((d,i) => ({
+  id:d.id, sku:'MTY-0'+(140+d.id), code:(30+d.id)+'-'+'ABCDE'[i%5], kind:'dress', name:d.name, brand:d.brand,
+  size:d.size, cut:d.cut, color:'Marfil', cost:Math.round(d.price*0.55), price:d.price,
+  st:d.st==='watched'?'watching':'available', intake:'2026-0'+(3+(d.id%6))+'-1'+(d.id%9), loc:'Rack '+(1+d.id%4), notes:''
+})).concat([
+  {id:101, sku:'MTY-0138', code:'27-A', kind:'dress', name:'Alessia', brand:'Lanesta', size:'M', cut:'Princesa', color:'Marfil', cost:24750, price:45000, st:'reserved', intake:'2026-02-08', loc:'Bodega', notes:'Ana Sofía Treviño · contrato MTY-2026-0143'},
+  {id:102, sku:'MTY-0129', code:'22-C', kind:'dress', name:'26004 Biatris', brand:'Ricca Sposa', size:'S', cut:'Sirena', color:'Blanco', cost:20600, price:37500, st:'tailoring', intake:'2026-01-22', loc:'Costurera', notes:'Entallado iniciado 04/09. Segunda prueba 18/09.'},
+  {id:103, sku:'MTY-0131', code:'24-B', kind:'dress', name:'J 1191', brand:'Elena Morar', size:'L', cut:'Princesa', color:'Marfil', cost:15900, price:29000, st:'tailored', intake:'2026-01-30', loc:'Bodega', notes:'Costura terminada, falta último pago.'},
+  {id:104, sku:'MTY-0118', code:'19-D', kind:'dress', name:'2023 T', brand:'Soy Única', size:'M', cut:'Corte A', color:'Marfil', cost:12100, price:22000, st:'ready', intake:'2025-11-14', loc:'Bodega', notes:'Liquidado. Entrega 14/09.'},
+  {id:105, sku:'MTY-0102', code:'11-A', kind:'dress', name:'EL 483', brand:'Innocentia', size:'S', cut:'Princesa', color:'Blanco', cost:11000, price:20000, st:'sold', intake:'2025-08-03', loc:'—', notes:'Entregado 02/08/2026.'},
+  {id:106, sku:'MTY-0201', code:'V-07', kind:'accessory', name:'Velo catedral 3 m', brand:'Soy Única', size:'Único', cut:'Velo', color:'Marfil', cost:1400, price:3500, st:'available', intake:'2026-04-02', loc:'Vitrina', notes:''},
+  {id:107, sku:'MTY-0209', code:'T-03', kind:'accessory', name:'Tiara Aurora', brand:'Armonía', size:'Único', cut:'Tiara', color:'Plata', cost:700, price:1800, st:'available', intake:'2026-05-19', loc:'Vitrina', notes:''},
+  {id:108, sku:'MTY-0212', code:'C-02', kind:'accessory', name:'Crinolina 4 aros', brand:'Soy Única', size:'M', cut:'Crinolina', color:'Marfil', cost:900, price:2200, st:'reserved', intake:'2026-05-19', loc:'Vitrina', notes:'Va con contrato MTY-2026-0143'}
+]);
+let iSort = {k:'sku', dir:1}, iFilter = 'todos', iEdit = null;
+const cols = [['sku','SKU'],['code','Código'],['name','Modelo'],['brand','Marca'],['size','Talla'],['price','Precio'],['st','Estado'],['intake','Ingreso']];
+
+function invVisible(){
+  const q = el('iq').value.trim().toLowerCase(), kind = el('ikind').value;
+  return inv.filter(r => {
+    if(r.st==='sold' && role!=='admin') return false;
+    if(iFilter!=='todos' && r.st!==iFilter) return false;
+    if(kind!=='todos' && r.kind!==kind) return false;
+    if(q && !(r.sku+r.code+r.name+r.brand+r.cut).toLowerCase().includes(q)) return false;
+    return true;
+  }).sort((a,b) => {
+    const k = iSort.k, x = k==='price'?a.price:String(a[k]).toLowerCase(), y = k==='price'?b.price:String(b[k]).toLowerCase();
+    return (x>y?1:x<y?-1:0) * iSort.dir;
+  });
+}
+
+function drawInv(){
+  const counts = {};
+  inv.forEach(r => { if(r.st==='sold' && role!=='admin') return; counts[r.st]=(counts[r.st]||0)+1; });
+  const chips = [['todos','Todos']].concat(Object.keys(ST).filter(s=>counts[s]).map(s=>[s, ST[s][0]+' ('+counts[s]+')']));
+  el('istats').innerHTML = chips.map(([v,l])=>`<button class="chip" style="min-height:48px;font-size:15px" aria-pressed="${iFilter===v}" data-if="${v}">${l}</button>`).join('');
+  const rows = invVisible();
+  el('icount').textContent = `${rows.length} de ${inv.filter(r=>r.st!=='sold'||role==='admin').length} artículos` + (role==='admin' ? '' : ' · los vendidos solo los ve la dueña');
+  el('itbl').innerHTML = `<thead><tr>${cols.map(([k,l])=>`<th data-s="${k}">${l}${iSort.k===k?` <span class="ar">${iSort.dir>0?'↑':'↓'}</span>`:''}</th>`).join('')}${role==='admin'?'<th data-s="cost">Costo</th>':''}</tr></thead>
+  <tbody>${rows.map(r=>`<tr data-r="${r.id}">
+    <td class="mono">${r.sku}</td><td class="mono">${r.code}</td>
+    <td style="font-family:var(--font-display);font-size:18px">${r.name}${r.kind==='accessory'?' <span style="font-family:var(--font-ui);font-size:13px;color:var(--ink-faint)">accesorio</span>':''}</td>
+    <td>${r.brand}</td><td>${r.size}</td><td class="mono">${MXN(r.price)}</td>
+    <td><span class="bdg ${ST[r.st][1]}">${ST[r.st][0]}</span></td>
+    <td class="mono">${r.intake.split('-').reverse().join('/')}</td>
+    ${role==='admin'?`<td class="mono">${MXN(r.cost)}</td>`:''}</tr>`).join('')
+    || `<tr><td colspan="9" style="padding:40px;text-align:center;color:var(--ink-faint)">Nada coincide con esa búsqueda. Borra el filtro o agrega el artículo.</td></tr>`}</tbody>`;
+}
+
+el('iq').addEventListener('input', drawInv);
+el('ikind').addEventListener('change', drawInv);
+el('istats').addEventListener('click', e => { const b=e.target.closest('[data-if]'); if(b){ iFilter=b.dataset.if; drawInv(); } });
+el('itbl').addEventListener('click', e => {
+  const th = e.target.closest('[data-s]');
+  if(th){ const k=th.dataset.s; iSort = {k, dir: iSort.k===k ? -iSort.dir : 1}; drawInv(); return; }
+  const tr = e.target.closest('[data-r]');
+  if(tr) openInv(+tr.dataset.r);
+});
+el('addInv').addEventListener('click', () => openInv(null));
+
+function openInv(id){
+  const r = id ? inv.find(x=>x.id===id) : {id:null, sku:'MTY-0'+(213+inv.length), code:'', kind:'dress', name:'', brand:'', size:'', cut:'', color:'', cost:'', price:'', st:'available', intake:new Date().toISOString().slice(0,10), loc:'', notes:''};
+  iEdit = r;
+  const f = (lab,key,type,ph) => `<div class="field"><label for="i_${key}">${lab}</label><input type="${type||'text'}" id="i_${key}" value="${r[key]??''}" placeholder="${ph||''}"></div>`;
+  el('invBody').innerHTML = `
+    <div class="inv-head">
+      <div>
+        <h2 style="font-size:32px">${r.name || 'Nuevo artículo'}</h2>
+        <p style="color:var(--ink-faint);margin:6px 0 0">${r.sku}${r.code?' · código '+r.code:''} · ${r.kind==='dress'?'vestido':'accesorio'}</p>
+      </div>
+      <button class="btn-quiet" data-x="1">Cerrar</button>
+    </div>
+    <div class="inv-grid">
+      <div>${art(r.id||3)}<p style="color:var(--ink-faint);font-size:15px;margin:14px 0 0">Así la reconoce en el rack. Puede subir hasta 5 fotos.</p>
+      <button class="btn-quiet" style="width:100%;margin-top:12px" data-photo="1">Agregar foto</button></div>
+      <div>
+        <div class="f3">
+          ${f('Modelo','name','text','Amaranta')}
+          ${f('Marca','brand','text','Lanesta')}
+          <div class="field"><label for="i_kind">Tipo</label><select id="i_kind"><option value="dress" ${r.kind==='dress'?'selected':''}>Vestido</option><option value="accessory" ${r.kind==='accessory'?'selected':''}>Accesorio</option></select></div>
+        </div>
+        <div class="f3">
+          ${f('Talla','size','text','M')}
+          ${f('Corte','cut','text','Princesa')}
+          ${f('Color','color','text','Marfil')}
+        </div>
+        <div class="f3">
+          ${f('Código interno','code','text','38-B')}
+          ${f('Precio de venta','price','number')}
+          ${role==='admin' ? f('Costo','cost','number') : '<div class="field"><label>Costo</label><input type="text" value="Solo la dueña" disabled style="opacity:.5"></div>'}
+        </div>
+        <div class="f3">
+          <div class="field"><label for="i_st">Estado</label><select id="i_st">${Object.keys(ST).map(s=>`<option value="${s}" ${r.st===s?'selected':''}>${ST[s][0]}</option>`).join('')}</select></div>
+          ${f('Fecha de ingreso','intake','date')}
+          ${f('Ubicación','loc','text','Rack 2')}
+        </div>
+        <div class="field"><label for="i_notes">Notas</label><textarea id="i_notes" placeholder="Con quién está, pruebas pendientes, detalles de la tela">${r.notes||''}</textarea></div>
+        <p class="err" id="errInv"></p>
+        <div class="row" style="margin-top:6px">
+          <button class="btn-main" data-save="1">${r.id?'Guardar cambios':'Agregar al inventario'}</button>
+          ${r.id && role==='admin' ? '<button class="danger" data-del="1">Eliminar del inventario</button>' : ''}
+          ${r.id && role!=='admin' ? '<span style="color:var(--ink-faint);font-size:15px;align-self:center">Solo la dueña puede eliminar</span>' : ''}
+        </div>
+      </div>
+    </div>`;
+  el('veilInv').classList.add('on');
+}
+
+el('veilInv').addEventListener('click', e => {
+  if(e.target.closest('[data-x]')){ el('veilInv').classList.remove('on'); return; }
+  if(e.target.closest('[data-photo]')){ e.target.closest('[data-photo]').textContent = 'foto_' + Math.floor(Math.random()*9000+1000) + '.jpg agregada'; return; }
+  if(e.target.closest('[data-save]')){
+    const g = k => el('i_'+k) ? el('i_'+k).value : '';
+    if(!g('name').trim() || !parseFloat(g('price'))){ el('errInv').textContent = 'El modelo y el precio de venta son obligatorios.'; return; }
+    const r = iEdit;
+    ['name','brand','size','cut','color','code','loc','notes','intake','st','kind'].forEach(k=>{ if(el('i_'+k)) r[k]=el('i_'+k).value; });
+    r.price = parseFloat(g('price')); if(el('i_cost')) r.cost = parseFloat(g('cost'))||0;
+    if(!r.id){ r.id = 200 + inv.length; inv.push(r); }
+    el('veilInv').classList.remove('on'); drawInv();
+    const t = el('toastInv'); t.textContent = `${r.name} guardado como ${ST[r.st][0].toLowerCase()}.`; t.classList.add('on'); setTimeout(()=>t.classList.remove('on'),4000);
+    return;
+  }
+  const d = e.target.closest('[data-del]');
+  if(d){
+    if(d.dataset.confirm){ inv = inv.filter(x=>x.id!==iEdit.id); el('veilInv').classList.remove('on'); drawInv();
+      const t = el('toastInv'); t.textContent = `${iEdit.name} eliminado. Queda registrado quién lo borró y cuándo.`; t.classList.add('on'); setTimeout(()=>t.classList.remove('on'),4000); return; }
+    d.dataset.confirm = '1'; d.textContent = 'Toca otra vez para confirmar'; return;
+  }
+});
+
+el('roleBtn').addEventListener('click', () => {
+  role = role==='admin' ? 'seller' : 'admin';
+  el('roleBtn').textContent = role==='admin' ? 'Entrar como vendedora' : 'Entrar como dueña';
+  drawInv();
+});
+
+/* ---- nav ---- */
+document.querySelector('.proto').addEventListener('click', e => {
+  const b = e.target.closest('[data-go]'); if(!b) return;
+  document.querySelectorAll('[data-go]').forEach(x=>x.setAttribute('aria-current', String(x===b)));
+  document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on', s.id===b.dataset.go));
+  el('ctx').textContent = b.dataset.go==='kiosk' ? 'Sucursal Monterrey' : 'Sucursal Monterrey · Alejandra (vendedora)';
+});
+
+drawFilters(); drawGrid(); drawInv();
+</script>
+</body>
+</html>
