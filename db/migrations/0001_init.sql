@@ -160,7 +160,9 @@ CREATE TABLE contracts (
   -- Se emite una sola vez desde stores.next_folio_seq y jamás se reutiliza,
   -- ni siquiera cuando el contrato queda en 'cancelled'.
   folio              TEXT NOT NULL UNIQUE,
-  customer_id        INTEGER NOT NULL REFERENCES customers(id),
+  -- Nula sólo mientras el contrato es borrador: el folio se emite al elegir el
+  -- vestido, antes de capturar a la novia.
+  customer_id        INTEGER REFERENCES customers(id),
   seller_id          INTEGER NOT NULL REFERENCES users(id),
   session_id         INTEGER REFERENCES kiosk_sessions(id),
   signed_at          TEXT,
@@ -180,7 +182,10 @@ CREATE TABLE contracts (
   closed_at          TEXT,
   notes              TEXT,
   created_at         TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
-  updated_at         TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
+  updated_at         TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+  -- Un borrador muerto queda 'void' si nunca hubo datos de la novia y
+  -- 'cancelled' si sí los hubo; en ambos casos conserva su folio.
+  CHECK (status IN ('draft','void') OR customer_id IS NOT NULL)
 );
 CREATE INDEX idx_contracts_store_status ON contracts (store_id, status);
 CREATE INDEX idx_contracts_customer     ON contracts (customer_id);
