@@ -12,14 +12,40 @@ libro de pagos. Estos tres nunca llegaron:
 | `contrato_de_novia_nov_2024.docx` | La plantilla del contrato, palabra por palabra, con cada blanco vuelto `{{marcador}}`. | Una plantilla provisional en `0002_seed.sql` que ya usa **todos** los marcadores del encargo. Se sustituye desde **Ajustes → Plantilla del contrato**, con vista previa en vivo y sin tocar código. |
 | `medidas_soy_unica_mty.docx` | El formato real de medidas, reproducido tal cual. | `src/screens/PrintMedidas.tsx` con una hoja Carta vertical, folio en 18 pt, datos de la novia impresos, **todos** los campos de medida en blanco, el bloque de ajustes, el bloque de entrega y los tres bloques de firma. La lista y el orden de los campos son provisionales; el resto de la hoja no. |
 
-`pagos.xlsx` (encontrado en Drive como
-`PagosRecuperado_automáticamente…xlsx`) sí se pudo consultar y es lo que
-sostiene la decisión de §5: el campo del monto acepta cualquier cifra, porque
-el patrón real son muchos abonos chicos contra pocas parcialidades planeadas.
-**No se importó**, como pedía el encargo.
-
 Nada más del sistema depende de esos tres archivos: el esquema, el Worker, las
 reglas, los cuatro módulos, la impresión y las pruebas están completos.
+
+## 1b. Lo que sí se leyó: el libro de pagos
+
+`pagos.xlsx` se encontró en Drive como
+`PagosRecuperado_automáticamente…xlsx` y **sí se leyó**. **No se importó**,
+como pedía el encargo. Son 104 hojas de mes —una por mes, de 2018 a 2026— con
+**1 290 renglones de clienta**. Lo que dicen, y lo que de ahí se modeló:
+
+- **86 % de los contratos llevan más de tres abonos**, contra encabezados que
+  sólo declaran «1 pago / 2 pago / 3 pago». El promedio es 5.6 abonos y el
+  máximo 18; los abonos se desbordan a la derecha, escritos a mano como
+  `2040 (7 dic)` en columnas sin nombre. Por eso el plan es fijo pero el campo
+  del monto acepta cualquier cifra: es lo único que mantiene el registro fiel
+  en lugar de empujar a la vendedora de vuelta al cuaderno.
+- **La columna «medidas» está llena en 3 renglones de 1 290.** En ocho años y
+  medio prácticamente nunca se capturó una medida. Es la confirmación más
+  clara de que la hoja firmada es el registro y de que no debe existir ni un
+  campo numérico de medidas en el sistema.
+- **El vestido y sus accesorios viven en una sola celda de texto**
+  (`p42, mantilla 11, crinolina`, `p25 mas velo liso m3 t`), y los cargos se
+  desglosan a mano en celdas sueltas (`vestido 9500 / mantilla 2100 /
+  corta 900 / cinto 550 / mangas 500`, `total 13671`, `menos 10000`,
+  `faltan 3671`). De ahí que `contract_items` sea renglones tipados y no texto.
+- Los códigos son los suyos: `p1`, `p9`, `p25`, `p42`, `sl6`, `p52`.
+
+### Hallazgo que el encargo no cubre: renta
+
+**49 renglones dicen `renta`** (`p15 renta`, `p9 renta`). La tienda también
+renta vestidos, y el modelo de este paso sólo contempla venta: un vestido
+rentado vuelve al inventario en una fecha, no se entrega para siempre. No se
+inventó nada para cubrirlo. Vale la pena decidirlo antes de importar el
+histórico, porque cambia el ciclo de vida del artículo.
 
 ## 2. Fuera de alcance a propósito (§11)
 
