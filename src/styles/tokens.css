@@ -1,0 +1,77 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   SISTEMA DE DISEÑO — VALORES PROVISIONALES
+
+   ⚠ Estos valores NO son el sistema de diseño aprobado. El sistema es el
+   prototipo aprobado (docs/prototype.html): su paleta, su tipografía, sus
+   espacios, sus tamaños de toque y sus formas. Cuando el prototipo esté en el
+   repositorio, se extraen sus valores literales a ESTE archivo y no se
+   rediseña nada.
+
+   Los nombres de los tokens y la forma del archivo ya son los definitivos: el
+   reemplazo es cambiar el lado derecho de cada declaración, nada más. Ningún
+   otro archivo de la aplicación trae un color, un tamaño de letra ni un
+   espacio escrito a mano.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── color ─────────────────────────────────────────────────────────────── */
+  --color-bg: #f7f4f1;
+  --color-surface: #ffffff;
+  --color-surface-sunken: #efeae5;
+  --color-ink: #2b2320;
+  --color-ink-soft: #6f635c;
+  --color-ink-faint: #a2968f;
+  --color-accent: #8c6a58;
+  --color-accent-strong: #6d5044;
+  --color-accent-ink: #ffffff;
+  --color-line: #ded5cd;
+  --color-line-strong: #c4b7ac;
+  --color-ok: #3f7d54;
+  --color-warn: #a8741c;
+  --color-danger: #a63a33;
+  --color-danger-soft: #f6e7e5;
+
+  /* ── tipografía ────────────────────────────────────────────────────────── */
+  --font-sans: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', sans-serif;
+  --font-display: Georgia, 'Times New Roman', serif;
+  --text-xs: 0.8125rem;
+  --text-sm: 0.9375rem;
+  --text-md: 1.0625rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.625rem;
+  --text-2xl: 2.125rem;
+  --text-3xl: 2.75rem;
+  --text-hero: 3.5rem;
+  --leading-tight: 1.15;
+  --leading-normal: 1.5;
+  --weight-regular: 400;
+  --weight-medium: 600;
+  --weight-bold: 700;
+
+  /* ── espacio ───────────────────────────────────────────────────────────── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  /* ── forma ─────────────────────────────────────────────────────────────── */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+  --border: 1px solid var(--color-line);
+  --shadow-1: 0 1px 2px rgba(43, 35, 32, 0.08);
+  --shadow-2: 0 6px 20px rgba(43, 35, 32, 0.12);
+
+  /* ── tamaño de toque ───────────────────────────────────────────────────── */
+  /* Pantallas que ve la novia: 64 px. El resto de la tienda: 56 px. */
+  --tap-bride: 64px;
+  --tap: 56px;
+
+  /* ── ritmo ─────────────────────────────────────────────────────────────── */
+  --transition: 120ms ease-out;
+}

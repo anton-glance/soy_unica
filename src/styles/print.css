@@ -1,0 +1,74 @@
+/* Impresión: Carta vertical, negro sobre blanco, sin encabezados del navegador. */
+
+@page {
+  size: letter portrait;
+  margin: 12mm;
+}
+
+.print-sheet {
+  width: 216mm;
+  min-height: 279mm;
+  margin: 0 auto;
+  padding: 12mm;
+  background: #fff;
+  color: #000;
+  font-family: var(--font-sans);
+  font-size: 10pt;
+  line-height: 1.35;
+}
+
+.print-folio {
+  position: absolute;
+  top: 0;
+  right: 0;
+  font-size: 18pt;
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.02em;
+}
+
+.print-head { position: relative; padding-bottom: 6mm; border-bottom: 1.5pt solid #000; margin-bottom: 6mm; }
+.print-title { font-family: var(--font-display); font-size: 16pt; margin: 0 0 2mm; }
+.print-sub { font-size: 9pt; }
+
+.print-section { margin-bottom: 6mm; break-inside: avoid; }
+.print-section__title {
+  font-size: 10pt;
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-bottom: 0.75pt solid #000;
+  padding-bottom: 1mm;
+  margin-bottom: 3mm;
+}
+
+.print-grid { display: grid; gap: 3mm 6mm; }
+.print-grid--2 { grid-template-columns: repeat(2, 1fr); }
+.print-grid--3 { grid-template-columns: repeat(3, 1fr); }
+.print-grid--4 { grid-template-columns: repeat(4, 1fr); }
+
+/* Campo con raya para escribir a mano. Nunca se captura una medida al sistema. */
+.print-line { display: flex; align-items: baseline; gap: 2mm; }
+.print-line__label { font-size: 8.5pt; white-space: nowrap; }
+.print-line__rule { flex: 1; border-bottom: 0.75pt solid #000; min-height: 5mm; }
+.print-line__value { flex: 1; border-bottom: 0.75pt solid #000; min-height: 5mm; font-weight: var(--weight-medium); }
+
+.print-body { white-space: pre-wrap; font-size: 9.5pt; }
+
+.print-signatures { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10mm; margin-top: 8mm; break-inside: avoid; }
+.print-signature { text-align: center; }
+.print-signature__rule { border-top: 0.75pt solid #000; margin-top: 14mm; padding-top: 1.5mm; font-size: 8.5pt; }
+
+.print-note { font-size: 8pt; margin-top: 2mm; }
+
+.print-toolbar { padding: var(--space-4); display: flex; gap: var(--space-3); justify-content: center; }
+
+@media print {
+  .print-toolbar { display: none !important; }
+  body { background: #fff; }
+  .print-sheet { width: auto; min-height: 0; margin: 0; padding: 0; box-shadow: none; }
+  .print-page-break { break-after: page; }
+}
+
+@media screen {
+  .print-sheet { box-shadow: var(--shadow-2); margin-block: var(--space-5); }
+}
