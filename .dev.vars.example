@@ -1,0 +1,3 @@
+# Copied to .dev.vars by `npm run dev` / `npm run db:reset` when missing.
+# Local development only. In production: wrangler secret put JWT_SECRET
+JWT_SECRET=local-development-only-not-a-real-secret

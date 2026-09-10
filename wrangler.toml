@@ -1,0 +1,23 @@
+name = "soy-unica"
+main = "worker/index.ts"
+compatibility_date = "2024-12-30"
+
+# Static assets (the built Vite app). Every non-/api path falls through to
+# index.html so the client router owns /print/:folio/... too.
+[assets]
+directory = "dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "soy-unica"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "db/migrations"
+
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "soy-unica-files"
+
+[observability]
+enabled = true
