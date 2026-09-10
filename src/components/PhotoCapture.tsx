@@ -4,8 +4,9 @@ import { ApiError, OfflineError, upload } from '../lib/api'
 import { bytes } from '../lib/format'
 
 /**
- * Toma la foto con la cámara trasera, la comprime en la tableta y la sube.
- * Es la única forma de que una foto entre al sistema.
+ * El bloque `.shot` del prototipo: un botón discreto y el nombre del archivo
+ * adjuntado. Toma la foto con la cámara trasera, la comprime en la tableta y
+ * la sube. Es la única forma de que una foto entre al sistema.
  */
 export function PhotoCapture({
   kind, contractId, label, onUploaded,
@@ -45,23 +46,25 @@ export function PhotoCapture({
   }
 
   return (
-    <div className="stack">
-      <label htmlFor={id} className="btn btn--primary" style={{ cursor: 'pointer' }}>
-        {state === 'busy' && <span className="spinner" aria-hidden="true" />}
-        {state === 'busy' ? 'Subiendo la foto…' : state === 'done' ? 'Foto guardada' : label}
-      </label>
-      <input
-        id={id}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        onChange={onPick}
-        style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }}
-      />
-      {state === 'done' && size !== null && (
-        <span className="notice notice--ok">Se guardó la foto ({bytes(size)}).</span>
-      )}
-      {error && <span className="notice notice--error" role="alert">{error}</span>}
-    </div>
+    <>
+      <div className="shot">
+        <label htmlFor={id} className="btn-quiet" style={{ cursor: 'pointer' }}>
+          {state === 'busy' && <span className="spinner" aria-hidden="true" />}
+          {state === 'busy' ? 'Subiendo…' : label}
+        </label>
+        <input
+          id={id}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={onPick}
+          style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }}
+        />
+        <b style={{ color: state === 'done' ? 'var(--sage)' : 'var(--ink-faint)' }}>
+          {state === 'done' && size !== null ? `Foto adjuntada · ${bytes(size)}` : 'Sin foto todavía'}
+        </b>
+      </div>
+      {error && <p className="err" role="alert">{error}</p>}
+    </>
   )
 }

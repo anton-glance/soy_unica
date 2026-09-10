@@ -1,19 +1,46 @@
 # Lo que no se hizo en este paso, y por qué
 
-## 1. Bloqueado: faltan tres de los cuatro documentos de origen
+## 1. Los cuatro documentos de origen ya están, y ya se usaron
 
-El encargo empieza con «lee los cuatro archivos de `docs/`». Al construir esto,
-el repositorio estaba vacío y sólo se pudo alcanzar la hoja de cálculo del
-libro de pagos. Estos tres nunca llegaron:
+Los tres provisionales se reemplazaron por lo real:
 
-| Archivo | Para qué era | Qué quedó en su lugar |
+| Archivo | Qué se hizo |
+| --- | --- |
+| `prototype.html` | Todos los valores de `src/styles/tokens.css` salen de ahí, con sus mismos nombres (`--ivory`, `--paper`, `--linen`, `--tape`, `--ink`, `--brass`, `--sage`, `--clay`, `--wine`), incluida su paleta oscura. `src/styles/base.css` es su capa de componentes, con sus mismas clases. Sus dos tipografías —Jost y Prata— van empaquetadas en `src/assets/fonts/`, no traídas de Google, para que la tienda se vea igual sin internet. |
+| `contrato_de_novia_nov_2024.docx` | Es la plantilla sembrada, palabra por palabra, con sus nueve puntos y hasta sus erratas (`el pago pago a tiempo`, `se se realicen`). Los blancos que el sistema conoce son marcadores; los que no —el plazo de entrega y los días para tomar medidas— siguen siendo rayas para llenar a mano. |
+| `medidas_soy_unica_mty.docx` | `src/screens/PrintMedidas.tsx` lo reproduce: el membrete con el logo y la dirección del encabezado de Word, las trece medidas en su orden exacto, el bloque de campos repetido dos veces —como viene en el documento—, el diagrama de medidas, el párrafo de conformidad y los tres bloques de firma: medidas, ajustes y entrega. |
+
+Las dos imágenes del formato (`word/media/`) se extrajeron a `src/assets/`: el
+logo de la tienda y el diagrama de busto, cintura, caderas, altura y hueco de
+piso. El logo también es el favicon, dibujado con la misma silueta de vestido
+que usa el prototipo.
+
+### Lo que el contrato real destapó: los planes sembrados no son los suyos
+
+El punto 1 del contrato dice, textual, cuáles son los sistemas de pago:
+
+> a)50% (apartado) y 50% (cuando vestido esta listo). B) 40% ( apartado)-30% -
+> 30% (cada mes) C)20% 5 meses. el vestido se realiza con 40% precio de vestido
+
+Son **50/50**, **40/30/30** y **20 % a cinco meses**. Los sembrados en
+`0002_seed.sql` son otros: «Pago de contado», «Mitad y mitad», «Tres meses»
+(50/25/25) y «Seis meses». Sólo el de mitad y mitad coincide.
+
+**No se cambiaron**, porque cambiarlos cambia qué planes ofrece el sistema y el
+encargo de este paso decía no tocar comportamiento. Pero conviene arreglarlo
+antes de usarlo en la tienda: hoy el contrato impreso nombra tres planes y la
+pantalla ofrece otros cuatro. Es un renglón por plan en Ajustes, o tres
+renglones en la semilla:
+
+| Nombre | `splits` | `max_months` |
 | --- | --- | --- |
-| `prototype.html` | El sistema de diseño: paleta, tipografía, espacios, tamaños de toque, formas y textos en español. Se extrae literal a `src/styles/tokens.css`. | `src/styles/tokens.css` con valores provisionales, bajo un encabezado que lo dice. Los **nombres** de los tokens ya son los definitivos y ningún otro archivo trae un color, un tamaño de letra ni un espacio escrito a mano: reemplazar el sistema de diseño es cambiar el lado derecho de las declaraciones de ese archivo. No se rediseñó nada. |
-| `contrato_de_novia_nov_2024.docx` | La plantilla del contrato, palabra por palabra, con cada blanco vuelto `{{marcador}}`. | Una plantilla provisional en `0002_seed.sql` que ya usa **todos** los marcadores del encargo. Se sustituye desde **Ajustes → Plantilla del contrato**, con vista previa en vivo y sin tocar código. |
-| `medidas_soy_unica_mty.docx` | El formato real de medidas, reproducido tal cual. | `src/screens/PrintMedidas.tsx` con una hoja Carta vertical, folio en 18 pt, datos de la novia impresos, **todos** los campos de medida en blanco, el bloque de ajustes, el bloque de entrega y los tres bloques de firma. La lista y el orden de los campos son provisionales; el resto de la hoja no. |
+| Mitad y mitad | `[50,50]` | 0 |
+| 40/30/30 | `[40,30,30]` | 2 |
+| 20 % a cinco meses | `[20,20,20,20,20]` | 4 |
 
-Nada más del sistema depende de esos tres archivos: el esquema, el Worker, las
-reglas, los cuatro módulos, la impresión y las pruebas están completos.
+El contrato también confirma lo que ya estaba sembrado: hotel de vestido de
+$30 por día tras 10 días de gracia, 5 % de recargo mensual por atraso, y toda
+la lista de cargos extra.
 
 ## 1b. Lo que sí se leyó: el libro de pagos
 
@@ -73,17 +100,35 @@ Ni una tabla, ni una dependencia, ni una ruta se agregó para nada de esto:
   de renglones `entity = 'auth'` de la bitácora, en vez de una tabla nueva. Los
   intentos de NIP deberían auditarse de todos modos. Si crece el volumen, el
   siguiente paso natural es un Durable Object.
-- **Los cuatro planes.** El encargo nombra el de 100 % y el de 50/50; los de
-  tres y seis meses se propusieron con rangos de precio y descuentos que la
-  dueña debe confirmar en Ajustes.
+- **Los cuatro planes.** Ya no son una propuesta: el contrato real los nombra.
+  Ver el apartado 1, que explica cuáles son y por qué no se cambiaron todavía.
 - **Los cargos con rango** (bastilla 500–2000, mangas 300–500, hombros
   500–1000, crinolina 500–1200) se sembraron con el piso del rango, y el rango
   quedó en el nombre, que es como lo cotiza la vendedora.
 - **Existencias de la semilla.** Doce vestidos y cuatro accesorios de Monterrey
-  con su nomenclatura real, marcados como provisionales: son un relleno hasta
-  que estén las existencias del prototipo.
+  con su nomenclatura real (`p139`, `s14`, `A12`, `madelyn`, `mantilla 039`).
+  Las del prototipo son otras (Amaranta, Enigma, Cherry…) y traen SKU además
+  de código; se dejaron las de la nomenclatura real, que es la que usa la
+  tienda. El inventario no tiene columna de SKU y por eso la tabla muestra una
+  sola de código, no dos como el prototipo.
 - **`photo_url` en la importación CSV.** La columna se valida y el enlace se
   guarda en las notas del artículo, pero la foto todavía no se descarga.
 - **Archivador de Google Drive.** No existe. Con
   `archive_before_delete` encendido, el borrado por retención se niega y dice
   por qué, que es el comportamiento correcto mientras tanto.
+
+## 4. Lo que el prototipo dibuja y todavía no existe
+
+- **Fotos de artículo.** El prototipo tiene «Agregar foto» en la ficha de
+  inventario y promete hasta cinco. Subir la foto ya funciona
+  (`POST /api/uploads` con `kind = 'item_photo'`), pero falta la ruta que la
+  ate al artículo en `item_photos`. Mientras tanto la ficha muestra la silueta
+  del prototipo. Es un endpoint nuevo, así que no entró en este paso.
+- **Cuenta regresiva de la sesión.** El prototipo muestra «Sesión abierta ·
+  1:24 restante». No hay expiración de sesión de kiosco en el modelo, así que
+  la píldora dice sólo «Sesión abierta».
+- **El saldo.** El encargo pedía el saldo como el número más grande de la
+  pantalla; el prototipo lo dibuja como un renglón discreto al pie del
+  calendario. Se dejó en el lugar del prototipo, con el tamaño del título de
+  pantalla: es el número más grande de ese panel sin romper la jerarquía del
+  diseño.

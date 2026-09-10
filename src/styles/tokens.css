@@ -1,77 +1,135 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   SISTEMA DE DISEÑO — VALORES PROVISIONALES
+   SISTEMA DE DISEÑO
 
-   ⚠ Estos valores NO son el sistema de diseño aprobado. El sistema es el
-   prototipo aprobado (docs/prototype.html): su paleta, su tipografía, sus
-   espacios, sus tamaños de toque y sus formas. Cuando el prototipo esté en el
-   repositorio, se extraen sus valores literales a ESTE archivo y no se
-   rediseña nada.
+   Extraído literalmente de docs/prototype.html, el prototipo aprobado. Cada
+   valor de este archivo está copiado de ahí; no se rediseñó nada. Si el
+   prototipo cambia, este archivo es lo único que se vuelve a extraer.
 
-   Los nombres de los tokens y la forma del archivo ya son los definitivos: el
-   reemplazo es cambiar el lado derecho de cada declaración, nada más. Ningún
-   otro archivo de la aplicación trae un color, un tamaño de letra ni un
-   espacio escrito a mano.
+   Los nombres del prototipo (--ivory, --paper, --linen, --tape, --ink,
+   --brass, --sage, --clay, --wine) se conservan tal cual: son el vocabulario
+   con el que está escrito el prototipo y con el que se habla del diseño.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 :root {
-  /* ── color ─────────────────────────────────────────────────────────────── */
-  --color-bg: #f7f4f1;
-  --color-surface: #ffffff;
-  --color-surface-sunken: #efeae5;
-  --color-ink: #2b2320;
-  --color-ink-soft: #6f635c;
-  --color-ink-faint: #a2968f;
-  --color-accent: #8c6a58;
-  --color-accent-strong: #6d5044;
-  --color-accent-ink: #ffffff;
-  --color-line: #ded5cd;
-  --color-line-strong: #c4b7ac;
-  --color-ok: #3f7d54;
-  --color-warn: #a8741c;
-  --color-danger: #a63a33;
-  --color-danger-soft: #f6e7e5;
+  /* ── color ─────────────────────────────────────────────── prototipo :root */
+  --ivory: #FBF7F1;
+  --paper: #FFFFFF;
+  --linen: #F2EBE1;
+  --tape: #E3D8C9;
+  --ink: #332A2E;
+  --ink-soft: #6E6167;
+  --ink-faint: #9C8F94;
+  --brass: #A8834B;
+  --brass-soft: #EDE0CB;
+  --sage: #6F7A63;
+  --sage-soft: #E6EADF;
+  --clay: #9A5B45;
+  --clay-soft: #F3E3DC;
+  --wine: #7B3B4A;
 
-  /* ── tipografía ────────────────────────────────────────────────────────── */
-  --font-sans: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', sans-serif;
-  --font-display: Georgia, 'Times New Roman', serif;
-  --text-xs: 0.8125rem;
-  --text-sm: 0.9375rem;
-  --text-md: 1.0625rem;
-  --text-lg: 1.25rem;
-  --text-xl: 1.625rem;
-  --text-2xl: 2.125rem;
-  --text-3xl: 2.75rem;
-  --text-hero: 3.5rem;
-  --leading-tight: 1.15;
-  --leading-normal: 1.5;
-  --weight-regular: 400;
-  --weight-medium: 600;
-  --weight-bold: 700;
-
-  /* ── espacio ───────────────────────────────────────────────────────────── */
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 24px;
-  --space-6: 32px;
-  --space-7: 48px;
-  --space-8: 64px;
+  /* Velo de los diálogos: rgba(51,42,46,.55) en el prototipo. */
+  --veil: rgba(51, 42, 46, 0.55);
 
   /* ── forma ─────────────────────────────────────────────────────────────── */
-  --radius-sm: 6px;
-  --radius-md: 12px;
-  --radius-lg: 20px;
+  --radius: 14px;      /* tarjetas, paneles, tablas, toast */
+  --radius-sm: 8px;    /* etiquetas y distintivos */
+  --radius-md: 12px;   /* campos, resultados, botones del teclado */
+  --radius-lg: 20px;   /* hojas de los diálogos */
   --radius-pill: 999px;
-  --border: 1px solid var(--color-line);
-  --shadow-1: 0 1px 2px rgba(43, 35, 32, 0.08);
-  --shadow-2: 0 6px 20px rgba(43, 35, 32, 0.12);
 
   /* ── tamaño de toque ───────────────────────────────────────────────────── */
-  /* Pantallas que ve la novia: 64 px. El resto de la tienda: 56 px. */
-  --tap-bride: 64px;
-  --tap: 56px;
+  --tap: 68px;         /* botón principal */
+  --tap-chip: 56px;    /* chips de filtro y el corazón */
+  --tap-quiet: 52px;   /* botón secundario */
+  --tap-field: 60px;   /* campos de captura */
+  --tap-key: 72px;     /* teclas del NIP */
 
-  /* ── ritmo ─────────────────────────────────────────────────────────────── */
-  --transition: 120ms ease-out;
+  /* ── tipografía ────────────────────────────────────────────────────────── */
+  --font-ui: 'Jost', system-ui, -apple-system, sans-serif;
+  --font-display: 'Prata', Georgia, serif;
+
+  --text-body: 17px;   /* body del prototipo */
+  --text-xs: 13px;     /* etiquetas sobre las tarjetas */
+  --text-sm: 14px;     /* marca, píldoras, distintivos, estados */
+  --text-label: 15px;  /* etiquetas de campo, errores, notas al pie */
+  --text-md: 16px;     /* chips, tablas, listas */
+  --text-lg: 18px;     /* botón principal, precio, campos */
+  --text-name: 21px;   /* nombre del vestido en la tarjeta */
+  --text-panel: 22px;  /* título de panel */
+  --text-key: 24px;    /* teclas del NIP */
+  --text-money: 26px;  /* cifras de dinero en formulario */
+  --text-h2: 28px;     /* título de pantalla */
+  --text-brand: 30px;  /* marca del kiosco y puntos del NIP */
+  --text-inv: 32px;    /* título de la ficha de inventario */
+  --text-detail: 34px; /* título del detalle del vestido */
+
+  --weight-light: 300; /* peso del cuerpo en el prototipo */
+  --weight-regular: 400;
+  --weight-medium: 500;
+
+  /* ── espacio ───────────────────────────────────────────────────────────── */
+  --gutter: 34px;      /* margen lateral del kiosco y del wrap */
+  --wrap-max: 1180px;
+  --space-1: 4px;
+  --space-2: 6px;
+  --space-3: 8px;
+  --space-4: 10px;
+  --space-5: 12px;
+  --space-6: 14px;
+  --space-7: 16px;
+  --space-8: 18px;
+  --space-9: 20px;
+  --space-10: 22px;
+  --space-11: 26px;
+  --space-12: 28px;
+  --space-13: 30px;
+  --space-14: 36px;
+
+  --card-min: 268px;   /* ancho mínimo de la tarjeta en la retícula */
+  --grid-gap: 26px;
+}
+
+/* El prototipo trae paleta oscura por preferencia del sistema y por
+   data-theme. Se conserva igual: mismos nombres, mismos valores. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --ivory: #221C1E;
+    --paper: #2B2426;
+    --linen: #332B2D;
+    --tape: #4A3F42;
+    --ink: #F4EDE4;
+    --ink-soft: #C3B5B8;
+    --ink-faint: #9A8C90;
+    --brass: #D9B378;
+    --brass-soft: #4A3B29;
+    --sage: #A8B79A;
+    --sage-soft: #333B2E;
+    --clay: #D9987E;
+    --clay-soft: #43302A;
+  }
+}
+
+:root[data-theme='dark'] {
+  --ivory: #221C1E;
+  --paper: #2B2426;
+  --linen: #332B2D;
+  --tape: #4A3F42;
+  --ink: #F4EDE4;
+  --ink-soft: #C3B5B8;
+  --ink-faint: #9A8C90;
+  --brass: #D9B378;
+  --brass-soft: #4A3B29;
+  --sage: #A8B79A;
+  --sage-soft: #333B2E;
+  --clay: #D9987E;
+  --clay-soft: #43302A;
+}
+
+/* Las hojas impresas son siempre negro sobre blanco, sin importar el tema. */
+@media print {
+  :root {
+    --ink: #000;
+    --paper: #fff;
+    --ivory: #fff;
+  }
 }

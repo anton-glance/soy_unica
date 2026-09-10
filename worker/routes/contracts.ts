@@ -52,6 +52,7 @@ export async function contractDetail(db: D1Database, store: string, contract: Co
     db, `SELECT id, kind, created_at FROM files WHERE contract_id = ? ORDER BY created_at`, contract.id)
   const item = await one<{ id: number; code: string; name: string; color: string | null; status: string; ready_notified_at: string | null; price_cents: number }>(
     db, `SELECT id, code, name, color, status, ready_notified_at, price_cents FROM items WHERE contract_id = ?`, contract.id)
+  const seller = await one<{ name: string }>(db, `SELECT name FROM users WHERE id = ?`, contract.seller_id)
   const storeRow = await one<{ name: string; address: string; hotel_daily_cents: number; hotel_free_days: number; late_fee_pct: number }>(
     db, `SELECT name, address, hotel_daily_cents, hotel_free_days, late_fee_pct FROM stores WHERE id = ?`, store)
 
@@ -65,7 +66,7 @@ export async function contractDetail(db: D1Database, store: string, contract: Co
     today,
   })
 
-  return { contract, customer, lines, installments, payments, documents, item, ledger, hotel, late_fee, store: storeRow }
+  return { contract, customer, lines, installments, payments, documents, item, ledger, hotel, late_fee, store: storeRow, seller }
 }
 
 app.get('/:folio', async (c) => {

@@ -8,50 +8,78 @@ INSERT INTO stores (
   id, name, address, phone, timezone, min_days_before_wedding, contract_template
 ) VALUES
   ('mty', 'Soy Única Novias · Monterrey',
-   'Porfirio Díaz 107, Centro, 66400 San Nicolás de los Garza, N.L.',
+   'Porfirio Diaz 107, Centro,66400 San Nicolas de los Garza, N.L.',
    '', 'America/Monterrey', 15,
-   -- ⚠ PLANTILLA PROVISIONAL. El texto definitivo es el del contrato real de
-   -- la tienda (docs/contrato_de_novia_nov_2024.docx), palabra por palabra.
-   -- Se reemplaza desde Ajustes → Plantilla del contrato, sin tocar código.
-   'CONTRATO DE COMPRAVENTA DE VESTIDO DE NOVIA
+   -- El contrato real de la tienda (docs/contrato_de_novia_nov_2024.docx),
+   -- palabra por palabra, con cada blanco que el sistema sí conoce vuelto
+   -- marcador. Los blancos que quedan con rayas (el plazo de entrega y los
+   -- días para tomar medidas) se llenan a mano: el sistema no guarda esos
+   -- datos y no se van a inventar. La dueña lo edita en Ajustes.
+   'Contrato de compra de vestido de novia
 
-{{store}}
-{{address}}
-Folio: {{folio}}                         Fecha: {{date}}
+1. Objeto de contrato.
 
-DATOS DE LA CLIENTA
-Nombre: {{bride_name}} {{apellido}}
-Teléfono: {{phone}}
-Fecha del evento: {{wedding_date}}
+El cliente “Novia” {{bride_name}} {{apellido}} Pago anticipo de vestido de novia de cantidad {{anticipo}} precio {{total}} modelo {{dress}} {{code}} color {{color}} material 100 % poliester Accesorios {{accessories}}
 
-VESTIDO
-Modelo: {{dress}}          Código: {{code}}          Color: {{color}}
+Fecha de evento {{wedding_date}} Numero de Tel. {{phone}}
 
-ACCESORIOS
-{{accessories}}
+Sistemas de pago
 
-CONDICIONES DE PAGO
-Plan contratado: {{plan_name}}
-Total: {{total}}
-Anticipo: {{anticipo}}
+a)50% (apartado) y 50% (cuando vestido esta listo). B) 40% ( apartado)-30% - 30% (cada mes) C)20% 5 meses.   el vestido se realiza con 40% precio de vestido
 
-CALENDARIO DE PAGOS
+2. Pagos.
+
+El Cliente es responsable de realizar los pagos al tiempo acuerdo del grafico de pagos:
+
+Día de pago cada mes de cantidad, plan {{plan_name}}:
+
 {{schedule_table}}
 
-La clienta manifiesta haber revisado el vestido y estar de acuerdo con las
-medidas asentadas en la hoja de medidas firmada por ambas partes, que forma
-parte de este contrato.
+En caso de que El Cliente NO realiza el pago pago a tiempo y no tiene otro acuerdo con “Soy única”: se quita el descuento o promoción o se aplica 5% más de precio del vestido por el mes
 
-Los anticipos no son reembolsables. El vestido se entrega una vez liquidado el
-total. Pasados los días de gracia desde el aviso de que el vestido está listo,
-se cobrará hotel de vestido por día. En caso de atraso en los pagos se pierde
-el descuento promocional o se cobra el recargo mensual pactado, a criterio de
-la tienda.
+3. Tiempo de entrega
 
+“Soy única” es responsable de entregar el vestido de novia al Cliente en un plazo desde ______ a ______ días.
 
-_______________________              _______________________
-   {{bride_name}} {{apellido}}              Por {{store}}
-        La clienta                            La tienda'),
+Tiempo se cuenta desde la fecha de toma de medidas.
+
+La entrega se realiza cuando el Cliente   liquidó el vestido total 100%.
+
+El Cliente debe de recoger su vestido durante 10 días después del aviso que el vestido está listo para su entrega. En caso de que el cliente no recogió su vestido durante 10 días desde 11vo día se aplica cobro “Hotel de vestido” 30 mxn por día con fecha  límite hasta día del  evento de la novia , después de esta fecha soy única no es responsable de resguardar el vestido  (si no tiene otro acuerdo con “ soy única “.
+
+En caso de que la novia quiere pagar hotel de vestido este se paga por adelantado .
+
+Después de entrega de vestido a La novia “Soy Única” no responsable de vestido.  El vestido se entrega vaporizado si la novia requiere 2da vaporización se cobra extra.
+
+4. Devoluciones.
+
+“Soy única” no acepta devoluciones de anticipos de cualquier artículo.
+
+5. Cambios.
+
+“Soy única” no acepta cambios de los accesorios separados.
+
+El Cliente puede realizar cambio del modelo antes de tomar medidas en un precio mayor de vestido punto 1
+
+En caso de que el cliente separo vestido de existencia no se aplica cambio.
+
+En caso de que el Cliente cambio de fecha de evento más de 6 meses y el vestido no está realizado se actualizará el precio del dia de medidas (se aplica promociones del día de separación del vestido).
+
+6. Medidas. “Soy única” toma de medidas del Cliente para realizar pedido de vestido antes de ______ dias. “Soy Unica”:
+
+no es responsable: en caso de que el Cliente no llego para tomar medidas, no se hace responsable de cambios de medidas de novia desde la fecha que se tomaron las medidas.
+
+7. Ajustes “Soy única” se hace responsable del primer ajuste para que el vestido ajuste perfecto a las medidas tomados y el diseño de vestido. En caso de que novia cambio de medidas (ajuste se puede realizar con costo extra).  La altura de piso al vestido esta considerada de 1,5 ,2 cm acuerdo del estandarte. Ajustes se realizan durante 40 días. Ajustes no incluye en de liquidación.
+
+8. Pruebas. “Soy Única” es responsable de avisar al Cliente de que su vestido está listo y durante 10 dias la novia viene a prueba de vestido. (cita de prueba dura 30- 40 mns).
+
+9. Pagos Extra.
+
+Ajustes extra (en caso de que la novia quiera modificar el vestido o ajustes que no incluye).Ajustes bastilla de $500-$2000,mangas$300-$500,hombros$500-$1000,2do planchado Vestido sin cola $400,cola 1metro $600,cola mas de 1 metro $800,Mantilla corta $200,larga$400,5mts $600, coser cinto $250
+
+Apartir de la talla 16 (medidas 104-86-112) se cobra extra $1400, Marca lanesta  envio extra $3000,Marca kira nova, armonía, annie victor envio extra $1500 mxn. Marca lanesta, armonía, kiranova, annie victor a partir de talla 44-46 (100-80-108 se cobra 8% del precio del vestido. crinolina$500-1200mxn. Porta traje 100mxn
+
+Yo {{bride_name}} {{apellido}} con mi firma _________ acepto condiciones del contrato. Fecha {{date}}'),
 
   ('cdmx', 'Soy Única Novias · CDMX', '', '', 'America/Mexico_City', 15, '');
 
@@ -107,10 +135,8 @@ SELECT 'cdmx', name, kind, applies_to, amount_cents, pct, sort FROM surcharges W
 
 -- ────────────────────────────────────────────── categorías de gasto ───────
 INSERT INTO expense_categories (store_id, name, sort) VALUES
-  ('mty', 'Renta', 1), ('mty', 'Luz', 2), ('mty', 'Agua', 3), ('mty', 'Internet y teléfono', 4),
-  ('mty', 'Costura y ajustes', 5), ('mty', 'Tintorería', 6), ('mty', 'Limpieza', 7),
-  ('mty', 'Papelería', 8), ('mty', 'Publicidad', 9), ('mty', 'Sueldos', 10),
-  ('mty', 'Mercancía', 11), ('mty', 'Envíos', 12), ('mty', 'Mantenimiento', 13), ('mty', 'Otro', 99);
+  ('mty', 'Renta', 1), ('mty', 'Nómina', 2), ('mty', 'Publicidad', 3), ('mty', 'Servicios', 4),
+  ('mty', 'Insumos', 5), ('mty', 'Costurera', 6), ('mty', 'Otro', 7);
 
 INSERT INTO expense_categories (store_id, name, sort)
 SELECT 'cdmx', name, sort FROM expense_categories WHERE store_id = 'mty';

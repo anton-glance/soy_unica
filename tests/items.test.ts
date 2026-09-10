@@ -50,7 +50,7 @@ describe('tabla de transiciones del inventario', () => {
   it('explica en español a qué estado no se puede pasar', () => {
     const verdict = canTransition(item({ status: 'sold' }), 'hold')
     expect(verdict.ok).toBe(false)
-    if (!verdict.ok) expect(verdict.message).toBe('No se puede pasar de «Entregado» a «En prueba».')
+    if (!verdict.ok) expect(verdict.message).toBe('No se puede pasar de «Vendido» a «Viendo ahora».')
   })
 })
 

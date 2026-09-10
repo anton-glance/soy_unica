@@ -156,8 +156,27 @@ subirse.
 
 ---
 
+## El sistema de diseño
+
+`src/styles/tokens.css` está extraído literalmente de `docs/prototype.html`, el
+prototipo aprobado, con sus mismos nombres de token y su paleta clara y oscura.
+`src/styles/base.css` es su capa de componentes, con sus mismas clases, para que
+el marcado de la aplicación y el del prototipo se lean igual. Las dos
+tipografías del prototipo —Jost y Prata— van empaquetadas en
+`src/assets/fonts/`: la tienda se ve igual aunque se caiga el internet del
+local.
+
+Si el prototipo cambia, `tokens.css` es lo único que se vuelve a extraer.
+
+Las dos hojas impresas salen de los documentos reales: la de medidas reproduce
+`docs/medidas_soy_unica_mty.docx` con sus tres bloques de firma, y el contrato
+es `docs/contrato_de_novia_nov_2024.docx` palabra por palabra, guardado en
+`stores.contract_template` y editable en Ajustes. Cada copia cabe en una página,
+porque el contrato se imprime al reverso de las mismas dos hojas de medidas.
+
 ## Lo que falta
 
-`docs/NEXT.md` lleva la lista de lo que se dejó fuera a propósito en este paso y
-de las tres piezas que están puestas de forma provisional en espera de los
-documentos de origen.
+`docs/NEXT.md` lleva la lista de lo que se dejó fuera a propósito en este paso,
+lo que el prototipo dibuja y todavía no existe, y un desajuste que vale la pena
+revisar: los planes de pago sembrados no son los tres que nombra el contrato
+real.

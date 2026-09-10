@@ -6,6 +6,7 @@ type Store = 'mty' | 'cdmx'
 type Role = 'owner' | 'seller'
 
 const STORE_LABEL: Record<Store, string> = { mty: 'Monterrey', cdmx: 'CDMX' }
+const STORE_SUB: Record<Store, string> = { mty: 'San Nicolás', cdmx: 'Ciudad de México' }
 const ROLE_LABEL: Record<Role, string> = { owner: 'Dueña', seller: 'Vendedora' }
 
 /**
@@ -19,11 +20,11 @@ export function Entry() {
 
   if (!store) {
     return (
-      <div className="fullscreen">
+      <div className="entry">
         <h1>Selecciona la sucursal</h1>
-        <div className="fullscreen__choices">
+        <div className="entry__choices">
           {(['mty', 'cdmx'] as Store[]).map((id) => (
-            <button key={id} type="button" className="btn btn--primary" onClick={() => setStore(id)}>
+            <button key={id} type="button" className="btn-main" onClick={() => setStore(id)}>
               {STORE_LABEL[id]}
             </button>
           ))}
@@ -34,16 +35,17 @@ export function Entry() {
 
   if (!role) {
     return (
-      <div className="fullscreen">
+      <div className="entry">
         <h1>Selecciona tu rol</h1>
-        <div className="fullscreen__choices">
+        <p className="lede">{STORE_LABEL[store]} · {STORE_SUB[store]}</p>
+        <div className="entry__choices">
           {(['owner', 'seller'] as Role[]).map((id) => (
-            <button key={id} type="button" className="btn btn--primary" onClick={() => setRole(id)}>
+            <button key={id} type="button" className="btn-main" onClick={() => setRole(id)}>
               {ROLE_LABEL[id]}
             </button>
           ))}
         </div>
-        <button type="button" className="btn btn--ghost" onClick={() => setStore(null)}>Regresar</button>
+        <button type="button" className="btn-quiet" onClick={() => setStore(null)}>Regresar</button>
       </div>
     )
   }
@@ -51,6 +53,7 @@ export function Entry() {
   return <PinPad store={store} role={role} onBack={() => setRole(null)} onSuccess={refresh} />
 }
 
+/** El teclado del prototipo: tres columnas, teclas de 72 px, puntos arriba. */
 function PinPad({ store, role, onBack, onSuccess }: { store: Store; role: Role; onBack: () => void; onSuccess: () => Promise<void> }) {
   const [pin, setPin] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -63,7 +66,7 @@ function PinPad({ store, role, onBack, onSuccess }: { store: Store; role: Role; 
 
   async function submit() {
     if (pin.length < 4) {
-      setError('El NIP son de 4 a 6 dígitos.')
+      setError('Escribe tu NIP de 4 a 6 dígitos.')
       return
     }
     setBusy(true)
@@ -81,36 +84,25 @@ function PinPad({ store, role, onBack, onSuccess }: { store: Store; role: Role; 
   }
 
   return (
-    <div className="fullscreen">
-      <h1>{ROLE_LABEL[role]} · {STORE_LABEL[store]}</h1>
-      <p className="muted">Marca tu NIP</p>
+    <div className="entry">
+      <h1>{ROLE_LABEL[role]}</h1>
+      <p className="lede">{STORE_LABEL[store]} · marca tu NIP</p>
 
-      <div className="row" aria-hidden="true" style={{ gap: 'var(--space-3)' }}>
-        {Array.from({ length: 6 }, (_, i) => (
-          <span
-            key={i}
-            style={{
-              width: 18, height: 18, borderRadius: '50%',
-              border: '2px solid var(--color-line-strong)',
-              background: i < pin.length ? 'var(--color-accent)' : 'transparent',
-            }}
-          />
-        ))}
+      <div className="entry__pin">
+        <div className="pindots" aria-hidden="true">{'•'.repeat(pin.length)}</div>
+        <p className="err" role="alert">{error ?? ''}</p>
+        <div className="pinpad">
+          {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((digit) => (
+            <button key={digit} type="button" onClick={() => press(digit)}>{digit}</button>
+          ))}
+          <button type="button" onClick={() => setPin((p) => p.slice(0, -1))}>borrar</button>
+          <button type="button" onClick={() => press('0')}>0</button>
+          <button type="button" onClick={submit} disabled={busy} aria-label="Entrar">
+            {busy ? <span className="spinner" aria-hidden="true" /> : '✓'}
+          </button>
+        </div>
+        <button type="button" className="btn-quiet" style={{ width: '100%' }} onClick={onBack}>Regresar</button>
       </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, var(--tap-bride))', gap: 'var(--space-4)' }}>
-        {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((digit) => (
-          <button key={digit} type="button" className="btn btn--bride" onClick={() => press(digit)}>{digit}</button>
-        ))}
-        <button type="button" className="btn btn--bride" onClick={() => setPin((p) => p.slice(0, -1))} aria-label="Borrar">←</button>
-        <button type="button" className="btn btn--bride" onClick={() => press('0')}>0</button>
-        <button type="button" className="btn btn--bride btn--primary" onClick={submit} disabled={busy} aria-label="Entrar">
-          {busy ? <span className="spinner" aria-hidden="true" /> : '→'}
-        </button>
-      </div>
-
-      {error && <p className="notice notice--error" role="alert">{error}</p>}
-      <button type="button" className="btn btn--ghost" onClick={onBack}>Regresar</button>
     </div>
   )
 }

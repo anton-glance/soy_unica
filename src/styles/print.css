@@ -1,66 +1,82 @@
-/* Impresión: Carta vertical, negro sobre blanco, sin encabezados del navegador. */
+/*
+ * Impresión: Carta vertical, negro sobre blanco, sin encabezados del
+ * navegador. Los márgenes son los del documento original de la tienda
+ * (docs/medidas_soy_unica_mty.docx): 1.63in arriba, 1.18in a los lados,
+ * 0.98in abajo. Aquí se aprieta el superior porque el membrete de la hoja
+ * ocupa ese espacio en lugar del encabezado de Word.
+ */
 
 @page {
   size: letter portrait;
-  margin: 12mm;
+  margin: 12mm 0 14mm;
 }
 
 .print-sheet {
   width: 216mm;
   min-height: 279mm;
   margin: 0 auto;
-  padding: 12mm;
+  padding: 12mm 30mm 14mm;
   background: #fff;
   color: #000;
-  font-family: var(--font-sans);
-  font-size: 10pt;
-  line-height: 1.35;
+  font-family: var(--font-ui);
+  font-weight: var(--weight-regular);
+  font-size: 11pt;
+  line-height: 1.4;
+  position: relative;
 }
 
-.print-folio {
-  position: absolute;
-  top: 0;
-  right: 0;
-  font-size: 18pt;
-  font-weight: var(--weight-bold);
-  letter-spacing: 0.02em;
-}
+/* Membrete: el logo y la dirección del encabezado del documento original. */
+.print-letterhead { display: flex; align-items: center; justify-content: space-between; gap: 8mm; margin-bottom: 4mm; }
+.print-letterhead img { height: 13mm; width: auto; }
+.print-letterhead address { font-style: normal; font-size: 8.5pt; text-align: right; }
 
-.print-head { position: relative; padding-bottom: 6mm; border-bottom: 1.5pt solid #000; margin-bottom: 6mm; }
-.print-title { font-family: var(--font-display); font-size: 16pt; margin: 0 0 2mm; }
-.print-sub { font-size: 9pt; }
+/* El folio va arriba a la derecha en 18 pt, en todas las hojas. */
+.print-folio { font-size: 18pt; font-weight: var(--weight-medium); letter-spacing: .02em; white-space: nowrap; }
 
-.print-section { margin-bottom: 6mm; break-inside: avoid; }
-.print-section__title {
-  font-size: 10pt;
-  font-weight: var(--weight-bold);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  border-bottom: 0.75pt solid #000;
-  padding-bottom: 1mm;
-  margin-bottom: 3mm;
-}
+.print-rule { border: 0; border-top: 1pt solid #000; margin: 0 0 4mm; }
+.print-title { font-family: var(--font-display); font-size: 15pt; text-align: center; margin: 0 0 4mm; }
 
-.print-grid { display: grid; gap: 3mm 6mm; }
-.print-grid--2 { grid-template-columns: repeat(2, 1fr); }
-.print-grid--3 { grid-template-columns: repeat(3, 1fr); }
-.print-grid--4 { grid-template-columns: repeat(4, 1fr); }
+/* Campos en línea con raya para escribir a mano, como el formato original. */
+.print-fields { display: flex; flex-wrap: wrap; gap: 2mm 3.5mm; align-items: baseline; }
+.print-field { display: inline-flex; align-items: baseline; gap: 1.5mm; flex: 0 1 auto; }
+.print-field__label { font-size: 9pt; white-space: nowrap; }
+.print-field__rule { border-bottom: .75pt solid #000; min-width: 22mm; min-height: 4.5mm; }
+.print-field__rule--wide { min-width: 46mm; }
+/* Los datos de la novia van impresos; las medidas siempre en blanco. */
+.print-field__rule--filled { font-size: 10pt; padding: 0 1mm; white-space: nowrap; }
 
-/* Campo con raya para escribir a mano. Nunca se captura una medida al sistema. */
-.print-line { display: flex; align-items: baseline; gap: 2mm; }
-.print-line__label { font-size: 8.5pt; white-space: nowrap; }
-.print-line__rule { flex: 1; border-bottom: 0.75pt solid #000; min-height: 5mm; }
-.print-line__value { flex: 1; border-bottom: 0.75pt solid #000; min-height: 5mm; font-weight: var(--weight-medium); }
+.print-diagram { float: right; width: 42mm; margin: 0 0 3mm 5mm; }
+.print-diagram img { width: 100%; display: block; }
 
-.print-body { white-space: pre-wrap; font-size: 9.5pt; }
+.print-block { margin-top: 3mm; break-inside: avoid; }
+.print-para { font-size: 9pt; text-align: justify; margin: 0 0 2.5mm; }
 
-.print-signatures { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10mm; margin-top: 8mm; break-inside: avoid; }
-.print-signature { text-align: center; }
-.print-signature__rule { border-top: 0.75pt solid #000; margin-top: 14mm; padding-top: 1.5mm; font-size: 8.5pt; }
+.print-sign { margin-top: 5mm; break-inside: avoid; }
+.print-sign__rule { width: 70mm; border-top: .75pt solid #000; padding-top: 1.5mm; font-size: 8.5pt; }
+.print-sign__inline { display: inline-flex; align-items: baseline; gap: 2mm; }
+.print-sign__inline .print-field__rule { min-width: 50mm; }
 
-.print-note { font-size: 8pt; margin-top: 2mm; }
+.print-list { margin: 0; padding: 0; list-style: none; }
+.print-list li { display: flex; align-items: baseline; gap: 2mm; margin-bottom: 2.5mm; }
+.print-list li span:first-child { font-size: 9.5pt; }
 
-.print-toolbar { padding: var(--space-4); display: flex; gap: var(--space-3); justify-content: center; }
+.print-body { font-size: 9.5pt; line-height: 1.45; text-align: justify; }
+.print-body p { margin: 0 0 2mm; }
+
+/*
+ * El contrato se imprime al reverso de las dos hojas de medidas, así que cada
+ * copia tiene que caber en una sola página. Son las condiciones completas del
+ * contrato de la tienda, palabra por palabra, en la caja más apretada que
+ * sigue siendo legible.
+ */
+.print-sheet--contract { padding: 10mm 16mm 12mm; }
+.print-sheet--contract .print-body { font-size: 8.5pt; line-height: 1.3; }
+.print-sheet--contract .print-body p { margin: 0 0 1.6mm; }
+.print-sheet--contract .print-letterhead { margin-bottom: 2.5mm; }
+.print-sheet--contract .print-letterhead img { height: 10mm; }
+.print-sheet--contract .print-rule { margin-bottom: 2.5mm; }
+
+.print-toolbar { display: flex; gap: var(--space-6); justify-content: center; align-items: center; flex-wrap: wrap; padding: var(--space-9) var(--gutter); }
 
 @media print {
   .print-toolbar { display: none !important; }
@@ -70,5 +86,5 @@
 }
 
 @media screen {
-  .print-sheet { box-shadow: var(--shadow-2); margin-block: var(--space-5); }
+  .print-sheet { box-shadow: 0 6px 20px rgba(43, 35, 32, .18); margin-block: var(--space-9); }
 }

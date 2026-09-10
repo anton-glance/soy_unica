@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { get, patch, post } from '../lib/api'
 import { bytes, money, parseMoney } from '../lib/format'
 import { ActionButton } from '../components/ActionButton'
-import { Field, Select, TextArea, TextInput } from '../components/Field'
+import { Field } from '../components/Field'
 
 interface Store {
   id: string; name: string; address: string; phone: string; report_email: string | null
@@ -37,6 +37,7 @@ export function Settings() {
       const [settings, store] = await Promise.all([get<SettingsData>('/settings'), get<Storage>('/storage')])
       setData(settings.data)
       setStorage(store.data)
+      setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudieron cargar los ajustes.')
     }
@@ -44,12 +45,14 @@ export function Settings() {
 
   useEffect(() => { void load() }, [load])
 
-  if (error) return <div className="page"><p className="notice notice--error">{error}</p></div>
-  if (!data) return <div className="page"><span className="spinner" aria-hidden="true" /></div>
+  if (error) return <div className="wrap"><p className="err">{error}</p></div>
+  if (!data) return <div className="wrap"><span className="spinner" aria-hidden="true" /></div>
 
   return (
-    <div className="page stack">
-      <h1>Ajustes</h1>
+    <div className="wrap">
+      <h2>Ajustes</h2>
+      <p className="lede">Todo lo que se cambia aquí queda registrado en la bitácora: quién, qué y cuándo.</p>
+
       <StorageCard storage={storage} />
       <Pins users={data.users} />
       <StoreRules store={data.store} onSaved={load} />
@@ -60,65 +63,74 @@ export function Settings() {
   )
 }
 
+/** Los tipos de archivo, en español, como se llaman en la tienda. */
+const KIND_ES: Record<string, string> = {
+  item_photo: 'Fotos de vestidos', receipt: 'Comprobantes de pago', expense: 'Comprobantes de gasto',
+  measurement_sheet: 'Hojas de medidas', contract: 'Contratos', adjustments: 'Ajustes', delivery: 'Entregas',
+}
+
 function StorageCard({ storage }: { storage: Storage | null }) {
   if (!storage) return null
   const pct = Math.min(100, (storage.used_bytes / storage.quota_bytes) * 100)
   return (
-    <section className="card stack">
-      <h2>Almacenamiento</h2>
+    <div className="panel">
+      <h3 style={{ marginBottom: 'var(--space-6)' }}>Almacenamiento</h3>
       <p style={{ fontSize: 'var(--text-lg)' }}>
-        <strong className="numeric">{bytes(storage.used_bytes)}</strong> de {bytes(storage.quota_bytes)}
-        {storage.full_on !== null && <> · a este ritmo se llena en {storage.full_on}</>}
-        {storage.full_on === null && <> · todavía no hay suficiente historia para estimar cuándo se llena</>}
+        <b className="mono" style={{ fontWeight: 'var(--weight-medium)' }}>{bytes(storage.used_bytes)}</b> de {bytes(storage.quota_bytes)}
+        {storage.full_on !== null
+          ? <> · a este ritmo se llena en {storage.full_on}</>
+          : <> · todavía no hay suficiente historia para estimar cuándo se llena</>}
       </p>
-      <div style={{ height: 10, borderRadius: 'var(--radius-pill)', background: 'var(--color-surface-sunken)' }}>
-        <div style={{ width: `${pct}%`, height: '100%', borderRadius: 'var(--radius-pill)', background: 'var(--color-accent)' }} />
+      <div style={{ height: 10, borderRadius: 'var(--radius-pill)', background: 'var(--linen)', margin: 'var(--space-6) 0' }}>
+        <div style={{ width: `${pct}%`, height: '100%', borderRadius: 'var(--radius-pill)', background: 'var(--brass)' }} />
       </div>
-      <div className="row row--wrap">
+      <div className="row">
         {storage.by_kind.map((k) => (
-          <span key={k.kind} className="chip">{k.kind}: {bytes(k.bytes)} ({k.files})</span>
+          <span key={k.kind} className="bdg mute">{KIND_ES[k.kind] ?? k.kind}: {bytes(k.bytes)} · {k.files}</span>
         ))}
+        {storage.by_kind.length === 0 && <span className="muted">Todavía no hay fotos guardadas.</span>}
       </div>
-    </section>
+    </div>
   )
-}
-
-/** El nombre sembrado puede coincidir con el rol; no se repite. */
-function roleLabel(user: { name: string; role: string }): string {
-  const role = user.role === 'owner' ? 'Dueña' : 'Vendedora'
-  return user.name === role ? role : `${user.name} · ${role}`
 }
 
 function Pins({ users }: { users: SettingsData['users'] }) {
   const [pins, setPins] = useState<Record<number, string>>({})
+  const roleLabel = (u: { name: string; role: string }) => {
+    const role = u.role === 'owner' ? 'Dueña' : 'Vendedora'
+    return u.name === role ? role : `${u.name} · ${role}`
+  }
   return (
-    <section className="card stack">
-      <h2>NIP</h2>
-      <p className="muted">De 4 a 6 dígitos. El NIP nunca se guarda ni se registra en claro.</p>
+    <div className="panel">
+      <h3 style={{ marginBottom: 'var(--space-6)' }}>NIP</h3>
+      <p className="lede">De 4 a 6 dígitos. El NIP nunca se guarda ni se registra en claro.</p>
       {users.map((user) => (
-        <div key={user.id} className="row row--wrap">
-          <span style={{ minWidth: 160 }}>{roleLabel(user)}</span>
-          <TextInput
-            type="password"
-            inputMode="numeric"
-            placeholder="Nuevo NIP"
-            value={pins[user.id] ?? ''}
-            onChange={(e) => setPins((p) => ({ ...p, [user.id]: e.target.value }))}
-            style={{ maxWidth: 200 }}
-          />
+        <div key={user.id} className="inv-bar" style={{ alignItems: 'center', marginBottom: 'var(--space-5)' }}>
+          <div style={{ minWidth: 190 }}>{roleLabel(user)}</div>
+          <div className="field" style={{ minWidth: 200 }}>
+            <input
+              type="password"
+              inputMode="numeric"
+              placeholder="Nuevo NIP"
+              value={pins[user.id] ?? ''}
+              onChange={(e) => setPins((p) => ({ ...p, [user.id]: e.target.value }))}
+              aria-label={`Nuevo NIP de ${user.name}`}
+            />
+          </div>
           <ActionButton
+            className="btn-quiet"
             disabled={!/^\d{4,6}$/.test(pins[user.id] ?? '')}
+            done="NIP cambiado"
             onAction={async () => {
               await patch(`/settings/users/${user.id}/pin`, { pin: pins[user.id] })
               setPins((p) => ({ ...p, [user.id]: '' }))
             }}
-            done="NIP cambiado"
           >
             Cambiar
           </ActionButton>
         </div>
       ))}
-    </section>
+    </div>
   )
 }
 
@@ -133,28 +145,34 @@ function StoreRules({ store, onSaved }: { store: Store; onSaved: () => Promise<v
     late_fee_pct: String(store.late_fee_pct),
     kiosk_show_prices: store.kiosk_show_prices === 1,
   })
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm({ ...form, [k]: e.target.value })
 
   return (
-    <section className="card stack">
-      <h2>Reglas de la tienda</h2>
-      <Field label="Nombre"><TextInput value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
-      <Field label="Dirección"><TextInput value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></Field>
-      <Field label="Correo para reportes"><TextInput value={form.report_email} onChange={(e) => setForm({ ...form, report_email: e.target.value })} /></Field>
-      <Field label="Días mínimos entre la última parcialidad y la boda">
-        <TextInput inputMode="numeric" value={form.min_days_before_wedding} onChange={(e) => setForm({ ...form, min_days_before_wedding: e.target.value })} />
-      </Field>
-      <Field label="Hotel de vestido por día">
-        <TextInput inputMode="decimal" value={form.hotel_daily} onChange={(e) => setForm({ ...form, hotel_daily: e.target.value })} />
-      </Field>
-      <Field label="Días libres antes de cobrar hotel">
-        <TextInput inputMode="numeric" value={form.hotel_free_days} onChange={(e) => setForm({ ...form, hotel_free_days: e.target.value })} />
-      </Field>
+    <div className="panel">
+      <h3 style={{ marginBottom: 'var(--space-6)' }}>Reglas de la tienda</h3>
+      <div className="two">
+        <Field label="Nombre">{(id) => <input id={id} type="text" value={form.name} onChange={set('name')} />}</Field>
+        <Field label="Correo para reportes">{(id) => <input id={id} type="text" value={form.report_email} onChange={set('report_email')} />}</Field>
+      </div>
+      <Field label="Dirección">{(id) => <input id={id} type="text" value={form.address} onChange={set('address')} />}</Field>
+      <div className="f3">
+        <Field label="Días mínimos entre la última parcialidad y la boda">
+          {(id) => <input id={id} type="text" inputMode="numeric" value={form.min_days_before_wedding} onChange={set('min_days_before_wedding')} />}
+        </Field>
+        <Field label="Hotel de vestido por día">
+          {(id) => <input id={id} type="text" inputMode="decimal" value={form.hotel_daily} onChange={set('hotel_daily')} />}
+        </Field>
+        <Field label="Días libres antes de cobrar hotel">
+          {(id) => <input id={id} type="text" inputMode="numeric" value={form.hotel_free_days} onChange={set('hotel_free_days')} />}
+        </Field>
+      </div>
       <Field label="Recargo por atraso (% mensual)" hint="Se sugiere; nunca se aplica solo.">
-        <TextInput inputMode="decimal" value={form.late_fee_pct} onChange={(e) => setForm({ ...form, late_fee_pct: e.target.value })} />
+        {(id) => <input id={id} type="text" inputMode="decimal" value={form.late_fee_pct} onChange={set('late_fee_pct')} />}
       </Field>
-      <label className="row">
-        <input type="checkbox" checked={form.kiosk_show_prices} onChange={(e) => setForm({ ...form, kiosk_show_prices: e.target.checked })} />
-        <span>Mostrar precios en el kiosko</span>
+      <label className="shot" style={{ marginBottom: 'var(--space-9)' }}>
+        <input type="checkbox" checked={form.kiosk_show_prices} onChange={(e) => setForm({ ...form, kiosk_show_prices: e.target.checked })} style={{ width: 24, height: 24, minHeight: 0 }} />
+        <b>Mostrar precios en el kiosco</b>
       </label>
 
       <ActionButton
@@ -172,7 +190,7 @@ function StoreRules({ store, onSaved }: { store: Store; onSaved: () => Promise<v
       >
         Guardar
       </ActionButton>
-    </section>
+    </div>
   )
 }
 
@@ -187,81 +205,88 @@ function Retention({ store, floors, onSaved }: { store: Store; floors: Record<st
   const [dry, setDry] = useState<{ deletable: { id: string; kind: string; bytes: number }[]; held: { id: string; kind: string; reason: string }[]; deletable_bytes: number } | null>(null)
 
   return (
-    <section className="card stack">
-      <h2>Retención de fotos</h2>
-      <p className="notice notice--warn">
+    <div className="panel">
+      <h3 style={{ marginBottom: 'var(--space-6)' }}>Retención de fotos</h3>
+      <p className="lede">
         Estas fotos son la única prueba de la tienda si una clienta reclama. Antes de acortar
         cualquiera de estos periodos, piensa en cuánto tiempo después de la entrega puede llegar
         una aclaración.
       </p>
 
-      <Field label={`Fotos de vestidos vendidos (meses, mínimo ${floors.retention_sold_photos_months})`}>
-        <TextInput inputMode="numeric" value={form.sold} onChange={(e) => setForm({ ...form, sold: e.target.value })} />
-      </Field>
-      <Field label={`Documentos de clientas (meses, mínimo ${floors.retention_client_docs_months})`}>
-        <TextInput inputMode="numeric" value={form.docs} onChange={(e) => setForm({ ...form, docs: e.target.value })} />
-      </Field>
-      <Field label={`Comprobantes de gasto (meses, mínimo ${floors.retention_expense_photos_months})`}>
-        <TextInput inputMode="numeric" value={form.expense} onChange={(e) => setForm({ ...form, expense: e.target.value })} />
-      </Field>
+      <div className="f3">
+        <Field label={`Fotos de vestidos vendidos (meses, mínimo ${floors.retention_sold_photos_months})`}>
+          {(id) => <input id={id} type="text" inputMode="numeric" value={form.sold} onChange={(e) => setForm({ ...form, sold: e.target.value })} />}
+        </Field>
+        <Field label={`Documentos de clientas (meses, mínimo ${floors.retention_client_docs_months})`}>
+          {(id) => <input id={id} type="text" inputMode="numeric" value={form.docs} onChange={(e) => setForm({ ...form, docs: e.target.value })} />}
+        </Field>
+        <Field label={`Comprobantes de gasto (meses, mínimo ${floors.retention_expense_photos_months})`}>
+          {(id) => <input id={id} type="text" inputMode="numeric" value={form.expense} onChange={(e) => setForm({ ...form, expense: e.target.value })} />}
+        </Field>
+      </div>
 
       <Field label="Destino de archivo">
-        <Select value={form.archive_target} onChange={(e) => setForm({ ...form, archive_target: e.target.value as 'none' | 'gdrive' })}>
-          <option value="none">Ninguno</option>
-          <option value="gdrive">Google Drive</option>
-        </Select>
+        {(id) => (
+          <select id={id} value={form.archive_target} onChange={(e) => setForm({ ...form, archive_target: e.target.value as 'none' | 'gdrive' })}>
+            <option value="none">Ninguno</option>
+            <option value="gdrive">Google Drive</option>
+          </select>
+        )}
       </Field>
-      <label className="row">
-        <input type="checkbox" checked={form.archive_before_delete} onChange={(e) => setForm({ ...form, archive_before_delete: e.target.checked })} />
-        <span>Archivar antes de borrar</span>
+      <label className="shot" style={{ marginBottom: 'var(--space-9)' }}>
+        <input type="checkbox" checked={form.archive_before_delete} onChange={(e) => setForm({ ...form, archive_before_delete: e.target.checked })} style={{ width: 24, height: 24, minHeight: 0 }} />
+        <b>Archivar antes de borrar</b>
       </label>
       {form.archive_before_delete && form.archive_target === 'gdrive' && (
-        <p className="notice notice--warn">
+        <p className="state late" style={{ marginBottom: 'var(--space-9)' }}>
           El archivador de Google Drive todavía no existe: mientras no exista, el borrado por
           retención se va a negar y va a decir por qué. Nada se pierde.
         </p>
       )}
 
-      <ActionButton
-        onAction={async () => {
-          await patch('/settings/store', {
-            retention_sold_photos_months: Number(form.sold),
-            retention_client_docs_months: Number(form.docs),
-            retention_expense_photos_months: Number(form.expense),
-            archive_target: form.archive_target,
-            archive_before_delete: form.archive_before_delete,
-          })
-          await onSaved()
-        }}
-      >
-        Guardar
-      </ActionButton>
-
-      <ActionButton
-        className="btn"
-        onAction={async () => {
-          const { data } = await get<NonNullable<typeof dry>>('/maintenance/retention?dry_run=1')
-          setDry(data)
-        }}
-        done="Revisado"
-      >
-        Revisar qué se borraría
-      </ActionButton>
+      <div className="row">
+        <ActionButton
+          onAction={async () => {
+            await patch('/settings/store', {
+              retention_sold_photos_months: Number(form.sold),
+              retention_client_docs_months: Number(form.docs),
+              retention_expense_photos_months: Number(form.expense),
+              archive_target: form.archive_target,
+              archive_before_delete: form.archive_before_delete,
+            })
+            await onSaved()
+          }}
+        >
+          Guardar
+        </ActionButton>
+        <ActionButton
+          className="btn-quiet"
+          done="Revisado"
+          onAction={async () => {
+            const { data } = await get<NonNullable<typeof dry>>('/maintenance/retention?dry_run=1')
+            setDry(data)
+          }}
+        >
+          Revisar qué se borraría
+        </ActionButton>
+      </div>
 
       {dry && (
-        <div className="stack">
-          <p>
-            Se borrarían <strong>{dry.deletable.length}</strong> archivos ({bytes(dry.deletable_bytes)}).
-            Quedan retenidos <strong>{dry.held.length}</strong>.
-          </p>
+        <div className="hist" style={{ marginTop: 'var(--space-9)' }}>
+          <div>
+            <span>Se borrarían {dry.deletable.length} archivos · quedan retenidos {dry.held.length}</span>
+            <span className="mono">{bytes(dry.deletable_bytes)}</span>
+          </div>
           {dry.held.slice(0, 10).map((f) => (
-            <p key={f.id} className="muted">{f.kind}: {f.reason}</p>
+            <div key={f.id}><span>{f.kind}</span><span className="muted">{f.reason}</span></div>
           ))}
         </div>
       )}
-    </section>
+    </div>
   )
 }
+
+const PLACEHOLDERS = '{{bride_name}} {{apellido}} {{phone}} {{wedding_date}} {{dress}} {{code}} {{color}} {{total}} {{anticipo}} {{plan_name}} {{schedule_table}} {{accessories}} {{store}} {{address}} {{folio}} {{date}}'
 
 function Template({ store, onSaved }: { store: Store; onSaved: () => Promise<void> }) {
   const [template, setTemplate] = useState(store.contract_template)
@@ -277,75 +302,99 @@ function Template({ store, onSaved }: { store: Store; onSaved: () => Promise<voi
   }, [template])
 
   return (
-    <section className="card stack">
-      <h2>Plantilla del contrato</h2>
-      <p className="muted">
-        Marcadores disponibles: {'{{bride_name}} {{apellido}} {{phone}} {{wedding_date}} {{dress}} {{code}} {{color}} {{total}} {{anticipo}} {{plan_name}} {{schedule_table}} {{accessories}} {{store}} {{address}} {{folio}} {{date}}'}
+    <div className="panel">
+      <h3 style={{ marginBottom: 'var(--space-6)' }}>Plantilla del contrato</h3>
+      <p className="lede">
+        Es el contrato de la tienda, palabra por palabra. Marcadores disponibles: {PLACEHOLDERS}
       </p>
-      <TextArea value={template} onChange={(e) => setTemplate(e.target.value)} style={{ minHeight: 320, fontFamily: 'ui-monospace, monospace' }} />
+      <Field label="Texto del contrato">
+        {(id) => (
+          <textarea
+            id={id}
+            value={template}
+            onChange={(e) => setTemplate(e.target.value)}
+            style={{ minHeight: 340, fontFamily: 'ui-monospace, monospace', fontSize: 'var(--text-md)' }}
+          />
+        )}
+      </Field>
       <ActionButton onAction={async () => { await patch('/settings/store', { contract_template: template }); await onSaved() }}>
         Guardar la plantilla
       </ActionButton>
-      <h3>Vista previa</h3>
-      <pre style={{ whiteSpace: 'pre-wrap', background: 'var(--color-surface-sunken)', padding: 'var(--space-4)', borderRadius: 'var(--radius-md)' }}>
+
+      <h3 style={{ margin: 'var(--space-11) 0 var(--space-6)' }}>Vista previa</h3>
+      <pre style={{
+        whiteSpace: 'pre-wrap', background: 'var(--ivory)', border: '1px solid var(--tape)',
+        padding: 'var(--space-9)', borderRadius: 'var(--radius-md)', font: 'inherit', fontSize: 'var(--text-label)',
+        margin: 0, maxHeight: 420, overflow: 'auto',
+      }}>
         {preview}
       </pre>
-    </section>
+    </div>
   )
 }
 
 function Catalogs({ data, onSaved }: { data: SettingsData; onSaved: () => Promise<void> }) {
   return (
     <>
-      <section className="card stack">
-        <h2>Planes de pago</h2>
-        <p className="muted">Son un conjunto fijo. No hay planes a la medida: son imposibles de seguir.</p>
-        {data.plans.map((plan) => (
-          <div key={plan.id} className="row row--between row--wrap">
-            <span>
-              <strong>{plan.name}</strong> · {plan.splits} · {plan.max_months === 0 ? 'liquida al recoger' : `${plan.max_months} meses`}
-              {plan.discount_pct > 0 && <> · {plan.discount_pct}% de descuento</>}
-              {plan.min_price_cents > 0 && <> · desde {money(plan.min_price_cents)}</>}
-            </span>
-            <ActionButton
-              className="btn btn--ghost"
-              onAction={async () => { await patch(`/settings/plans/${plan.id}`, { active: plan.active ? 0 : 1 }); await onSaved() }}
-            >
-              {plan.active ? 'Desactivar' : 'Activar'}
-            </ActionButton>
-          </div>
-        ))}
-      </section>
+      <div className="panel">
+        <h3 style={{ marginBottom: 'var(--space-6)' }}>Planes de pago</h3>
+        <p className="lede">Son un conjunto fijo. No hay planes a la medida: son imposibles de seguir.</p>
+        <div className="hist">
+          {data.plans.map((plan) => (
+            <div key={plan.id} style={{ opacity: plan.active ? 1 : .5 }}>
+              <span>
+                <b style={{ fontWeight: 'var(--weight-regular)' }}>{plan.name}</b> · {plan.splits} ·{' '}
+                {plan.max_months === 0 ? 'liquida al recoger' : `${plan.max_months} meses`}
+                {plan.discount_pct > 0 && ` · ${plan.discount_pct}% de descuento`}
+                {plan.min_price_cents > 0 && ` · desde ${money(plan.min_price_cents)}`}
+              </span>
+              <ActionButton
+                className="btn-quiet"
+                onAction={async () => { await patch(`/settings/plans/${plan.id}`, { active: plan.active ? 0 : 1 }); await onSaved() }}
+              >
+                {plan.active ? 'Desactivar' : 'Activar'}
+              </ActionButton>
+            </div>
+          ))}
+        </div>
+      </div>
 
-      <section className="card stack">
-        <h2>Cargos</h2>
-        {data.surcharges.map((s) => (
-          <div key={s.id} className="row row--between row--wrap" style={{ opacity: s.active ? 1 : 0.5 }}>
-            <span>{s.name} · {s.pct > 0 ? `${s.pct}%` : money(s.amount_cents)}</span>
-            <ActionButton
-              className="btn btn--ghost"
-              onAction={async () => { await patch(`/settings/surcharges/${s.id}`, { active: s.active ? 0 : 1 }); await onSaved() }}
-            >
-              {s.active ? 'Desactivar' : 'Activar'}
-            </ActionButton>
-          </div>
-        ))}
-      </section>
+      <div className="panel">
+        <h3 style={{ marginBottom: 'var(--space-6)' }}>Cargos</h3>
+        <div className="hist">
+          {data.surcharges.map((s) => (
+            <div key={s.id} style={{ opacity: s.active ? 1 : .5 }}>
+              <span>{s.name}</span>
+              <span className="row" style={{ alignItems: 'center' }}>
+                <span className="mono">{s.pct > 0 ? `${s.pct}%` : money(s.amount_cents)}</span>
+                <ActionButton
+                  className="btn-quiet"
+                  onAction={async () => { await patch(`/settings/surcharges/${s.id}`, { active: s.active ? 0 : 1 }); await onSaved() }}
+                >
+                  {s.active ? 'Desactivar' : 'Activar'}
+                </ActionButton>
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
 
-      <section className="card stack">
-        <h2>Comisiones</h2>
-        {data.commissions.map((c) => (
-          <div key={c.id} className="row row--between row--wrap" style={{ opacity: c.active ? 1 : 0.5 }}>
-            <span>Prioridad {c.priority} · {c.rate_pct}% sobre {c.basis} · {c.period === 'weekly' ? 'semanal' : 'mensual'}</span>
-            <ActionButton
-              className="btn btn--ghost"
-              onAction={async () => { await patch(`/settings/commission_rules/${c.id}`, { active: c.active ? 0 : 1 }); await onSaved() }}
-            >
-              {c.active ? 'Desactivar' : 'Activar'}
-            </ActionButton>
-          </div>
-        ))}
-      </section>
+      <div className="panel">
+        <h3 style={{ marginBottom: 'var(--space-6)' }}>Comisiones</h3>
+        <div className="hist">
+          {data.commissions.map((c) => (
+            <div key={c.id} style={{ opacity: c.active ? 1 : .5 }}>
+              <span>Prioridad {c.priority} · {c.rate_pct}% sobre {c.basis} · {c.period === 'weekly' ? 'semanal' : 'mensual'}</span>
+              <ActionButton
+                className="btn-quiet"
+                onAction={async () => { await patch(`/settings/commission_rules/${c.id}`, { active: c.active ? 0 : 1 }); await onSaved() }}
+              >
+                {c.active ? 'Desactivar' : 'Activar'}
+              </ActionButton>
+            </div>
+          ))}
+        </div>
+      </div>
     </>
   )
 }

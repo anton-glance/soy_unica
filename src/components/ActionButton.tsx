@@ -6,7 +6,7 @@ import { ApiError, OfflineError } from '../lib/api'
  * hecho y error, y el error dice qué hacer, no sólo qué falló.
  */
 export function ActionButton({
-  children, onAction, className = 'btn btn--primary', done = 'Listo', disabled, confirm,
+  children, onAction, className = 'btn-main', done = 'Listo', disabled, confirm,
 }: {
   children: ReactNode
   onAction: () => Promise<unknown>
@@ -37,12 +37,12 @@ export function ActionButton({
   }
 
   return (
-    <span className="stack">
+    <>
       <button type="button" className={className} onClick={click} disabled={disabled || state === 'busy'}>
         {state === 'busy' && <span className="spinner" aria-hidden="true" />}
         {state === 'busy' ? 'Guardando…' : state === 'done' ? done : children}
       </button>
-      {error && <span className="notice notice--error" role="alert">{error}</span>}
-    </span>
+      {error && <p className="err" role="alert">{error}</p>}
+    </>
   )
 }

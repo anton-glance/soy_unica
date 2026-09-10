@@ -3,15 +3,17 @@
  * enteros y fechas 'YYYY-MM-DD'.
  */
 
-const MXN = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' })
+/**
+ * El prototipo escribe $22,800: sin centavos cuando la cifra es redonda, que
+ * es como los lleva la tienda. Los centavos sólo aparecen si de verdad existen,
+ * para no esconder dinero.
+ */
+const MXN = new Intl.NumberFormat('es-MX', {
+  style: 'currency', currency: 'MXN', minimumFractionDigits: 0, maximumFractionDigits: 2,
+})
 
 export function money(cents: number): string {
   return MXN.format(cents / 100)
-}
-
-/** Sin centavos, para las cifras grandes de pantalla. */
-export function moneyShort(cents: number): string {
-  return MXN.format(Math.round(cents / 100)).replace(/[.,]00$/, '')
 }
 
 export function dateMX(date: string | null | undefined): string {

@@ -23,7 +23,7 @@ export function App() {
   if (contrato) return <PrintContrato folio={contrato.folio as string} />
 
   if (loading) {
-    return <div className="fullscreen"><span className="spinner" aria-hidden="true" /><p className="muted">Abriendo…</p></div>
+    return <div className="entry"><span className="spinner" aria-hidden="true" /><p className="lede">Abriendo…</p></div>
   }
   if (!me) return <Entry />
   if (path === '/' || path === '') return <Tiles />
@@ -36,14 +36,18 @@ export function App() {
       : path.startsWith('/ajustes') ? 'Ajustes'
       : ''
 
+  // El kiosco es la pantalla que ve la novia: va a sangre, con su propia
+  // cabecera, igual que en el prototipo. Sin barra ni botón de salir arriba.
+  if (path.startsWith('/sesion')) return <SalesSession />
+
   return (
     <>
       <header className="appbar">
-        <button type="button" className="btn btn--ghost" onClick={() => navigate('/')}>← Inicio</button>
+        <button type="button" className="btn-quiet" onClick={() => navigate('/')}>← Inicio</button>
         <strong>{title}</strong>
-        <button type="button" className="btn btn--ghost" onClick={() => void logout()}>Salir</button>
+        <button type="button" className="btn-quiet" onClick={() => void logout()}>Salir</button>
       </header>
-      <Suspense fallback={<div className="page"><span className="spinner" aria-hidden="true" /></div>}>
+      <Suspense fallback={<div className="wrap"><span className="spinner" aria-hidden="true" /></div>}>
         <Routes path={path} />
       </Suspense>
     </>
@@ -57,9 +61,9 @@ function Routes({ path }: { path: string }) {
   if (path.startsWith('/gastos')) return <Expenses />
   if (path.startsWith('/ajustes')) return <Settings />
   return (
-    <div className="page">
-      <h1>Esa pantalla no existe</h1>
-      <p className="muted">Regresa al inicio y vuelve a entrar por los cuadros.</p>
+    <div className="wrap">
+      <h2>Esa pantalla no existe</h2>
+      <p className="lede">Regresa al inicio y vuelve a entrar por los cuadros.</p>
     </div>
   )
 }

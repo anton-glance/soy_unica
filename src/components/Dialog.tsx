@@ -1,32 +1,32 @@
 import type { ReactNode } from 'react'
 
-/** Diálogo de confirmación: siempre con salida, siempre en español. */
+/** Diálogo del prototipo: velo a pantalla completa con una hoja al centro. */
 export function Dialog({
-  title, children, onCancel, cancelLabel = 'Regresar', actions,
+  title, children, onCancel, cancelLabel = 'Regresar', actions, narrow, full,
 }: {
   title: string
   children?: ReactNode
   onCancel: () => void
   cancelLabel?: string
-  actions: ReactNode
+  actions?: ReactNode
+  narrow?: boolean
+  full?: boolean
 }) {
   return (
     <div
+      className={`veil${full ? ' full' : ''}`}
       role="dialog"
       aria-modal="true"
       aria-label={title}
-      style={{
-        position: 'fixed', inset: 0, background: 'rgba(43,35,32,0.45)',
-        display: 'grid', placeItems: 'center', padding: 'var(--space-5)', zIndex: 50,
-      }}
+      onClick={(e) => { if (e.target === e.currentTarget) onCancel() }}
     >
-      <div className="card stack" style={{ maxWidth: 560, width: '100%', boxShadow: 'var(--shadow-2)' }}>
-        <h2>{title}</h2>
-        {children}
-        <div className="row row--wrap" style={{ justifyContent: 'flex-end' }}>
-          <button type="button" className="btn" onClick={onCancel}>{cancelLabel}</button>
-          {actions}
+      <div className={`sheet${narrow ? ' sheet-narrow' : ''}`}>
+        <div className="inv-head">
+          <h2>{title}</h2>
+          <button type="button" className="btn-quiet" onClick={onCancel}>{cancelLabel}</button>
         </div>
+        {children}
+        {actions && <div className="row" style={{ marginTop: 'var(--space-11)' }}>{actions}</div>}
       </div>
     </div>
   )

@@ -63,14 +63,15 @@ export function deriveStatus(item: ItemLike, balanceCents: number): ItemStatus {
   return item.tailoring_done_at !== null && balanceCents === 0 ? 'ready' : 'tailored'
 }
 
+/** Las etiquetas del prototipo aprobado; son las mismas que ve la tienda. */
 export const STATUS_ES: Record<ItemStatus, string> = {
   available: 'Disponible',
-  watching: 'En prueba',
-  reserved: 'Apartado',
+  watching: 'Viendo ahora',
+  reserved: 'Reservado',
   tailoring: 'En costura',
   tailored: 'Costura lista',
   ready: 'Listo para entrega',
-  sold: 'Entregado',
+  sold: 'Vendido',
   retired: 'Retirado',
 }
 

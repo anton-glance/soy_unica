@@ -3,13 +3,19 @@
  * en la orilla (pantalla o impresión), nunca antes.
  */
 
+/**
+ * Como lo escribe la tienda y como lo dibuja el prototipo: $22,800 cuando la
+ * cifra es redonda, con centavos sólo si de verdad los hay.
+ */
 export function centsToMXN(cents: number): string {
   const sign = cents < 0 ? '-' : ''
   const abs = Math.abs(Math.trunc(cents))
   const pesos = Math.trunc(abs / 100)
   const centavos = abs % 100
   const grouped = String(pesos).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-  return `${sign}$${grouped}.${String(centavos).padStart(2, '0')}`
+  return centavos === 0
+    ? `${sign}$${grouped}`
+    : `${sign}$${grouped}.${String(centavos).padStart(2, '0')}`
 }
 
 /** Acepta "12,500", "12500.50", "$12 500" y devuelve centavos. */

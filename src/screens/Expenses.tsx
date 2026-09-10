@@ -3,7 +3,7 @@ import { get, post } from '../lib/api'
 import { dateMX, money, parseMoney } from '../lib/format'
 import { ActionButton } from '../components/ActionButton'
 import { PhotoCapture } from '../components/PhotoCapture'
-import { Field, TextArea, TextInput } from '../components/Field'
+import { Field } from '../components/Field'
 
 interface Expense {
   id: number; spent_at: string; category: string; amount_cents: number
@@ -13,6 +13,7 @@ interface Expense {
 export function Expenses() {
   const [categories, setCategories] = useState<{ id: number; name: string }[]>([])
   const [today, setToday] = useState<{ expenses: Expense[]; total_cents: number; date: string } | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
 
   const [fileId, setFileId] = useState<string | null>(null)
   const [amount, setAmount] = useState('')
@@ -33,74 +34,80 @@ export function Expenses() {
   useEffect(() => { void load() }, [load])
 
   return (
-    <div className="page stack">
-      <h1>Registrar gasto</h1>
+    <>
+      <div className="wrap">
+        <h2>Registrar gasto</h2>
+        <p className="lede">Primero la foto del comprobante, luego el monto y el motivo. Tres toques y listo.</p>
 
-      <section className="card stack">
-        {/* Primero la foto: es la evidencia y evita que el gasto se quede sin comprobante. */}
-        <h2>1. El comprobante</h2>
-        <PhotoCapture kind="expense" label="Tomar la foto del ticket" onUploaded={setFileId} />
+        <div className="panel">
+          {/* La foto va primero: es la evidencia y evita el gasto sin comprobante. */}
+          <div className="field">
+            <label>Comprobante</label>
+            <PhotoCapture kind="expense" label="Tomar foto" onUploaded={setFileId} />
+          </div>
 
-        <h2>2. El gasto</h2>
-        <Field label="Monto"><TextInput value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" /></Field>
-        <Field label="Fecha"><TextInput type="date" value={spentAt} onChange={(e) => setSpentAt(e.target.value)} /></Field>
+          <div className="two">
+            <Field label="Monto">{(id) => <input id={id} type="text" inputMode="decimal" className="money" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" />}</Field>
+            <Field label="Fecha">{(id) => <input id={id} type="date" value={spentAt} onChange={(e) => setSpentAt(e.target.value)} />}</Field>
+          </div>
 
-        <fieldset style={{ border: 0, padding: 0, margin: '0 0 var(--space-4)' }}>
-          <legend className="field__label">Categoría</legend>
-          <div className="row row--wrap">
-            {categories.map((c) => (
-              <button key={c.id} type="button" className="chip" aria-pressed={category === c.name} onClick={() => setCategory(c.name)}>
-                {c.name}
-              </button>
+          <fieldset className="field" style={{ border: 0, padding: 0 }}>
+            <legend>Categoría</legend>
+            <div className="row">
+              {categories.map((c) => (
+                <button key={c.id} type="button" className="chip" aria-pressed={category === c.name} onClick={() => setCategory(c.name)}>
+                  {c.name}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+
+          <div className="two">
+            <Field label="Pagado a">{(id) => <input id={id} type="text" value={vendor} onChange={(e) => setVendor(e.target.value)} placeholder="Arrendador, Telcel, costurera..." />}</Field>
+            <Field label="Nota">{(id) => <input id={id} type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Renta de octubre" />}</Field>
+          </div>
+
+          <ActionButton
+            disabled={!category || (parseMoney(amount) ?? 0) <= 0}
+            done="Gasto guardado"
+            onAction={async () => {
+              await post('/expenses', {
+                amount_cents: parseMoney(amount) ?? 0,
+                spent_at: spentAt, category, vendor: vendor || undefined, note: note || undefined,
+                file_id: fileId ?? undefined,
+              })
+              setAmount(''); setVendor(''); setNote(''); setCategory(null); setFileId(null)
+              await load()
+              setToast('Gasto guardado. Aparecerá en el reporte de hoy.')
+              window.setTimeout(() => setToast(null), 4000)
+            }}
+          >
+            Guardar gasto
+          </ActionButton>
+        </div>
+
+        <div className="panel">
+          <h3 style={{ marginBottom: 'var(--space-6)' }}>
+            Gastos de hoy · <span className="mono">{money(today?.total_cents ?? 0)}</span>
+          </h3>
+          <div className="hist">
+            {today?.expenses.length === 0 && <div><span>Todavía no hay gastos registrados hoy.</span></div>}
+            {today?.expenses.map((e) => (
+              <div key={e.id}>
+                <span>
+                  {e.category}{e.vendor && ` · ${e.vendor}`}{e.note && ` · ${e.note}`}
+                  {e.file_id && (
+                    <> <a className="muted" href={`/api/files/${e.file_id}`} target="_blank" rel="noopener noreferrer">ver comprobante</a></>
+                  )}
+                  <br /><span className="muted">{dateMX(e.spent_at)}</span>
+                </span>
+                <span className="mono">{money(e.amount_cents)}</span>
+              </div>
             ))}
           </div>
-        </fieldset>
-
-        <Field label="Se le pagó a"><TextInput value={vendor} onChange={(e) => setVendor(e.target.value)} /></Field>
-        <Field label="Nota"><TextArea value={note} onChange={(e) => setNote(e.target.value)} /></Field>
-
-        <ActionButton
-          disabled={!category || (parseMoney(amount) ?? 0) <= 0}
-          onAction={async () => {
-            await post('/expenses', {
-              amount_cents: parseMoney(amount) ?? 0,
-              spent_at: spentAt, category, vendor: vendor || undefined, note: note || undefined,
-              file_id: fileId ?? undefined,
-            })
-            setAmount(''); setVendor(''); setNote(''); setCategory(null); setFileId(null)
-            await load()
-          }}
-          done="Gasto registrado"
-        >
-          Guardar el gasto
-        </ActionButton>
-      </section>
-
-      <section className="card stack">
-        <div className="row row--between">
-          <h2>Gastos de hoy</h2>
-          <strong className="numeric" style={{ fontSize: 'var(--text-xl)' }}>{money(today?.total_cents ?? 0)}</strong>
         </div>
-        {today?.expenses.length === 0 && <p className="muted">Todavía no hay gastos hoy.</p>}
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <tbody>
-            {today?.expenses.map((e) => (
-              <tr key={e.id}>
-                <td style={{ padding: 'var(--space-2) 0' }}>
-                  <strong>{e.category}</strong>
-                  {e.vendor && <> · {e.vendor}</>}
-                  {e.note && <><br /><span className="muted">{e.note}</span></>}
-                  <br /><span className="muted">{dateMX(e.spent_at)}</span>
-                </td>
-                <td className="numeric" style={{ textAlign: 'right' }}>
-                  {money(e.amount_cents)}
-                  {e.file_id && <><br /><a className="muted" href={`/api/files/${e.file_id}`} target="_blank" rel="noopener noreferrer">ver ticket</a></>}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
-    </div>
+      </div>
+      {toast && <div className="toast">{toast}</div>}
+    </>
   )
 }
