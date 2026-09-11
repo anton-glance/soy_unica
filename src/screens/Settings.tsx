@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { get, patch, post } from '../lib/api'
 import { bytes, money, parseMoney } from '../lib/format'
+import { useNavigate } from '../lib/router'
 import { ActionButton } from '../components/ActionButton'
 import { Field } from '../components/Field'
+import { Screen } from '../components/Screen'
 
 interface Store {
   id: string; name: string; address: string; phone: string; report_email: string | null
@@ -28,6 +30,7 @@ interface Storage {
 }
 
 export function Settings() {
+  const navigate = useNavigate()
   const [data, setData] = useState<SettingsData | null>(null)
   const [storage, setStorage] = useState<Storage | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -45,21 +48,28 @@ export function Settings() {
 
   useEffect(() => { void load() }, [load])
 
-  if (error) return <div className="wrap"><p className="err">{error}</p></div>
-  if (!data) return <div className="wrap"><span className="spinner" aria-hidden="true" /></div>
+  const back = () => navigate('/')
+
+  if (error) {
+    return <Screen title="Ajustes" onBack={back} backLabel="Regresar al inicio"><div className="wrap"><p className="err">{error}</p></div></Screen>
+  }
+  if (!data) {
+    return <Screen title="Ajustes" onBack={back} backLabel="Regresar al inicio" center><span className="spinner" aria-hidden="true" /></Screen>
+  }
 
   return (
-    <div className="wrap">
-      <h2>Ajustes</h2>
-      <p className="lede">Todo lo que se cambia aquí queda registrado en la bitácora: quién, qué y cuándo.</p>
+    <Screen title="Ajustes" onBack={back} backLabel="Regresar al inicio">
+      <div className="wrap">
+        <p className="lede">Todo lo que se cambia aquí queda registrado en la bitácora: quién, qué y cuándo.</p>
 
-      <StorageCard storage={storage} />
-      <Pins users={data.users} />
-      <StoreRules store={data.store} onSaved={load} />
-      <Retention store={data.store} floors={data.retention_floors} onSaved={load} />
-      <Template store={data.store} onSaved={load} />
-      <Catalogs data={data} onSaved={load} />
-    </div>
+        <StorageCard storage={storage} />
+        <Pins users={data.users} />
+        <StoreRules store={data.store} onSaved={load} />
+        <Retention store={data.store} floors={data.retention_floors} onSaved={load} />
+        <Template store={data.store} onSaved={load} />
+        <Catalogs data={data} onSaved={load} />
+      </div>
+    </Screen>
   )
 }
 

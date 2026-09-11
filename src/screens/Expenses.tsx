@@ -1,18 +1,24 @@
 import { useCallback, useEffect, useState } from 'react'
 import { get, post } from '../lib/api'
-import { dateMX, money, parseMoney } from '../lib/format'
+import { dateMX, money, parseMoney, weekdayMX } from '../lib/format'
+import { useNavigate } from '../lib/router'
 import { ActionButton } from '../components/ActionButton'
 import { PhotoCapture } from '../components/PhotoCapture'
 import { Field } from '../components/Field'
+import { Screen } from '../components/Screen'
 
 interface Expense {
   id: number; spent_at: string; category: string; amount_cents: number
   vendor: string | null; note: string | null; file_id: string | null
 }
 
+interface Day { date: string; expenses: Expense[]; total_cents: number }
+interface Week { from: string; to: string; days: Day[]; total_cents: number }
+
 export function Expenses() {
+  const navigate = useNavigate()
   const [categories, setCategories] = useState<{ id: number; name: string }[]>([])
-  const [today, setToday] = useState<{ expenses: Expense[]; total_cents: number; date: string } | null>(null)
+  const [week, setWeek] = useState<Week | null>(null)
   const [toast, setToast] = useState<string | null>(null)
 
   const [fileId, setFileId] = useState<string | null>(null)
@@ -25,18 +31,17 @@ export function Expenses() {
   const load = useCallback(async () => {
     const [cats, list] = await Promise.all([
       get<{ categories: { id: number; name: string }[] }>('/expenses/categories'),
-      get<{ expenses: Expense[]; total_cents: number; date: string }>('/expenses'),
+      get<Week>('/expenses'),
     ])
     setCategories(cats.data.categories)
-    setToday(list.data)
+    setWeek(list.data)
   }, [])
 
   useEffect(() => { void load() }, [load])
 
   return (
-    <>
+    <Screen title="Registrar gasto" onBack={() => navigate('/')} backLabel="Regresar al inicio">
       <div className="wrap">
-        <h2>Registrar gasto</h2>
         <p className="lede">Primero la foto del comprobante, luego el monto y el motivo. Tres toques y listo.</p>
 
         <div className="panel">
@@ -78,7 +83,7 @@ export function Expenses() {
               })
               setAmount(''); setVendor(''); setNote(''); setCategory(null); setFileId(null)
               await load()
-              setToast('Gasto guardado. Aparecerá en el reporte de hoy.')
+              setToast('Gasto guardado. Aparecerá en el reporte de la semana.')
               window.setTimeout(() => setToast(null), 4000)
             }}
           >
@@ -86,28 +91,47 @@ export function Expenses() {
           </ActionButton>
         </div>
 
+        {/*
+          La semana corriente, de lunes a domingo. Cada día trae su subtotal y
+          arriba va el total de la semana: así se ve de un vistazo en qué día se
+          fue el dinero, sin sumar a mano.
+        */}
         <div className="panel">
-          <h3 style={{ marginBottom: 'var(--space-6)' }}>
-            Gastos de hoy · <span className="mono">{money(today?.total_cents ?? 0)}</span>
+          <h3 style={{ marginBottom: 'var(--space-3)' }}>
+            Gastos de la semana · <span className="mono">{money(week?.total_cents ?? 0)}</span>
           </h3>
-          <div className="hist">
-            {today?.expenses.length === 0 && <div><span>Todavía no hay gastos registrados hoy.</span></div>}
-            {today?.expenses.map((e) => (
-              <div key={e.id}>
-                <span>
-                  {e.category}{e.vendor && ` · ${e.vendor}`}{e.note && ` · ${e.note}`}
-                  {e.file_id && (
-                    <> <a className="muted" href={`/api/files/${e.file_id}`} target="_blank" rel="noopener noreferrer">ver comprobante</a></>
-                  )}
-                  <br /><span className="muted">{dateMX(e.spent_at)}</span>
-                </span>
-                <span className="mono">{money(e.amount_cents)}</span>
+          {week && (
+            <p className="muted" style={{ margin: '0 0 var(--space-9)' }}>
+              Del {dateMX(week.from)} al {dateMX(week.to)}
+            </p>
+          )}
+
+          {week?.total_cents === 0 && <p className="muted">Todavía no hay gastos registrados esta semana.</p>}
+
+          {week?.days.filter((d) => d.expenses.length > 0).map((d) => (
+            <section key={d.date} style={{ marginBottom: 'var(--space-11)' }}>
+              <div className="day-head">
+                <span>{weekdayMX(d.date)}</span>
+                <span className="mono">{money(d.total_cents)}</span>
               </div>
-            ))}
-          </div>
+              <div className="hist">
+                {d.expenses.map((e) => (
+                  <div key={e.id}>
+                    <span>
+                      {e.category}{e.vendor && ` · ${e.vendor}`}{e.note && ` · ${e.note}`}
+                      {e.file_id && (
+                        <> <a className="muted" href={`/api/files/${e.file_id}`} target="_blank" rel="noopener noreferrer">ver comprobante</a></>
+                      )}
+                    </span>
+                    <span className="mono">{money(e.amount_cents)}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ))}
         </div>
       </div>
       {toast && <div className="toast">{toast}</div>}
-    </>
+    </Screen>
   )
 }

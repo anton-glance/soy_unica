@@ -22,6 +22,14 @@ export function dateMX(date: string | null | undefined): string {
   return `${d}/${m}/${y}`
 }
 
+/** "Lunes 08/09" — el encabezado de cada día en el reporte de la semana. */
+export function weekdayMX(date: string): string {
+  const DAYS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+  const [y, m, d] = date.slice(0, 10).split('-').map(Number)
+  const at = new Date(Date.UTC(y as number, (m as number) - 1, d as number))
+  return `${DAYS[at.getUTCDay()]} ${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}`
+}
+
 export function dateTimeMX(iso: string | null | undefined): string {
   if (!iso) return '—'
   const at = new Date(iso.endsWith('Z') ? iso : `${iso}Z`)

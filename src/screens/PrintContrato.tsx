@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { get } from '../lib/api'
-import { IconButton } from '../components/IconButton'
+import { Screen } from '../components/Screen'
 // En papel va la versión en tinta sobre transparente: sin el recuadro negro
 // del documento, que además se comería el tóner.
 import logo from '../assets/brand/logo-ink.png'
@@ -28,20 +28,16 @@ export function PrintContrato({ folio, onBack }: { folio: string; onBack?: () =>
     if (data) document.title = `Contrato ${data.contract.folio}`
   }, [data])
 
+  const back = onBack ?? (() => window.history.back())
+
   if (error) {
-    return (
-      <div className="wrap">
-        <IconButton kind="back" label="Regresar" onClick={onBack ?? (() => window.history.back())} />
-        <p className="err">{error}</p>
-      </div>
-    )
+    return <Screen title="Contrato" onBack={back} backLabel="Regresar a la sesión"><div className="wrap"><p className="err">{error}</p></div></Screen>
   }
-  if (!data) return <div className="wrap"><span className="spinner" aria-hidden="true" /></div>
+  if (!data) return <Screen title="Contrato" onBack={back} backLabel="Regresar a la sesión" center><span className="spinner" aria-hidden="true" /></Screen>
 
   return (
-    <>
+    <Screen title="Contrato" onBack={back} backLabel="Regresar a la sesión">
       <div className="print-toolbar">
-        <IconButton kind="back" label="Regresar a la sesión" onClick={onBack ?? (() => window.history.back())} />
         <button type="button" className="btn-main" onClick={() => window.print()}>Imprimir</button>
         <p className="pill pill--brass">Vuelve a poner las 2 hojas en la bandeja, cara impresa hacia abajo.</p>
       </div>
@@ -73,6 +69,6 @@ export function PrintContrato({ folio, onBack }: { folio: string; onBack?: () =>
           </div>
         </section>
       ))}
-    </>
+    </Screen>
   )
 }

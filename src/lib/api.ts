@@ -129,6 +129,7 @@ async function write<T>(path: string, method: string, body?: unknown): Promise<T
 
 export const post = <T>(path: string, body?: unknown) => write<T>(path, 'POST', body)
 export const patch = <T>(path: string, body?: unknown) => write<T>(path, 'PATCH', body)
+export const put = <T>(path: string, body?: unknown) => write<T>(path, 'PUT', body)
 export const del = <T>(path: string) => write<T>(path, 'DELETE')
 
 /** Sube una foto ya comprimida en la tableta. */

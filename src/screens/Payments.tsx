@@ -2,9 +2,11 @@ import { useCallback, useEffect, useState } from 'react'
 import { get, post } from '../lib/api'
 import { dateMX, money, parseMoney } from '../lib/format'
 import { useSession } from '../lib/session'
+import { useNavigate } from '../lib/router'
 import { ActionButton } from '../components/ActionButton'
 import { PhotoCapture } from '../components/PhotoCapture'
 import { Field } from '../components/Field'
+import { Screen } from '../components/Screen'
 
 interface SearchRow {
   folio: string; status: string; total_cents: number; paid_cents: number; balance_cents: number
@@ -36,6 +38,7 @@ const DOC_ES: Record<string, string> = {
 }
 
 export function PaymentsModule() {
+  const navigate = useNavigate()
   const [q, setQ] = useState('')
   const [results, setResults] = useState<SearchRow[]>([])
   const [searched, setSearched] = useState(false)
@@ -54,9 +57,9 @@ export function PaymentsModule() {
   if (folio) return <ContractView folio={folio} onBack={() => setFolio(null)} />
 
   return (
-    <div className="wrap">
-      <h2>Registrar pago</h2>
-      <p className="lede">
+    <Screen title="Registrar pago" onBack={() => navigate('/')} backLabel="Regresar al inicio">
+      <div className="wrap">
+        <p className="lede">
         Busca por nombre, teléfono, folio de contrato o modelo del vestido. Todo pago necesita la foto de la nota.
       </p>
 
@@ -81,9 +84,10 @@ export function PaymentsModule() {
           {searched && results.length === 0 && (
             <p style={{ color: 'var(--ink-faint)' }}>Nada con «{q}». Prueba con el teléfono o el folio.</p>
           )}
+          </div>
         </div>
       </div>
-    </div>
+    </Screen>
   )
 }
 
@@ -105,20 +109,22 @@ function ContractView({ folio, onBack }: { folio: string; onBack: () => void }) 
 
   useEffect(() => { void load() }, [load])
 
-  if (error) return <div className="wrap"><p className="err">{error}</p></div>
-  if (!detail) return <div className="wrap"><span className="spinner" aria-hidden="true" /></div>
+  if (error) {
+    return <Screen title="Registrar pago" onBack={onBack} backLabel="Regresar a la búsqueda"><div className="wrap"><p className="err">{error}</p></div></Screen>
+  }
+  if (!detail) {
+    return <Screen title="Registrar pago" onBack={onBack} backLabel="Regresar a la búsqueda" center><span className="spinner" aria-hidden="true" /></Screen>
+  }
 
   const bride = `${detail.customer?.name ?? ''} ${detail.customer?.apellido ?? ''}`.trim()
   const next = detail.ledger.next_due
 
   return (
-    <>
+    // El nombre de la clienta es el título: uno solo, en la barra de arriba.
+    <Screen title={bride || 'Sin nombre'} onBack={onBack} backLabel="Regresar a la búsqueda">
       <div className="wrap">
-        <button type="button" className="btn-quiet" style={{ marginBottom: 'var(--space-9)' }} onClick={onBack}>← Otra clienta</button>
-
         <div className="panel">
-          <h3>{bride || 'Sin nombre'}</h3>
-          <p className="muted" style={{ margin: 'var(--space-2) 0 var(--space-9)' }}>
+          <p className="muted" style={{ margin: '0 0 var(--space-9)' }}>
             {[
               detail.customer?.phone,
               detail.customer?.wedding_date && `boda ${dateMX(detail.customer.wedding_date)}`,
@@ -238,7 +244,7 @@ function ContractView({ folio, onBack }: { folio: string; onBack: () => void }) 
         />
       </div>
       {toast && <div className="toast">{toast}</div>}
-    </>
+    </Screen>
   )
 }
 

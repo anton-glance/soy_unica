@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
-import { del, get, patch, post } from '../lib/api'
+import { del, get, patch, post, put } from '../lib/api'
 import { dateMX, money, parseMoney } from '../lib/format'
 import { useSession } from '../lib/session'
+import { useNavigate } from '../lib/router'
 import { ActionButton } from '../components/ActionButton'
 import { GownArt } from '../components/GownArt'
 import { Field } from '../components/Field'
+import { Screen } from '../components/Screen'
+import { Dialog } from '../components/Dialog'
+import { PhotoSet, type Shot } from '../components/PhotoSet'
 
 interface Item {
   id: number; code: string; name: string; brand: string | null; size: string | null
@@ -29,6 +33,7 @@ const COLS = [
 
 export function Inventory() {
   const { me } = useSession()
+  const navigate = useNavigate()
   const isOwner = me?.role === 'owner'
   const [q, setQ] = useState('')
   const [status, setStatus] = useState('')
@@ -66,9 +71,9 @@ export function Inventory() {
   }
 
   return (
-    <>
+    // El título vive en la barra de arriba y en ningún otro lado.
+    <Screen title="Inventario" onBack={() => navigate('/')} backLabel="Regresar al inicio">
       <div className="wrap">
-        <h2>Inventario</h2>
         <p className="lede">
           Vestidos y accesorios de esta sucursal. Se busca por código, modelo, marca o corte.
           Toca cualquier renglón para ver la ficha completa.
@@ -173,7 +178,7 @@ export function Inventory() {
           onAdded={async (name) => { await load(); setAdding(false); say(`${name} agregado al inventario.`) }}
         />
       )}
-    </>
+    </Screen>
   )
 }
 
@@ -198,25 +203,47 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
     setForm({ ...form, [k]: e.target.value })
   const [confirming, setConfirming] = useState(false)
 
-  return (
-    <div className="veil full" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="sheet">
-        <div className="inv-head">
-          <div>
-            <h2>{item.name}</h2>
-            <p className="muted" style={{ margin: 'var(--space-2) 0 0' }}>
-              código {item.code} · {item.kind === 'dress' ? 'vestido' : 'accesorio'} · {item.acquisition === 'pedido' ? 'por pedido' : 'de unidad'}
-            </p>
-          </div>
-          <button type="button" className="btn-quiet" onClick={onClose}>Cerrar</button>
-        </div>
+  // Las fotos del artículo, si ya tiene. La dueña las cambia aquí mismo.
+  const [photos, setPhotos] = useState<Shot[]>([])
+  const [primary, setPrimary] = useState<string | null>(null)
+  useEffect(() => {
+    void (async () => {
+      const { data } = await get<{ photos: { id: string; is_primary: number }[] }>(`/items/${item.id}`)
+      setPhotos(data.photos.map((p) => ({ file_id: p.id, url: `/api/files/${p.id}` })))
+      setPrimary(data.photos.find((p) => p.is_primary)?.id ?? data.photos[0]?.id ?? null)
+    })()
+  }, [item.id])
 
-        <div className="inv-grid">
+  return (
+    <Dialog title={item.name} onCancel={onClose} closeLabel="Cerrar la ficha" full big>
+      <p className="muted" style={{ textAlign: 'center', margin: '0 0 var(--space-12)' }}>
+        código {item.code} · {item.kind === 'dress' ? 'vestido' : 'accesorio'} · {item.acquisition === 'pedido' ? 'por pedido' : 'de unidad'}
+      </p>
+
+      <div className="inv-grid">
           <div>
-            <GownArt seed={item.id} className="art" />
-            <p className="muted" style={{ fontSize: 'var(--text-label)', margin: 'var(--space-6) 0 0' }}>
-              Así la reconoce en el rack.
-            </p>
+            {primary
+              ? <img src={`/api/files/${primary}`} alt="" className="art" />
+              : <GownArt seed={item.id} className="art" />}
+            {isOwner ? (
+              <div style={{ marginTop: 'var(--space-8)' }}>
+                <label>Fotos <span className="muted">· hasta 5</span></label>
+                <PhotoSet
+                  photos={photos}
+                  primary={primary}
+                  onChange={async (next, mark) => {
+                    setPhotos(next); setPrimary(mark)
+                    await put(`/items/${item.id}/photos`, {
+                      photos: next.map((p) => ({ file_id: p.file_id, is_primary: p.file_id === mark })),
+                    })
+                  }}
+                />
+              </div>
+            ) : (
+              <p className="muted" style={{ fontSize: 'var(--text-label)', margin: 'var(--space-6) 0 0' }}>
+                Así la reconoce en el rack.
+              </p>
+            )}
           </div>
           <div>
             {isOwner ? (
@@ -320,10 +347,9 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
                 Solo la dueña puede editar o eliminar.
               </p>
             )}
-          </div>
         </div>
       </div>
-    </div>
+    </Dialog>
   )
 }
 
@@ -344,75 +370,86 @@ function AddItem({ isOwner, onClose, onAdded }: { isOwner: boolean; onClose: () 
   })
   const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }))
+  const [photos, setPhotos] = useState<Shot[]>([])
+  const [primary, setPrimary] = useState<string | null>(null)
 
   return (
-    <div className="veil full" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="sheet">
-        <div className="inv-head">
-          <h2>Nuevo artículo</h2>
-          <button type="button" className="btn-quiet" onClick={onClose}>Cerrar</button>
-        </div>
-
-        <div className="f3">
-          <Field label="Modelo">{(id) => <input id={id} type="text" value={form.name} onChange={set('name')} placeholder="Madelyn" />}</Field>
-          <Field label="Marca">{(id) => <input id={id} type="text" value={form.brand} onChange={set('brand')} placeholder="Lanesta" />}</Field>
-          <Field label="Tipo">{(id) => (
-            <select id={id} value={form.kind} onChange={set('kind')}>
-              <option value="dress">Vestido</option>
-              <option value="accessory">Accesorio</option>
-            </select>
-          )}</Field>
-        </div>
-        <div className="f3">
-          <Field label="Talla">{(id) => <input id={id} type="text" value={form.size} onChange={set('size')} placeholder="M" />}</Field>
-          <Field label="Corte">{(id) => <input id={id} type="text" value={form.cut} onChange={set('cut')} placeholder="Princesa" />}</Field>
-          <Field label="Color">{(id) => <input id={id} type="text" value={form.color} onChange={set('color')} placeholder="Marfil" />}</Field>
-        </div>
-        <div className="f3">
-          <Field label="Código" hint="Tu nomenclatura: p139, s14, A12, mantilla 039">
-            {(id) => <input id={id} type="text" value={form.code} onChange={set('code')} placeholder="p139" />}
-          </Field>
-          <Field label="Precio de venta">{(id) => <input id={id} type="text" inputMode="decimal" value={form.price} onChange={set('price')} />}</Field>
-          {isOwner
-            ? <Field label="Costo">{(id) => <input id={id} type="text" inputMode="decimal" value={form.cost} onChange={set('cost')} />}</Field>
-            : <Field label="Costo">{(id) => <input id={id} type="text" value="Solo la dueña" disabled style={{ opacity: .5 }} />}</Field>}
-        </div>
-        <div className="f3">
-          <Field label="Adquisición" hint="Por pedido = se manda a hacer, nunca se aparta">
-            {(id) => (
-              <select id={id} value={form.acquisition} onChange={set('acquisition')}>
-                <option value="unidad">De unidad</option>
-                <option value="pedido">Por pedido</option>
-              </select>
-            )}
-          </Field>
-          <Field label="Condición">{(id) => (
-            <select id={id} value={form.condition} onChange={set('condition')}>
-              <option value="nuevo">Nuevo</option>
-              <option value="muestra">Muestra</option>
-              <option value="exhibicion">Exhibición</option>
-              <option value="liquidacion">Liquidación</option>
-            </select>
-          )}</Field>
-          <Field label="Ubicación">{(id) => <input id={id} type="text" value={form.location} onChange={set('location')} placeholder="Pasillo A" />}</Field>
-        </div>
-        <Field label="Notas">{(id) => <textarea id={id} value={form.notes} onChange={set('notes')} placeholder="Con quién está, pruebas pendientes, detalles de la tela" />}</Field>
-
-        <div className="row" style={{ marginTop: 'var(--space-2)' }}>
-          <ActionButton
-            onAction={async () => {
-              await post('/items', {
-                ...form,
-                price_cents: parseMoney(form.price) ?? 0,
-                cost_cents: isOwner ? (parseMoney(form.cost) ?? 0) : undefined,
-              })
-              await onAdded(form.name)
-            }}
-          >
-            Agregar al inventario
-          </ActionButton>
-        </div>
+    <Dialog title="Nuevo artículo" onCancel={onClose} closeLabel="Cerrar sin guardar" full big>
+      <div className="f3">
+        <Field label="Modelo">{(id) => <input id={id} type="text" value={form.name} onChange={set('name')} placeholder="Madelyn" />}</Field>
+        <Field label="Marca">{(id) => <input id={id} type="text" value={form.brand} onChange={set('brand')} placeholder="Lanesta" />}</Field>
+        <Field label="Tipo">{(id) => (
+          <select id={id} value={form.kind} onChange={set('kind')}>
+            <option value="dress">Vestido</option>
+            <option value="accessory">Accesorio</option>
+          </select>
+        )}</Field>
       </div>
-    </div>
+      <div className="f3">
+        <Field label="Talla">{(id) => <input id={id} type="text" value={form.size} onChange={set('size')} placeholder="M" />}</Field>
+        <Field label="Corte">{(id) => <input id={id} type="text" value={form.cut} onChange={set('cut')} placeholder="Princesa" />}</Field>
+        <Field label="Color">{(id) => <input id={id} type="text" value={form.color} onChange={set('color')} placeholder="Marfil" />}</Field>
+      </div>
+      <div className="f3">
+        <Field label="Código" hint="Tu nomenclatura: p139, s14, A12, mantilla 039">
+          {(id) => <input id={id} type="text" value={form.code} onChange={set('code')} placeholder="p139" />}
+        </Field>
+        <Field label="Precio de venta">{(id) => <input id={id} type="text" inputMode="decimal" value={form.price} onChange={set('price')} />}</Field>
+        {isOwner
+          ? <Field label="Costo">{(id) => <input id={id} type="text" inputMode="decimal" value={form.cost} onChange={set('cost')} />}</Field>
+          : <Field label="Costo">{(id) => <input id={id} type="text" value="Solo la dueña" disabled style={{ opacity: .5 }} />}</Field>}
+      </div>
+      <div className="f3">
+        <Field label="Adquisición" hint="Por pedido = se manda a hacer, nunca se aparta">
+          {(id) => (
+            <select id={id} value={form.acquisition} onChange={set('acquisition')}>
+              <option value="unidad">De unidad</option>
+              <option value="pedido">Por pedido</option>
+            </select>
+          )}
+        </Field>
+        <Field label="Condición">{(id) => (
+          <select id={id} value={form.condition} onChange={set('condition')}>
+            <option value="nuevo">Nuevo</option>
+            <option value="muestra">Muestra</option>
+            <option value="exhibicion">Exhibición</option>
+            <option value="liquidacion">Liquidación</option>
+          </select>
+        )}</Field>
+        <Field label="Ubicación">{(id) => <input id={id} type="text" value={form.location} onChange={set('location')} placeholder="Pasillo A" />}</Field>
+      </div>
+
+      {/*
+        Las fotos: hasta cinco, una principal. Se comprimen en la tableta con el
+        mismo camino que las demás fotos del sistema y se amarran al artículo
+        en cuanto queda dado de alta.
+      */}
+      <div className="field">
+        <label>Fotos <span className="muted">· hasta 5, la principal es la que se ve en el kiosco</span></label>
+        <PhotoSet photos={photos} primary={primary} onChange={(next, mark) => { setPhotos(next); setPrimary(mark) }} />
+      </div>
+
+      <Field label="Notas">{(id) => <textarea id={id} value={form.notes} onChange={set('notes')} placeholder="Con quién está, pruebas pendientes, detalles de la tela" />}</Field>
+
+      <div className="row" style={{ marginTop: 'var(--space-2)' }}>
+        <ActionButton
+          onAction={async () => {
+            const { id } = await post<{ id: number }>('/items', {
+              ...form,
+              price_cents: parseMoney(form.price) ?? 0,
+              cost_cents: isOwner ? (parseMoney(form.cost) ?? 0) : undefined,
+            })
+            if (photos.length > 0) {
+              await put(`/items/${id}/photos`, {
+                photos: photos.map((p) => ({ file_id: p.file_id, is_primary: p.file_id === primary })),
+              })
+            }
+            await onAdded(form.name)
+          }}
+        >
+          Agregar al inventario
+        </ActionButton>
+      </div>
+    </Dialog>
   )
 }

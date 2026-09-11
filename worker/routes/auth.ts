@@ -7,6 +7,7 @@ import {
   recentFailures, recordAttempt, requireSession, sessionCookie,
 } from '../lib/auth'
 import { one } from '../lib/db'
+import { verifyPin } from '../lib/crypto'
 
 const app = new Hono<AppEnv>()
 
@@ -47,6 +48,23 @@ app.post('/pin', async (c) => {
 
 app.post('/logout', (c) => {
   c.header('Set-Cookie', clearedCookie(new URL(c.req.url).protocol === 'https:'))
+  return c.json({ ok: true })
+})
+
+/**
+ * Comprueba el NIP de quien ya tiene sesión abierta, sin emitir ni cambiar
+ * nada. Es el paso en que la novia entrega la tableta a la vendedora: sirve
+ * para abrir la pantalla de selección, y el NIP se vuelve a exigir al crear el
+ * contrato, que es donde de verdad importa.
+ */
+app.post('/verify-pin', requireSession, async (c) => {
+  const s = c.get('session')
+  const body = await readJson<{ pin?: string }>(c)
+  const pin = String(body.pin ?? '')
+  if (!/^\d{4,6}$/.test(pin)) throw badRequest('Marca tu NIP.')
+  const user = await one<{ pin_hash: string; pin_salt: string }>(
+    c.env.DB, `SELECT pin_hash, pin_salt FROM users WHERE id = ? AND active = 1`, s.userId)
+  if (!user || !(await verifyPin(pin, user.pin_hash, user.pin_salt))) throw unauthorized('NIP incorrecto.', 'bad_pin')
   return c.json({ ok: true })
 })
 

@@ -169,9 +169,67 @@ lo exige), así que no se puede saltar desde el navegador.
   está a un palmo de la novia; una cruz sin etiqueta ahí se confunde con
   «salir» y se toca sin querer. Si se prefiere la cruz, es un cambio de una
   línea.
-- **Fotos de artículo.** Sigue faltando la ruta que ata una foto subida a
-  `item_photos`; la ficha muestra la silueta del prototipo.
 - **El id de la sesión de venta vive en `localStorage`.** Si alguna vez se
   restaura un respaldo de la base, los ids guardados en las tabletas no
   existirán del otro lado. La aplicación ya se recupera sola —descarta el id y
   abre una sesión nueva—, pero conviene saberlo antes de restaurar.
+
+
+## 6. Ronda 4 — un solo marco, el paso de selección y los bloqueos
+
+### El marco es uno para toda la aplicación
+
+`src/components/Screen.tsx` es la cabecera de **todas** las pantallas. Ninguna
+dibuja la suya. La barra es fija, mide siempre `--bar-h` (96 px) y reparte tres
+huecos que existen aunque vayan vacíos —así nada se mueve de sitio al cambiar de
+pantalla:
+
+- izquierda, el regreso: círculo de 52 px con contorno fino y una flecha, sin
+  etiqueta, siempre en x = 34. Falta sólo en la primera pantalla, la de la
+  sucursal, que no tiene padre.
+- centro, el título, uno y sólo uno, en la letra de display a 44 px —el tamaño
+  que ya usaba «Selecciona tu rol».
+- derecha, la (X): únicamente en los cuatro cuadros, donde significa salir del
+  sistema. Ninguna pantalla interior la lleva.
+
+Los diálogos no usan `<Screen>`: llevan su (X) arriba a la derecha y no tienen
+regreso. Su encabezado sí comparte el reparto —hueco, título centrado, (X)— para
+que el título quede al centro de verdad.
+
+Los títulos repetidos de Inventario y Registrar gasto se borraron: ahora viven
+sólo en la barra.
+
+### El teclado del NIP
+
+La tecla **5 cae en el centro exacto de la pantalla** (50 vw / 50 vh), medido en
+el navegador en los tres teclados: entrada, entrega de la tableta y cierre de
+sesión. Va anclado al viewport, no al hueco que deja la barra, que era el error
+de antes: quedaba media barra más abajo. Los puntos ahora se llenan conforme se
+teclea y muestran cuántos dígitos lleva el NIP, en vez de seis círculos fijos.
+
+### Lo que se encontró probando, y no estaba en la lista
+
+- **La barra se comía los toques de los diálogos.** `.veil` estaba en z-index 20
+  y la barra en 30: la (X) de un diálogo a pantalla completa era inalcanzable
+  porque el hueco vacío de la barra interceptaba el toque. El velo pasó a 100.
+- **El pie de acción caía fuera de la pantalla.** `<main>` medía el alto
+  completo, así que el pie quedaba justo debajo del borde inferior: el botón
+  existía y no se veía. Ahora el pie es pegajoso, mide siempre `--footer-h`
+  (110 px) y la acción propia de una pantalla —«Guardar el plan»— se pega
+  encima de él, nunca debajo.
+- **El contrato se imprimía sin calendario de pagos.** Las parcialidades se
+  escribían al firmar, pero el contrato se imprime *antes* de la firma: la hoja
+  que la novia firmaba llevaba la tabla en blanco. Ahora se escriben al escoger
+  el plan y se vuelven a generar al firmar, con la fecha de firma. Lo destapó la
+  prueba nueva `tests/plan-to-contract.test.ts`.
+- **`input[type=tel]` no estaba en la lista de campos.** Por eso el teléfono
+  salía angosto: el selector de `base.css` enumera tipos y `tel` no aparecía.
+  Medido en el navegador, ahora mide lo mismo que el nombre y la fecha (518 px).
+
+### Sigue pendiente
+
+- **El «Cerrar sesión» del kiosco sigue siendo una píldora con texto**, no una
+  cruz, por la misma razón de la ronda 3: es una acción con consecuencias y está
+  a un palmo de la novia.
+- **La importación del catálogo de WooCommerce y de `pagos.xlsx`** (parte C de
+  la ronda 3) sigue sin correr. Nada de esta ronda la toca.

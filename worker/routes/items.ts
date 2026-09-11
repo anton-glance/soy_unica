@@ -211,6 +211,45 @@ app.post('/', async (c) => {
   return c.json({ id }, 201)
 })
 
+/**
+ * Las fotos del artículo. Se manda la lista completa y reemplaza a la
+ * anterior: hasta cinco, una marcada como principal. Los archivos ya están
+ * subidos por `/api/files` (el redimensionado ocurre en la tableta), aquí sólo
+ * se amarran al artículo.
+ */
+app.put('/:id{[0-9]+}/photos', async (c) => {
+  const s = c.get('session')
+  const item = await loadItem(c.env.DB, s.store, Number(c.req.param('id')))
+  const body = await readJson<{ photos?: { file_id?: string; is_primary?: boolean }[] }>(c)
+  const photos = Array.isArray(body.photos) ? body.photos : []
+  if (photos.length > 5) throw badRequest('Son cinco fotos como máximo por artículo.')
+
+  const ids: string[] = []
+  for (const photo of photos) {
+    const fileId = String(photo.file_id ?? '')
+    // Sólo archivos de esta sucursal: nunca se amarra una foto de la otra.
+    const file = await one<{ id: string }>(c.env.DB, `SELECT id FROM files WHERE id = ? AND store_id = ?`, fileId, s.store)
+    if (!file) throw notFound('No se encontró una de las fotos.')
+    if (!ids.includes(file.id)) ids.push(file.id)
+  }
+  // Si nadie la marcó, la primera es la principal: siempre hay una portada.
+  const markedIndex = photos.findIndex((p) => p.is_primary)
+  const primary = ids.length === 0 ? null : (ids[markedIndex === -1 ? 0 : Math.min(markedIndex, ids.length - 1)] as string)
+
+  const writes = [stmt(c.env.DB, `DELETE FROM item_photos WHERE item_id = ?`, item.id)]
+  ids.forEach((fileId, i) => {
+    writes.push(stmt(
+      c.env.DB,
+      `INSERT INTO item_photos (item_id, file_id, sort, is_primary) VALUES (?,?,?,?)`,
+      item.id, fileId, i, fileId === primary ? 1 : 0,
+    ))
+  })
+  writes.push(auditStmt(c.env.DB, { session: s, entity: 'item', entityId: item.id, action: 'photos', after: { photos: ids.length } }))
+  await c.env.DB.batch(writes)
+
+  return c.json({ photos: ids.length })
+})
+
 app.patch('/:id{[0-9]+}', requireOwner, async (c) => {
   const s = c.get('session')
   const item = await loadItem(c.env.DB, s.store, Number(c.req.param('id')))

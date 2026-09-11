@@ -91,6 +91,9 @@
   html.is-printing #root { display: none !important; }
   .print-overlay { position: static; overflow: visible; background: none; }
   .print-toolbar { display: none !important; }
+  /* La hoja va por un portal fuera de #root, así que su barra se esconde aparte. */
+  .topbar { display: none !important; }
+  .screen { padding-top: 0 !important; }
   body { background: #fff; }
   /* El margen ya lo pone @page: la hoja no vuelve a meter el suyo. */
   .print-sheet, .print-sheet--contract { width: auto; min-height: 0; margin: 0; padding: 0; box-shadow: none; }

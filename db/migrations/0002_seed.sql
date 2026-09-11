@@ -164,7 +164,10 @@ FROM commission_rules WHERE store_id = 'mty';
 -- con su nomenclatura real (p139, s14, A12, madelyn, mantilla 039), listos
 -- para reemplazarse por las existencias del prototipo (docs/prototype.html).
 -- Las de `acquisition = 'pedido'` son modelos que se mandan a hacer: nunca se
--- apartan, para que dos novias puedan encargar el mismo.
+-- apartan, para que dos novias puedan encargar el mismo. Llevan el nombre del
+-- modelo más «a medida»: la unidad en rack y el mismo modelo por encargo son
+-- dos artículos distintos, a distinto precio, y en el catálogo de la novia se
+-- veían como un renglón repetido con dos precios.
 INSERT INTO items (store_id, code, kind, acquisition, condition, name, brand, size, cut, color, cost_cents, price_cents, location, intake_date) VALUES
   ('mty', 'p139',        'dress',     'unidad', 'nuevo',       'Madelyn',    'Lanesta',       '10', 'Sirena',    'Ivory',      850000, 1850000, 'Pasillo A', '2025-02-14'),
   ('mty', 'p142',        'dress',     'unidad', 'nuevo',       'Aurora',     'Kira Nova',     '12', 'Princesa',  'Blanco',     780000, 1650000, 'Pasillo A', '2025-02-14'),
@@ -175,9 +178,9 @@ INSERT INTO items (store_id, code, kind, acquisition, condition, name, brand, si
   ('mty', 'A12',         'dress',     'unidad', 'nuevo',       'Regina',     'Armonía',       '10', 'Corte A',   'Ivory',      700000, 1490000, 'Pasillo C', '2025-05-06'),
   ('mty', 'A18',         'dress',     'unidad', 'exhibicion',  'Fernanda',   'Annie Victor',  '12', 'Corte A',   'Blanco',     660000, 1380000, 'Pasillo C', '2025-05-06'),
   ('mty', 'A24',         'dress',     'unidad', 'nuevo',       'Sofía',      'Lanesta',       '08', 'Sirena',    'Champagne',  880000, 1890000, 'Pasillo C', '2025-06-18'),
-  ('mty', 'madelyn',     'dress',     'pedido', 'nuevo',       'Madelyn',    'Lanesta',       'A medida', 'Sirena',   'A elegir',      0, 2100000, 'Catálogo',  '2025-01-09'),
-  ('mty', 'aurora',      'dress',     'pedido', 'nuevo',       'Aurora',     'Kira Nova',     'A medida', 'Princesa', 'A elegir',      0, 1950000, 'Catálogo',  '2025-01-09'),
-  ('mty', 'isabella',    'dress',     'pedido', 'nuevo',       'Isabella',   'Armonía',       'A medida', 'Corte A',  'A elegir',      0, 1750000, 'Catálogo',  '2025-01-09'),
+  ('mty', 'madelyn',     'dress',     'pedido', 'nuevo',       'Madelyn a medida',  'Lanesta',   'A medida', 'Sirena',   'A elegir',      0, 2100000, 'Catálogo',  '2025-01-09'),
+  ('mty', 'aurora',      'dress',     'pedido', 'nuevo',       'Aurora a medida',   'Kira Nova', 'A medida', 'Princesa', 'A elegir',      0, 1950000, 'Catálogo',  '2025-01-09'),
+  ('mty', 'isabella',    'dress',     'pedido', 'nuevo',       'Isabella a medida', 'Armonía',   'A medida', 'Corte A',  'A elegir',      0, 1750000, 'Catálogo',  '2025-01-09'),
   ('mty', 'mantilla 039','accessory', 'unidad', 'nuevo',       'Mantilla larga bordada', NULL, 'Única', NULL, 'Ivory',        38000,   90000, 'Vitrina',   '2025-02-14'),
   ('mty', 'mantilla 041','accessory', 'unidad', 'nuevo',       'Mantilla corta',         NULL, 'Única', NULL, 'Blanco',       18000,   45000, 'Vitrina',   '2025-02-14'),
   ('mty', 'velo 07',     'accessory', 'unidad', 'nuevo',       'Velo dos capas',         NULL, 'Única', NULL, 'Ivory',        22000,   58000, 'Vitrina',   '2025-03-02'),

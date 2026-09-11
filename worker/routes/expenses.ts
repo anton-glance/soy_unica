@@ -4,7 +4,7 @@ import type { AppEnv } from '../lib/env'
 import { all, one, run } from '../lib/db'
 import { auditStmt } from '../lib/audit'
 import { badRequest, notFound } from '../lib/errors'
-import { isDate, todayISO } from '../lib/dates'
+import { addDays, isDate, todayISO, weekStart } from '../lib/dates'
 
 const app = new Hono<AppEnv>()
 
@@ -15,17 +15,39 @@ app.get('/categories', async (c) => {
   return c.json({ categories: rows })
 })
 
-/** La lista de hoy con su total corriendo. */
+/**
+ * La semana corriente, de lunes a domingo: los gastos agrupados por día, con
+ * el subtotal de cada día y el total de la semana. `date` es cualquier día
+ * dentro de la semana que se quiere ver.
+ */
 app.get('/', async (c) => {
   const s = c.get('session')
   const day = c.req.query('date') ?? todayISO()
   if (!isDate(day)) throw badRequest('Esa fecha no es válida.')
+  const from = weekStart(day)
+  const to = addDays(from, 6)
+
   const rows = await all<{ id: number; spent_at: string; category: string; amount_cents: number; vendor: string | null; note: string | null; file_id: string | null }>(
     c.env.DB,
     `SELECT id, spent_at, category, amount_cents, vendor, note, file_id
-     FROM expenses WHERE store_id = ? AND spent_at = ? ORDER BY id DESC`,
-    s.store, day)
-  return c.json({ date: day, expenses: rows, total_cents: rows.reduce((sum, r) => sum + r.amount_cents, 0) })
+     FROM expenses WHERE store_id = ? AND spent_at BETWEEN ? AND ?
+     ORDER BY spent_at DESC, id DESC`,
+    s.store, from, to)
+
+  // Los siete días salen siempre, aunque vayan vacíos: la semana no cambia de
+  // forma según lo que se haya gastado.
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const date = addDays(from, i)
+    const ofDay = rows.filter((r) => r.spent_at === date)
+    return { date, expenses: ofDay, total_cents: ofDay.reduce((sum, r) => sum + r.amount_cents, 0) }
+  }).reverse()
+
+  return c.json({
+    from, to,
+    days,
+    expenses: rows,
+    total_cents: rows.reduce((sum, r) => sum + r.amount_cents, 0),
+  })
 })
 
 app.post('/', async (c) => {
