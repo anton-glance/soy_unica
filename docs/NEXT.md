@@ -8,7 +8,14 @@ Los tres provisionales se reemplazaron por lo real:
 | --- | --- |
 | `prototype.html` | Todos los valores de `src/styles/tokens.css` salen de ahí, con sus mismos nombres (`--ivory`, `--paper`, `--linen`, `--tape`, `--ink`, `--brass`, `--sage`, `--clay`, `--wine`), incluida su paleta oscura. `src/styles/base.css` es su capa de componentes, con sus mismas clases. Sus dos tipografías —Jost y Prata— van empaquetadas en `src/assets/fonts/`, no traídas de Google, para que la tienda se vea igual sin internet. |
 | `contrato_de_novia_nov_2024.docx` | Es la plantilla sembrada, palabra por palabra, con sus nueve puntos y hasta sus erratas (`el pago pago a tiempo`, `se se realicen`). Los blancos que el sistema conoce son marcadores; los que no —el plazo de entrega y los días para tomar medidas— siguen siendo rayas para llenar a mano. |
-| `medidas_soy_unica_mty.docx` | `src/screens/PrintMedidas.tsx` lo reproduce: el membrete con el logo y la dirección del encabezado de Word, las trece medidas en su orden exacto, el bloque de campos repetido dos veces —como viene en el documento—, el diagrama de medidas, el párrafo de conformidad y los tres bloques de firma: medidas, ajustes y entrega. |
+| `medidas_soy_unica_mty.docx` | `src/screens/PrintMedidas.tsx` lo reproduce: el membrete con el logo y la dirección del encabezado de Word, las trece medidas en su orden exacto, el diagrama de medidas, el párrafo de conformidad y los tres bloques de firma: medidas, ajustes y entrega. |
+
+> **Corrección de la ronda anterior.** Ahí se afirmó que el bloque de datos de
+> la novia venía dos veces en el documento y se imprimió duplicado. Era falso.
+> El bloque vive dentro de un `mc:AlternateContent`, que trae la misma caja de
+> texto en dos codificaciones —`mc:Choice` con el dibujo moderno y
+> `mc:Fallback` con el VML antiguo—; un extractor que recorre el árbol completo
+> las cuenta las dos. Un renderizador escoge una. El bloque va **una** vez.
 
 Las dos imágenes del formato (`word/media/`) se extrajeron a `src/assets/`: el
 logo de la tienda y el diagrama de busto, cintura, caderas, altura y hueco de
@@ -132,3 +139,39 @@ Ni una tabla, ni una dependencia, ni una ruta se agregó para nada de esto:
   calendario. Se dejó en el lugar del prototipo, con el tamaño del título de
   pantalla: es el número más grande de ese panel sin romper la jerarquía del
   diseño.
+
+## 5. Ronda 3 — lo que cambió
+
+### La novia ya no puede llegar al contrato
+
+Antes, abrir un vestido ofrecía «Elegir este vestido» y saltaba directo a los
+datos de la novia: la pantalla de la vendedora, en una tableta que trae la
+clienta en las manos. Ahora el kiosco sólo deja ver, marcar favoritos y pedir
+pasar al probador; de ahí sale el aviso de entregar la tableta y el NIP de la
+vendedora. **El NIP se comprueba en el servidor** (`POST /sessions/:id/select`
+lo exige), así que no se puede saltar desde el navegador.
+
+### Dos errores que sólo aparecieron al probar
+
+- **Ningún plan cabía para una boda cercana.** El anticipo se paga el mismo día
+  de la firma, pero la regla de «días mínimos antes de la boda» lo estaba
+  contando como si fuera una parcialidad futura. Con boda en dos semanas eso
+  descartaba hasta el pago de contado, que es justo lo que esa novia haría.
+  Ahora la regla sólo mira los pagos posteriores a la firma.
+- **La hoja de medidas salía sin modelo ni color.** El vestido se buscaba por
+  `items.contract_id`, que sólo se sella al firmar; la hoja se imprime antes.
+  Ahora se busca por el renglón del contrato, que existe desde que se elige.
+
+### Sigue pendiente
+
+- **El «Cerrar sesión» del kiosco sigue siendo una píldora con texto**, no una
+  cruz. Es una acción con consecuencias —libera apartados y borra favoritos— y
+  está a un palmo de la novia; una cruz sin etiqueta ahí se confunde con
+  «salir» y se toca sin querer. Si se prefiere la cruz, es un cambio de una
+  línea.
+- **Fotos de artículo.** Sigue faltando la ruta que ata una foto subida a
+  `item_photos`; la ficha muestra la silueta del prototipo.
+- **El id de la sesión de venta vive en `localStorage`.** Si alguna vez se
+  restaura un respaldo de la base, los ids guardados en las tabletas no
+  existirán del otro lado. La aplicación ya se recupera sola —descarta el id y
+  abre una sesión nueva—, pero conviene saberlo antes de restaurar.

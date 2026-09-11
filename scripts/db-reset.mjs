@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { rmSync } from 'node:fs'
 import { join } from 'node:path'
-import { ROOT, ensureDevVars, run } from './lib.mjs'
+import { ROOT, ensureDevVars, migrate } from './lib.mjs'
 
 ensureDevVars()
 
@@ -9,7 +9,7 @@ console.log('· Borrando el estado local de D1 y R2…')
 rmSync(join(ROOT, '.wrangler', 'state'), { recursive: true, force: true })
 
 console.log('· Aplicando migraciones y semilla…')
-await run('npx', ['wrangler', 'd1', 'migrations', 'apply', 'soy-unica', '--local', '--persist-to', '.wrangler/state'])
+await migrate('.wrangler/state')
 
 console.log(`
 ────────────────────────────────────────────────────────────

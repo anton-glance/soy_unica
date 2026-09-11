@@ -50,8 +50,16 @@ export async function contractDetail(db: D1Database, store: string, contract: Co
          FROM payments WHERE contract_id = ? ORDER BY paid_at, id`, contract.id)
   const documents = await all<{ id: string; kind: string; created_at: string }>(
     db, `SELECT id, kind, created_at FROM files WHERE contract_id = ? ORDER BY created_at`, contract.id)
+  // Por el renglón del contrato, no por items.contract_id: ese sólo se sella al
+  // firmar, y la hoja de medidas se imprime antes. Si no, el modelo y el color
+  // salían en blanco justo en la hoja que los necesita.
   const item = await one<{ id: number; code: string; name: string; color: string | null; status: string; ready_notified_at: string | null; price_cents: number }>(
-    db, `SELECT id, code, name, color, status, ready_notified_at, price_cents FROM items WHERE contract_id = ?`, contract.id)
+    db,
+    `SELECT i.id, i.code, i.name, i.color, i.status, i.ready_notified_at, i.price_cents
+     FROM contract_items ci JOIN items i ON i.id = ci.item_id
+     WHERE ci.contract_id = ? AND ci.line_kind = 'dress'
+     LIMIT 1`,
+    contract.id)
   const seller = await one<{ name: string }>(db, `SELECT name FROM users WHERE id = ?`, contract.seller_id)
   const storeRow = await one<{ name: string; address: string; hotel_daily_cents: number; hotel_free_days: number; late_fee_pct: number }>(
     db, `SELECT name, address, hotel_daily_cents, hotel_free_days, late_fee_pct FROM stores WHERE id = ?`, store)

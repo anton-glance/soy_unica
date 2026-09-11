@@ -99,6 +99,20 @@ docs/           Documentos de origen y lo que falta (NEXT.md)
 tests/          Unitarias e integración
 ```
 
+### La tableta es de la novia hasta que deja de serlo
+
+El kiosco es la única pantalla que la novia toca, y no tiene ni un camino al
+contrato. Puede ver vestidos, marcarlos y pedir pasar al probador. De ahí sale
+un aviso —«Pásale la tablet a la vendedora»— y el NIP de la vendedora, que se
+comprueba **en el servidor**, no sólo en la pantalla. Sólo después de ese NIP
+aparecen los datos de la novia y todo lo que sigue.
+
+El identificador de la sesión de venta vive en `localStorage`, por navegador
+(`su:session`). Sobrevive a un reinicio de la base, así que si algún día se
+restaura un respaldo el id guardado ya no existirá del otro lado: cuando eso
+pasa, la aplicación lo descarta y abre una sesión nueva sola. Un 401 de verdad
+—la cookie vencida— devuelve a la pantalla de sucursal y rol.
+
 ### Cómo se defiende el sistema
 
 Todas las reglas viven en el Worker y responden 409 con un mensaje en español
@@ -173,6 +187,23 @@ Las dos hojas impresas salen de los documentos reales: la de medidas reproduce
 es `docs/contrato_de_novia_nov_2024.docx` palabra por palabra, guardado en
 `stores.contract_template` y editable en Ajustes. Cada copia cabe en una página,
 porque el contrato se imprime al reverso de las mismas dos hojas de medidas.
+
+El logo vive en `docs/brand/logo-transparente.png` y sus dos variantes de
+paleta en `src/assets/brand/`: tinta para fondos claros —incluido el papel— y
+crema para fondos oscuros.
+
+### Una casilla que hay que desmarcar una sola vez
+
+El tamaño y los márgenes de la hoja los fija la aplicación (`@page`), así que
+la vendedora no tiene que tocar «escala» ni «márgenes» en el diálogo de
+impresión. Lo único que el navegador no deja controlar desde la página es su
+propio encabezado y pie —la fecha, la dirección y el número de página que
+Chrome añade arriba y abajo.
+
+**La primera vez que se imprima desde la tableta de la tienda**, en el diálogo
+de impresión de Chrome hay que abrir «Más configuraciones» y desmarcar
+**«Encabezados y pies de página»**. Chrome lo recuerda para las siguientes
+impresiones; no hay que repetirlo cada vez.
 
 ## Lo que falta
 

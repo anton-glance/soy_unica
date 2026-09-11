@@ -1,6 +1,7 @@
 import { Suspense } from 'react'
 import { matchPath, useNavigate, usePath } from './lib/router'
 import { useSession } from './lib/session'
+import { IconButton } from './components/IconButton'
 import { Entry } from './screens/Entry'
 import { Tiles } from './screens/Tiles'
 import { Inventory } from './screens/Inventory'
@@ -42,10 +43,15 @@ export function App() {
 
   return (
     <>
-      <header className="appbar">
-        <button type="button" className="btn-quiet" onClick={() => navigate('/')}>← Inicio</button>
-        <strong>{title}</strong>
-        <button type="button" className="btn-quiet" onClick={() => void logout()}>Salir</button>
+      {/* Regresar siempre a la izquierda, salir siempre a la derecha. */}
+      <header className="screen-nav">
+        <div className="screen-nav__slot">
+          <IconButton kind="back" label="Regresar al inicio" onClick={() => navigate('/')} />
+        </div>
+        <div className="screen-nav__title">{title}</div>
+        <div className="screen-nav__slot screen-nav__slot--end">
+          <IconButton kind="close" label="Salir" onClick={() => void logout()} />
+        </div>
       </header>
       <Suspense fallback={<div className="wrap"><span className="spinner" aria-hidden="true" /></div>}>
         <Routes path={path} />

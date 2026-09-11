@@ -97,6 +97,55 @@ label, legend { display: block; font-size: var(--text-label); color: var(--ink-s
 .chip--sm { min-height: 48px; font-size: var(--text-label); }
 a.chip, a.btn-main, a.btn-quiet { text-decoration: none; }
 
+
+/* ── controles de navegación ───────────────────────────────────────────── */
+/*
+ * Una tableta en una tienda, no un sitio web. El regreso vive siempre en la
+ * misma esquina de arriba a la izquierda y la salida siempre arriba a la
+ * derecha: la vendedora no tiene que leer, ya sabe dónde están. Trazo delgado
+ * y contraste alto, para que se distingan a la distancia de un brazo sin
+ * pelearse con el contenido.
+ */
+.icon-btn {
+  flex: 0 0 auto;
+  width: var(--tap-quiet);
+  height: var(--tap-quiet);
+  border-radius: 50%;
+  border: 1.5px solid var(--ink-soft);
+  color: var(--ink);
+  background: transparent;
+  display: inline-grid;
+  place-items: center;
+  transition: background var(--transition), border-color var(--transition);
+}
+.icon-btn:hover { background: var(--linen); border-color: var(--ink); }
+.icon-btn svg { width: 26px; height: 26px; display: block; }
+/* Sobre superficies oscuras y sobre el velo de los diálogos. */
+.icon-btn--onDark { border-color: rgba(251, 247, 241, .65); color: var(--ivory); }
+.icon-btn--onDark:hover { background: rgba(251, 247, 241, .12); border-color: var(--ivory); }
+/* La cruz de los diálogos del kiosco: la novia la tiene que ver de lejos. */
+.icon-btn--lg { width: 64px; height: 64px; }
+.icon-btn--lg svg { width: 32px; height: 32px; }
+
+/* Barra de navegación de pantalla: izquierda regresar, derecha salir. */
+.screen-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-9);
+  padding: var(--space-6) var(--gutter);
+}
+.screen-nav__title { font-family: var(--font-display); font-size: var(--text-panel); text-align: center; }
+.screen-nav__slot { display: flex; align-items: center; gap: var(--space-5); min-width: var(--tap-quiet); }
+.screen-nav__slot--end { justify-content: flex-end; }
+
+/* La marca: el logo, no el texto. */
+.brandmark { display: block; height: 34px; width: auto; }
+.brandmark--lg { height: 46px; }
+
+/* Cabecera de los diálogos: el título y, pegada a la derecha, la cruz. */
+.sheet-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-9); margin-bottom: var(--space-9); }
+
 /* ── kiosco ────────────────────────────────────────────────────────────── */
 .k-top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-9); padding: var(--space-10) var(--gutter) var(--space-6); }
 .k-brand { display: flex; align-items: baseline; gap: var(--space-6); }
@@ -176,8 +225,21 @@ a.chip, a.btn-main, a.btn-quiet { text-decoration: none; }
 .fav-list figcaption { font-family: var(--font-display); font-size: var(--text-md); padding-top: var(--space-3); }
 
 .pinpad { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-5); margin: var(--space-10) 0; }
-.pinpad button { min-height: var(--tap-key); border-radius: var(--radius-md); background: var(--linen); font-size: var(--text-key); }
-.pindots { letter-spacing: var(--space-6); font-size: var(--text-brand); min-height: 42px; color: var(--ink); }
+.pinpad button { min-height: var(--tap-key); border-radius: var(--radius-md); background: var(--linen); font-size: var(--text-key); color: var(--ink); }
+.pinpad button:hover { background: var(--tape); }
+/* Confirmar es la acción: va llena. Borrar se queda callado. */
+.pinpad button.is-confirm { background: var(--sage); color: #fff; }
+.pinpad button.is-confirm:hover { background: var(--sage); filter: brightness(.94); }
+.pinpad button.is-quiet { background: transparent; border: 1px solid var(--tape); color: var(--ink-soft); font-size: var(--text-md); }
+
+/* Puntos del NIP: llenos y con contraste, para verlos de lejos. */
+.pindots { display: flex; justify-content: center; gap: var(--space-6); min-height: 42px; align-items: center; }
+.pindots span {
+  width: 20px; height: 20px; border-radius: 50%;
+  border: 2px solid var(--ink-faint);
+  background: transparent;
+}
+.pindots span.on { background: var(--ink); border-color: var(--ink); }
 .err { color: var(--clay); font-size: var(--text-label); min-height: 22px; margin: var(--space-1) 0 0; }
 
 /* ── formularios ───────────────────────────────────────────────────────── */

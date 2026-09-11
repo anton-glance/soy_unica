@@ -96,18 +96,26 @@ INSERT INTO users (store_id, name, role, pin_hash, pin_salt) VALUES
   ('cdmx', 'Vendedora', 'seller', 'hVXsO40w9eth6UZJ4RIqpFxRYianMmaAuUOpAP8RqsM', 'j_TWwCgS-EJs-Uxi4_3SzQ');
 
 -- ──────────────────────────────────────────────────── planes de pago ──────
--- Conjunto fijo. `max_months = 0` significa que lo que resta se liquida al
--- recoger el vestido, sin fecha: son los únicos planes que se pueden ofrecer
--- cuando la novia todavía no tiene fecha de evento.
+-- Los cuatro de la tienda. Los tres primeros están escritos en el punto 1 del
+-- contrato real (docs/contrato_de_novia_nov_2024.docx):
+--   a) 50% (apartado) y 50% (cuando vestido esta listo)
+--   b) 40% (apartado) - 30% - 30% (cada mes)
+--   c) 20% 5 meses
+-- El de contado es el cuarto, con su descuento configurable en Ajustes.
+--
+-- `max_months = 0` significa que lo que resta se liquida al recoger el
+-- vestido, sin fecha: son los únicos planes que se pueden ofrecer cuando la
+-- novia todavía no tiene fecha de evento. Ningún plan lleva precio mínimo: la
+-- dueña lo pone en Ajustes si algún día lo quiere.
 INSERT INTO plans (store_id, name, splits, min_price_cents, max_price_cents, max_months, discount_pct, sort) VALUES
-  ('mty',  'Pago de contado',        '[100]',                     0,       NULL, 0, 10, 1),
-  ('mty',  'Mitad y mitad',          '[50,50]',                   0,       NULL, 0,  0, 2),
-  ('mty',  'Tres meses',             '[50,25,25]',           800000,       NULL, 2,  0, 3),
-  ('mty',  'Seis meses',             '[40,12,12,12,12,12]', 1500000,       NULL, 5,  0, 4),
-  ('cdmx', 'Pago de contado',        '[100]',                     0,       NULL, 0, 10, 1),
-  ('cdmx', 'Mitad y mitad',          '[50,50]',                   0,       NULL, 0,  0, 2),
-  ('cdmx', 'Tres meses',             '[50,25,25]',           800000,       NULL, 2,  0, 3),
-  ('cdmx', 'Seis meses',             '[40,12,12,12,12,12]', 1500000,       NULL, 5,  0, 4);
+  ('mty',  'Contado',        '[100]',                0, NULL, 0, 10, 1),
+  ('mty',  'Mitad y mitad',  '[50,50]',              0, NULL, 0,  0, 2),
+  ('mty',  '40/30/30',       '[40,30,30]',           0, NULL, 2,  0, 3),
+  ('mty',  '20 × 5',         '[20,20,20,20,20]',     0, NULL, 4,  0, 4),
+  ('cdmx', 'Contado',        '[100]',                0, NULL, 0, 10, 1),
+  ('cdmx', 'Mitad y mitad',  '[50,50]',              0, NULL, 0,  0, 2),
+  ('cdmx', '40/30/30',       '[40,30,30]',           0, NULL, 2,  0, 3),
+  ('cdmx', '20 × 5',         '[20,20,20,20,20]',     0, NULL, 4,  0, 4);
 
 -- ───────────────────────────────────────────────────────────── cargos ─────
 -- Tomados del contrato real. Donde el contrato marca un rango se siembra el

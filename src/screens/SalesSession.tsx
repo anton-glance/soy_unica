@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ApiError, get, post } from '../lib/api'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { ApiError, UnauthorizedError, get, post } from '../lib/api'
 import { money } from '../lib/format'
 import { useSession } from '../lib/session'
 import { useNavigate } from '../lib/router'
@@ -7,8 +7,21 @@ import { ActionButton } from '../components/ActionButton'
 import { PhotoCapture } from '../components/PhotoCapture'
 import { Dialog } from '../components/Dialog'
 import { GownArt } from '../components/GownArt'
+import { IconButton } from '../components/IconButton'
+import { Brandmark } from '../components/Brandmark'
+import { PinPad } from '../components/PinPad'
+import { PrintOverlay } from '../components/PrintOverlay'
 import { Chips, Field } from '../components/Field'
+import { PrintMedidas } from './PrintMedidas'
+import { PrintContrato } from './PrintContrato'
 
+/**
+ * El identificador de la sesión de venta vive en `localStorage`, por navegador.
+ * Sobrevive a un reinicio de la base: si alguna vez se restaura un respaldo, el
+ * id guardado ya no existirá del otro lado. Por eso, cuando no se puede
+ * resolver, se descarta y se abre una sesión nueva en vez de dejar una pantalla
+ * sin salida.
+ */
 const SESSION_KEY = 'su:session'
 
 type Stage =
@@ -31,6 +44,7 @@ interface SessionState {
 
 export function SalesSession() {
   const navigate = useNavigate()
+  const { signOutToEntry } = useSession()
   const [sessionId, setSessionId] = useState<number | null>(() => {
     const raw = localStorage.getItem(SESSION_KEY)
     return raw ? Number(raw) : null
@@ -54,55 +68,92 @@ export function SalesSession() {
     async function boot() {
       try {
         let id = sessionId
-        if (!id) {
-          const created = await post<{ id: number }>('/sessions', { device_label: navigator.userAgent.slice(0, 40) })
-          id = created.id
-          localStorage.setItem(SESSION_KEY, String(id))
-          if (!cancelled) setSessionId(id)
+        if (id) {
+          try {
+            await reload(id)
+            return
+          } catch (err) {
+            if (err instanceof UnauthorizedError) throw err
+            // El id guardado ya no existe: se descarta y se abre una nueva.
+            localStorage.removeItem(SESSION_KEY)
+            id = null
+          }
         }
-        if (!cancelled) await reload(id)
+        const created = await post<{ id: number }>('/sessions', { device_label: navigator.userAgent.slice(0, 40) })
+        localStorage.setItem(SESSION_KEY, String(created.id))
+        if (cancelled) return
+        setSessionId(created.id)
+        await reload(created.id)
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'No se pudo abrir la sesión.')
+        if (cancelled) return
+        if (err instanceof UnauthorizedError) {
+          void signOutToEntry('Tu sesión expiró. Vuelve a marcar tu NIP.')
+          return
+        }
+        setError(err instanceof Error ? err.message : 'No se pudo abrir la sesión.')
       }
     }
     void boot()
     return () => { cancelled = true }
-  }, [sessionId, reload])
+  // `sessionId` a propósito fuera: el arranque lo resuelve solo una vez.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-  if (error) return <div className="wrap"><p className="err">{error}</p></div>
+  if (error) {
+    return (
+      <>
+        <div className="screen-nav">
+          <div className="screen-nav__slot"><IconButton kind="back" label="Regresar al inicio" onClick={() => navigate('/')} /></div>
+          <div />
+          <div className="screen-nav__slot screen-nav__slot--end" />
+        </div>
+        <div className="entry">
+          <h1>No se pudo abrir la sesión</h1>
+          <p className="err">{error}</p>
+          <button type="button" className="btn-main" onClick={() => { localStorage.removeItem(SESSION_KEY); window.location.reload() }}>
+            Empezar una sesión nueva
+          </button>
+        </div>
+      </>
+    )
+  }
   if (!state || !sessionId) return <div className="wrap"><span className="spinner" aria-hidden="true" /></div>
 
   const refresh = () => reload(sessionId)
   const stage = state.session.stage
-  const browsing = stage === 'browsing' || stage === 'fitting'
   const onClosed = () => { localStorage.removeItem(SESSION_KEY); navigate('/') }
 
-  // Mientras la novia ve vestidos, la pantalla es el kiosco completo.
-  if (browsing) return <Kiosk sessionId={sessionId} stage={stage} onChange={refresh} onClosed={onClosed} />
+  // Mientras la novia ve vestidos, la pantalla es suya: el kiosco completo.
+  if (stage === 'browsing' || stage === 'fitting') {
+    return <Kiosk sessionId={sessionId} stage={stage} onChange={refresh} onClosed={onClosed} />
+  }
 
+  // De aquí en adelante la tableta ya es de la vendedora.
   return (
-    <div className="wrap">
-      <div className="inv-head">
-        <div>
-          <h2>{STAGE_LABEL[stage]}</h2>
-          <p className="lede" style={{ margin: 0 }}>{STAGE_HINT[stage]}</p>
-        </div>
-        <div className="row" style={{ alignItems: 'center' }}>
+    <>
+      <div className="screen-nav">
+        <div className="screen-nav__slot"><Brandmark /></div>
+        <div className="screen-nav__title">{STAGE_LABEL[stage]}</div>
+        <div className="screen-nav__slot screen-nav__slot--end">
           {state.contract && <span className="pill pill--brass">Folio {state.contract.folio}</span>}
           <CloseControl sessionId={sessionId} onClosed={onClosed} />
         </div>
       </div>
 
-      {stage === 'selected' && <BrideForm sessionId={sessionId} onDone={refresh} />}
-      {stage === 'bride_data' && <SheetPrint sessionId={sessionId} state={state} onDone={refresh} />}
-      {stage === 'sheet_printed' && <SheetSigned sessionId={sessionId} state={state} onDone={refresh} />}
-      {stage === 'sheet_signed' && <Terms sessionId={sessionId} onDone={refresh} />}
-      {stage === 'terms' && <ContractPrint sessionId={sessionId} state={state} onDone={refresh} />}
-      {stage === 'contract_printed' && <SignContract sessionId={sessionId} state={state} onDone={refresh} />}
-      {(stage === 'signed' || stage === 'payment') && state.contract && (
-        <FirstPayment folio={state.contract.folio} onDone={refresh} />
-      )}
-    </div>
+      <div className="wrap">
+        {STAGE_HINT[stage] && <p className="lede">{STAGE_HINT[stage]}</p>}
+
+        {stage === 'selected' && <BrideForm sessionId={sessionId} onDone={refresh} />}
+        {stage === 'bride_data' && <SheetPrint sessionId={sessionId} state={state} onDone={refresh} />}
+        {stage === 'sheet_printed' && <SheetSigned sessionId={sessionId} state={state} onDone={refresh} />}
+        {stage === 'sheet_signed' && <Terms sessionId={sessionId} onDone={refresh} />}
+        {stage === 'terms' && <ContractPrint sessionId={sessionId} state={state} onDone={refresh} />}
+        {stage === 'contract_printed' && <SignContract sessionId={sessionId} state={state} onDone={refresh} />}
+        {(stage === 'signed' || stage === 'payment') && state.contract && (
+          <FirstPayment folio={state.contract.folio} onDone={refresh} />
+        )}
+      </div>
+    </>
   )
 }
 
@@ -115,7 +166,7 @@ const STAGE_LABEL: Record<Stage, string> = {
 const STAGE_HINT: Record<Stage, string> = {
   browsing: '', fitting: '',
   selected: 'Los cuatro datos son obligatorios. La fecha del evento decide qué planes se pueden ofrecer.',
-  bride_data: 'Dos copias, con el folio y los datos de la novia ya puestos. Las medidas se llenan a mano.',
+  bride_data: '',
   sheet_printed: 'Las medidas no se capturan al sistema: la foto de la hoja firmada es la evidencia de la tienda.',
   sheet_signed: 'Sólo aparecen los planes que caben por precio, por meses y por la fecha del evento.',
   terms: 'El contrato va impreso al reverso de las mismas dos hojas.',
@@ -126,13 +177,23 @@ const STAGE_HINT: Record<Stage, string> = {
 }
 
 // ────────────────────────────────────────────────────────────── kiosco ──
-function Kiosk({ sessionId, stage, onChange, onClosed }: { sessionId: number; stage: Stage; onChange: () => Promise<void>; onClosed: () => void }) {
-  const { me } = useSession()
+/**
+ * La pantalla de la novia. No hay aquí ni un solo camino al contrato: puede ver
+ * vestidos, marcarlos y pedir pasar al probador. Elegir el vestido, capturar
+ * sus datos y todo lo que sigue exige el NIP de la vendedora.
+ */
+function Kiosk({ sessionId, stage, onChange, onClosed }: {
+  sessionId: number; stage: Stage; onChange: () => Promise<void>; onClosed: () => void
+}) {
+  const { signOutToEntry } = useSession()
   const [items, setItems] = useState<KioskItem[]>([])
   const [showPrices, setShowPrices] = useState(true)
   const [filter, setFilter] = useState('todos')
   const [open, setOpen] = useState<KioskItem | null>(null)
   const [favsOpen, setFavsOpen] = useState(false)
+  const [handover, setHandover] = useState<KioskItem | null>(null)
+  const [gate, setGate] = useState<KioskItem | null>(null)
+  const [gateError, setGateError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
@@ -146,8 +207,6 @@ function Kiosk({ sessionId, stage, onChange, onClosed }: { sessionId: number; st
   const dresses = useMemo(() => items.filter((i) => i.kind === 'dress'), [items])
 
   // Los filtros del prototipo, armados con lo que de verdad hay en la sucursal.
-  // La fila se mantiene corta como en el diseño: los cortes, una banda de
-  // precio y las tallas más comunes. «A medida» no es una talla que se filtre.
   const filters = useMemo(() => {
     const cuts = [...new Set(dresses.map((d) => d.cut).filter(Boolean))] as string[]
     const bySize = new Map<string, number>()
@@ -185,28 +244,35 @@ function Kiosk({ sessionId, stage, onChange, onClosed }: { sessionId: number; st
     await load()
   }
 
+  // Sólo después del NIP correcto se emite el folio y aparece Datos de la novia.
+  if (gate) {
+    return (
+      <PinPad
+        title="NIP de la vendedora"
+        hint={`${gate.name} · ${gate.code}`}
+        error={gateError}
+        backLabel="Regresar al catálogo"
+        onBack={() => { setGate(null); setGateError(null) }}
+        onSubmit={async (pin) => {
+          setGateError(null)
+          try {
+            await post(`/sessions/${sessionId}/select`, { item_id: gate.id, pin })
+            await onChange()
+          } catch (err) {
+            if (err instanceof UnauthorizedError) { void signOutToEntry('Tu sesión expiró. Vuelve a marcar tu NIP.'); return }
+            setGateError(err instanceof ApiError ? err.message : 'No se pudo continuar. Vuelve a intentar.')
+          }
+        }}
+      />
+    )
+  }
+
   return (
     <>
       <div className="k-top">
-        <div className="k-brand">
-          <h1>Soy Única</h1>
-          <em>{me?.store_name.split('·').pop()?.trim()}</em>
-        </div>
+        <Brandmark size="lg" />
         <div className="k-session">
-          <span className="pill">
-            <span className="dot" />
-            <span>{stage === 'fitting' ? 'En el probador' : 'Sesión abierta'}</span>
-          </span>
-          <ActionButton
-            className="btn-quiet"
-            done={stage === 'fitting' ? 'Viendo' : 'En el probador'}
-            onAction={async () => {
-              await post(`/sessions/${sessionId}/stage`, { stage: stage === 'fitting' ? 'browsing' : 'fitting' })
-              await onChange()
-            }}
-          >
-            {stage === 'fitting' ? 'Volver a ver vestidos' : 'Pasar al probador'}
-          </ActionButton>
+          <span className="pill"><span className="dot" />{stage === 'fitting' ? 'En el probador' : 'Sesión abierta'}</span>
           <CloseControl sessionId={sessionId} onClosed={onClosed} />
         </div>
       </div>
@@ -272,10 +338,13 @@ function Kiosk({ sessionId, stage, onChange, onClosed }: { sessionId: number; st
       {open && (
         <div className="veil" onClick={(e) => { if (e.target === e.currentTarget) setOpen(null) }}>
           <div className="sheet">
+            <div className="sheet-head">
+              <h2>{open.name}</h2>
+              <IconButton kind="close" label="Cerrar" size="lg" onClick={() => setOpen(null)} />
+            </div>
             <div className="detail">
               <div><GownArt seed={open.id} /></div>
               <div>
-                <h2>{open.name}</h2>
                 <p style={{ color: 'var(--ink-faint)', margin: 0 }}>{open.brand}</p>
                 <dl>
                   {showPrices && <><dt>Precio</dt><dd>{money(open.price_cents)}</dd></>}
@@ -296,14 +365,6 @@ function Kiosk({ sessionId, stage, onChange, onClosed }: { sessionId: number; st
                   <button type="button" className="btn-main" onClick={() => { void toggleFavorite(open); setOpen(null) }}>
                     {open.favorite ? 'Quitar de favoritos' : 'Me gusta'}
                   </button>
-                  <ActionButton
-                    className="btn-quiet"
-                    done="Elegido"
-                    onAction={async () => { await post(`/sessions/${sessionId}/select`, { item_id: open.id }); setOpen(null); await onChange() }}
-                  >
-                    Elegir este vestido
-                  </ActionButton>
-                  <button type="button" className="btn-quiet" onClick={() => setOpen(null)}>Seguir viendo</button>
                 </div>
               </div>
             </div>
@@ -312,72 +373,181 @@ function Kiosk({ sessionId, stage, onChange, onClosed }: { sessionId: number; st
       )}
 
       {favsOpen && (
-        <div className="veil" onClick={(e) => { if (e.target === e.currentTarget) setFavsOpen(false) }}>
-          <div className="sheet">
-            <h2 style={{ fontSize: 'var(--text-brand)' }}>Mis favoritos</h2>
-            <p style={{ color: 'var(--ink-soft)', margin: 'var(--space-3) 0 var(--space-11)' }}>
-              La vendedora traerá estos vestidos al probador.
+        <FavoritesModal
+          favs={favs}
+          showPrices={showPrices}
+          onClose={() => setFavsOpen(false)}
+          onRemove={toggleFavorite}
+          onFitting={(item) => { setFavsOpen(false); setHandover(item) }}
+        />
+      )}
+
+      {handover && (
+        <div className="veil">
+          <div className="sheet sheet-narrow" style={{ textAlign: 'center' }}>
+            <h2 style={{ fontSize: 'var(--text-detail)', marginBottom: 'var(--space-5)' }}>
+              Pásale la tablet a la vendedora
+            </h2>
+            <p className="lede" style={{ margin: '0 auto var(--space-11)' }}>
+              Ella sigue desde aquí con {handover.name}.
             </p>
-            <div className="fav-list">
-              {favs.map((d) => (
-                <figure key={d.id}>
-                  <GownArt seed={d.id} />
-                  <figcaption>{d.name}</figcaption>
-                  <button
-                    type="button"
-                    className="btn-quiet"
-                    style={{ marginTop: 'var(--space-3)', minHeight: 44, width: '100%' }}
-                    onClick={() => void toggleFavorite(d)}
-                  >
-                    Quitar
-                  </button>
-                </figure>
-              ))}
-            </div>
-            <div className="row" style={{ marginTop: 'var(--space-12)' }}>
-              <button type="button" className="btn-main" onClick={() => setFavsOpen(false)}>Seguir viendo vestidos</button>
+            <div className="row" style={{ justifyContent: 'center' }}>
+              <button type="button" className="btn-quiet" onClick={() => setHandover(null)}>De acuerdo</button>
+              <button type="button" className="btn-main" onClick={() => { setGate(handover); setHandover(null) }}>
+                Soy la vendedora
+              </button>
             </div>
           </div>
         </div>
       )}
+
     </>
+  )
+}
+
+/**
+ * Los favoritos de la novia. Aquí confirma cuál es el suyo y pide pasar al
+ * probador; es la única salida del kiosco hacia adelante.
+ */
+function FavoritesModal({ favs, showPrices, onClose, onRemove, onFitting }: {
+  favs: KioskItem[]
+  showPrices: boolean
+  onClose: () => void
+  onRemove: (item: KioskItem) => Promise<void>
+  onFitting: (item: KioskItem) => void
+}) {
+  const [chosen, setChosen] = useState<number | null>(favs.length === 1 ? (favs[0] as KioskItem).id : null)
+  const pick = favs.find((f) => f.id === chosen) ?? null
+
+  return (
+    <div className="veil" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="sheet">
+        <div className="sheet-head">
+          <h2 style={{ fontSize: 'var(--text-brand)' }}>Mis favoritos</h2>
+          <IconButton kind="close" label="Seguir viendo vestidos" size="lg" onClick={onClose} />
+        </div>
+        <p style={{ color: 'var(--ink-soft)', margin: '0 0 var(--space-11)' }}>
+          {favs.length === 1
+            ? 'La vendedora traerá este vestido al probador.'
+            : 'Toca el que más te guste. La vendedora lo traerá al probador.'}
+        </p>
+
+        <div className="fav-list">
+          {favs.map((d) => (
+            <figure key={d.id}>
+              <button
+                type="button"
+                style={{
+                  display: 'block', width: '100%', padding: 0, borderRadius: 'var(--radius)',
+                  outline: chosen === d.id ? '3px solid var(--brass)' : 'none', outlineOffset: 2,
+                }}
+                aria-pressed={chosen === d.id}
+                onClick={() => setChosen(d.id)}
+              >
+                <GownArt seed={d.id} />
+              </button>
+              <figcaption>{d.name}</figcaption>
+              {showPrices && <p className="muted" style={{ fontSize: 'var(--text-sm)' }}>{money(d.price_cents)}</p>}
+              <button
+                type="button"
+                className="btn-quiet"
+                style={{ marginTop: 'var(--space-3)', minHeight: 44, width: '100%' }}
+                onClick={() => void onRemove(d)}
+              >
+                Quitar
+              </button>
+            </figure>
+          ))}
+        </div>
+
+        <div className="row" style={{ justifyContent: 'center', marginTop: 'var(--space-12)' }}>
+          <button type="button" className="btn-main" disabled={!pick} onClick={() => pick && onFitting(pick)}>
+            Pasar al probador
+          </button>
+        </div>
+        {favs.length > 1 && !pick && (
+          <p className="muted" style={{ textAlign: 'center', marginTop: 'var(--space-5)' }}>
+            Toca primero el vestido que quieres probarte.
+          </p>
+        )}
+      </div>
+    </div>
   )
 }
 
 // ───────────────────────────────────────────────────── datos de novia ──
 function BrideForm({ sessionId, onDone }: { sessionId: number; onDone: () => Promise<void> }) {
-  const [form, setForm] = useState({ name: '', apellido: '', phone: '', wedding_date: '' })
-  const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setForm((f) => ({ ...f, [key]: e.target.value }))
+  const form = useRef<HTMLFormElement>(null)
+  const today = new Date().toISOString().slice(0, 10)
 
   return (
-    <div className="panel">
+    <form ref={form} className="panel" onSubmit={(e) => e.preventDefault()}>
+      {/*
+        Los campos van sin estado de React a propósito: el autocompletado de
+        Chrome llena el DOM sin disparar onChange, y un formulario controlado se
+        queda creyendo que están vacíos. Al guardar se leen del DOM con
+        FormData, que siempre ve lo que la vendedora tiene enfrente.
+      */}
       <div className="two">
-        <Field label="Nombre">{(id) => <input id={id} type="text" value={form.name} onChange={set('name')} autoComplete="off" />}</Field>
-        <Field label="Apellido">{(id) => <input id={id} type="text" value={form.apellido} onChange={set('apellido')} autoComplete="off" />}</Field>
+        <div className="field">
+          <label htmlFor="bride-name">Nombre</label>
+          <input id="bride-name" name="name" type="text" autoComplete="given-name" />
+        </div>
+        <div className="field">
+          <label htmlFor="bride-apellido">Apellido</label>
+          <input id="bride-apellido" name="apellido" type="text" autoComplete="family-name" />
+        </div>
       </div>
       <div className="two">
-        <Field label="Teléfono" hint="10 dígitos">{(id) => <input id={id} type="text" inputMode="tel" value={form.phone} onChange={set('phone')} />}</Field>
-        <Field label="Fecha del evento" hint="Déjala vacía sólo si de verdad no hay fecha">
-          {(id) => <input id={id} type="date" value={form.wedding_date} onChange={set('wedding_date')} />}
-        </Field>
+        <div className="field">
+          <label htmlFor="bride-phone">Teléfono</label>
+          <input id="bride-phone" name="phone" type="tel" inputMode="tel" autoComplete="tel" />
+          <p className="err" style={{ color: 'var(--ink-faint)' }}>10 dígitos</p>
+        </div>
+        <div className="field">
+          <label htmlFor="bride-wedding">Fecha del evento</label>
+          {/* No hay bodas en el pasado; el servidor lo vuelve a revisar. */}
+          <input id="bride-wedding" name="wedding_date" type="date" min={today} />
+          <p className="err" style={{ color: 'var(--ink-faint)' }}>Déjala vacía sólo si de verdad no hay fecha</p>
+        </div>
       </div>
+
       <ActionButton
         onAction={async () => {
-          await post(`/sessions/${sessionId}/bride`, { ...form, wedding_date: form.wedding_date || null })
+          const data = new FormData(form.current as HTMLFormElement)
+          const value = (key: string) => String(data.get(key) ?? '').trim()
+          await post(`/sessions/${sessionId}/bride`, {
+            name: value('name'),
+            apellido: value('apellido'),
+            phone: value('phone'),
+            wedding_date: value('wedding_date') || null,
+          })
           await onDone()
         }}
       >
         Guardar y seguir
       </ActionButton>
-    </div>
+    </form>
   )
 }
 
 // ─────────────────────────────────── hoja de medidas y contrato ────────
+/**
+ * Guardados los datos de la novia se va directo al diálogo de impresión: no
+ * hay una pantalla intermedia que sólo tenga un botón.
+ */
 function SheetPrint({ sessionId, state, onDone }: { sessionId: number; state: SessionState; onDone: () => Promise<void> }) {
-  const [asking, setAsking] = useState(false)
+  const [asking, setAsking] = useState(true)
+  const [printing, setPrinting] = useState(false)
   const folio = state.contract?.folio ?? ''
+
+  if (printing) {
+    return (
+      <PrintOverlay>
+        <PrintMedidas folio={folio} onBack={() => { setPrinting(false); void onDone() }} />
+      </PrintOverlay>
+    )
+  }
 
   return (
     <div className="panel">
@@ -393,9 +563,8 @@ function SheetPrint({ sessionId, state, onDone }: { sessionId: number; state: Se
               done="Impresa"
               onAction={async () => {
                 await post(`/sessions/${sessionId}/sheet-printed`)
-                window.open(`/print/${encodeURIComponent(folio)}/medidas`, '_blank', 'noopener')
                 setAsking(false)
-                await onDone()
+                setPrinting(true)
               }}
             >
               Imprimir
@@ -413,15 +582,29 @@ function SheetPrint({ sessionId, state, onDone }: { sessionId: number; state: Se
 
 function SheetSigned({ sessionId, state, onDone }: { sessionId: number; state: SessionState; onDone: () => Promise<void> }) {
   const has = state.documents.some((d) => d.kind === 'measurement_sheet')
+  const [printing, setPrinting] = useState(false)
+  const folio = state.contract?.folio ?? ''
+
+  if (printing) {
+    return (
+      <PrintOverlay>
+        <PrintMedidas folio={folio} onBack={() => setPrinting(false)} />
+      </PrintOverlay>
+    )
+  }
+
   return (
     <div className="panel">
       <div className="field">
         <label>Hoja de medidas firmada</label>
         <PhotoCapture kind="measurement_sheet" contractId={state.contract?.id} label="Tomar foto de la hoja" onUploaded={onDone} />
       </div>
-      <ActionButton disabled={!has} onAction={async () => { await post(`/sessions/${sessionId}/sheet-signed`); await onDone() }}>
-        Seguir al plan de pago
-      </ActionButton>
+      <div className="row">
+        <ActionButton disabled={!has} onAction={async () => { await post(`/sessions/${sessionId}/sheet-signed`); await onDone() }}>
+          Seguir al plan de pago
+        </ActionButton>
+        <button type="button" className="btn-quiet" onClick={() => setPrinting(true)}>Volver a imprimir</button>
+      </div>
       {!has && <p className="err" style={{ color: 'var(--ink-faint)' }}>Primero toma la foto.</p>}
     </div>
   )
@@ -433,16 +616,18 @@ interface Offer {
   discount_cents: number
   schedule: { seq: number; due_type: 'fixed' | 'on_pickup'; due_date: string | null; amount_cents: number }[]
 }
+interface Rejection { plan_name: string; reason: string; detail: string }
 
 function Terms({ sessionId, onDone }: { sessionId: number; onDone: () => Promise<void> }) {
   const [offers, setOffers] = useState<Offer[] | null>(null)
+  const [rejected, setRejected] = useState<Rejection[]>([])
   const [weddingDate, setWeddingDate] = useState<string | null>(null)
   const [chosen, setChosen] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    post<{ offers: Offer[]; wedding_date: string | null }>(`/sessions/${sessionId}/quote`, {})
-      .then((data) => { setOffers(data.offers); setWeddingDate(data.wedding_date) })
+    post<{ offers: Offer[]; rejected: Rejection[]; wedding_date: string | null }>(`/sessions/${sessionId}/quote`, {})
+      .then((data) => { setOffers(data.offers); setRejected(data.rejected ?? []); setWeddingDate(data.wedding_date) })
       .catch((err: Error) => setError(err.message))
   }, [sessionId])
 
@@ -454,9 +639,19 @@ function Terms({ sessionId, onDone }: { sessionId: number; onDone: () => Promise
       {!weddingDate && (
         <p className="lede">Sin fecha de evento sólo se pueden ofrecer los planes que se liquidan al recoger el vestido.</p>
       )}
+
       {offers.length === 0 && (
-        <p className="err">Ningún plan cabe para este precio y esta fecha. Ajusta el precio o la fecha del evento.</p>
+        <div className="panel">
+          <h3 style={{ marginBottom: 'var(--space-6)' }}>Ningún plan cabe todavía</h3>
+          {/* Decir cuál restricción falló, plan por plan, para saber qué mover. */}
+          <div className="hist">
+            {rejected.map((r) => (
+              <div key={r.plan_name}><span>{r.plan_name}</span><span className="muted">{r.detail}</span></div>
+            ))}
+          </div>
+        </div>
       )}
+
       {offers.map((offer) => (
         <div key={offer.plan.id} className="panel" style={{ borderColor: chosen === offer.plan.id ? 'var(--brass)' : undefined }}>
           <div className="inv-head" style={{ marginBottom: 'var(--space-8)' }}>
@@ -489,27 +684,38 @@ function Terms({ sessionId, onDone }: { sessionId: number; onDone: () => Promise
           </button>
         </div>
       ))}
-      <ActionButton
-        disabled={chosen === null}
-        onAction={async () => { await post(`/sessions/${sessionId}/terms`, { plan_id: chosen }); await onDone() }}
-      >
-        Guardar el plan
-      </ActionButton>
+
+      {offers.length > 0 && (
+        <ActionButton
+          disabled={chosen === null}
+          onAction={async () => { await post(`/sessions/${sessionId}/terms`, { plan_id: chosen }); await onDone() }}
+        >
+          Guardar el plan
+        </ActionButton>
+      )}
     </>
   )
 }
 
 function ContractPrint({ sessionId, state, onDone }: { sessionId: number; state: SessionState; onDone: () => Promise<void> }) {
   const folio = state.contract?.folio ?? ''
+  const [printing, setPrinting] = useState(false)
+
+  if (printing) {
+    return (
+      <PrintOverlay>
+        <PrintContrato folio={folio} onBack={() => setPrinting(false)} />
+      </PrintOverlay>
+    )
+  }
+
   return (
     <div className="panel">
       <p className="pill pill--brass" style={{ marginBottom: 'var(--space-9)' }}>
         Vuelve a poner las 2 hojas en la bandeja, cara impresa hacia abajo.
       </p>
       <div className="row">
-        <button type="button" className="btn-quiet" onClick={() => window.open(`/print/${encodeURIComponent(folio)}/contrato`, '_blank', 'noopener')}>
-          Abrir el contrato para imprimir
-        </button>
+        <button type="button" className="btn-quiet" onClick={() => setPrinting(true)}>Abrir el contrato para imprimir</button>
         <ActionButton onAction={async () => { await post(`/sessions/${sessionId}/contract-printed`); await onDone() }}>
           Ya se imprimió
         </ActionButton>
@@ -583,6 +789,10 @@ function CloseControl({ sessionId, onClosed }: { sessionId: number; onClosed: ()
 
   function reset() { setStep('closed'); setPin(''); setError(null) }
 
+  // El detalle es obligatorio en los dos caminos: es lo que sirve después.
+  const detail = outcome === 'won' ? reason : note
+  const ready = Boolean(outcome) && Boolean(reason.trim()) && Boolean(detail.trim()) && (!needsDisposal || disposed)
+
   return (
     <>
       <button type="button" className="btn-quiet" onClick={() => setStep('pin')}>Cerrar sesión</button>
@@ -590,32 +800,18 @@ function CloseControl({ sessionId, onClosed }: { sessionId: number; onClosed: ()
       {step === 'pin' && (
         <div className="veil" onClick={(e) => { if (e.target === e.currentTarget) reset() }}>
           <div className="sheet sheet-narrow">
-            <h2 style={{ fontSize: 'var(--text-money)' }}>Cerrar la sesión</h2>
-            <p style={{ color: 'var(--ink-soft)', margin: 'var(--space-3) 0 var(--space-8)' }}>
+            <div className="sheet-head">
+              <h2 style={{ fontSize: 'var(--text-money)' }}>Cerrar la sesión</h2>
+              <IconButton kind="close" label="Cancelar, seguir en la sesión" onClick={reset} />
+            </div>
+            <p style={{ color: 'var(--ink-soft)', margin: '0 0 var(--space-8)' }}>
               Se borran los favoritos y las marcas de «viendo ahora». Pide el NIP a la vendedora.
             </p>
-            <div className="pindots" aria-hidden="true">{'•'.repeat(pin.length)}</div>
-            <p className="err" role="alert">{error ?? ''}</p>
-            <div className="pinpad">
-              {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((n) => (
-                <button key={n} type="button" onClick={() => { setError(null); setPin((p) => (p.length >= 6 ? p : p + n)) }}>{n}</button>
-              ))}
-              <button type="button" onClick={() => setPin((p) => p.slice(0, -1))}>borrar</button>
-              <button type="button" onClick={() => { setError(null); setPin((p) => (p.length >= 6 ? p : p + '0')) }}>0</button>
-              <button
-                type="button"
-                aria-label="Continuar"
-                onClick={() => {
-                  if (pin.length < 4) { setError('Escribe el NIP de 4 dígitos.'); return }
-                  setStep('reason')
-                }}
-              >
-                ✓
-              </button>
-            </div>
-            <button type="button" className="btn-quiet" style={{ width: '100%' }} onClick={reset}>
-              Cancelar, seguir en la sesión
-            </button>
+            <PinPadInline pin={pin} setPin={setPin} error={error} onConfirm={() => {
+              if (pin.length < 4) { setError('Escribe el NIP de 4 dígitos.'); return }
+              setError(null)
+              setStep('reason')
+            }} />
           </div>
         </div>
       )}
@@ -623,16 +819,17 @@ function CloseControl({ sessionId, onClosed }: { sessionId: number; onClosed: ()
       {step === 'reason' && (
         <div className="veil" onClick={(e) => { if (e.target === e.currentTarget) reset() }}>
           <div className="sheet sheet-narrow">
-            <h2 style={{ fontSize: 'var(--text-money)' }}>¿Cómo terminó?</h2>
-            <p style={{ color: 'var(--ink-soft)', margin: 'var(--space-3) 0 var(--space-8)' }}>
-              Una línea nada más. Sirve para el reporte semanal.
-            </p>
+            <div className="sheet-head">
+              <h2 style={{ fontSize: 'var(--text-money)' }}>¿Cómo terminó?</h2>
+              <IconButton kind="close" label="Cancelar" onClick={reset} />
+            </div>
 
+            {/* Primero el resultado; el motivo aparece sólo si no se vendió. */}
             <Chips
               label="Resultado"
               options={[{ value: 'won' as const, label: 'Se vendió' }, { value: 'lost' as const, label: 'No se vendió' }]}
               value={outcome}
-              onChange={(v) => { setOutcome(v); setReason('') }}
+              onChange={(v) => { setOutcome(v); setReason(''); setNote('') }}
             />
 
             {outcome === 'won' && (
@@ -644,9 +841,11 @@ function CloseControl({ sessionId, onClosed }: { sessionId: number; onClosed: ()
             {outcome === 'lost' && (
               <>
                 <Chips label="Motivo" options={LOST_REASONS} value={reason as never} onChange={setReason} small />
-                <Field label="Detalle opcional">
-                  {(id) => <input id={id} type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Le gustó Amaranta pero regresa con su mamá" />}
-                </Field>
+                {reason && (
+                  <Field label="Detalle">
+                    {(id) => <input id={id} type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Qué dijo la clienta" />}
+                  </Field>
+                )}
               </>
             )}
 
@@ -661,7 +860,7 @@ function CloseControl({ sessionId, onClosed }: { sessionId: number; onClosed: ()
 
             <div className="row" style={{ marginTop: 'var(--space-9)' }}>
               <ActionButton
-                disabled={!outcome || !reason.trim() || (needsDisposal && !disposed)}
+                disabled={!ready}
                 onAction={async () => {
                   try {
                     await post(`/sessions/${sessionId}/close`, {
@@ -680,11 +879,35 @@ function CloseControl({ sessionId, onClosed }: { sessionId: number; onClosed: ()
               >
                 Cerrar sesión
               </ActionButton>
-              <button type="button" className="btn-quiet" onClick={reset}>Cancelar</button>
             </div>
           </div>
         </div>
       )}
+    </>
+  )
+}
+
+/** El mismo teclado, embebido en el diálogo de cierre. */
+function PinPadInline({ pin, setPin, error, onConfirm }: {
+  pin: string
+  setPin: (fn: (p: string) => string) => void
+  error: string | null
+  onConfirm: () => void
+}) {
+  return (
+    <>
+      <div className="pindots" aria-hidden="true">
+        {Array.from({ length: 6 }, (_, i) => <span key={i} className={i < pin.length ? 'on' : ''} />)}
+      </div>
+      <p className="err" role="alert">{error ?? ''}</p>
+      <div className="pinpad">
+        {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((n) => (
+          <button key={n} type="button" onClick={() => setPin((p) => (p.length >= 6 ? p : p + n))}>{n}</button>
+        ))}
+        <button type="button" className="is-quiet" onClick={() => setPin((p) => p.slice(0, -1))}>borrar</button>
+        <button type="button" onClick={() => setPin((p) => (p.length >= 6 ? p : p + '0'))}>0</button>
+        <button type="button" className="is-confirm" onClick={onConfirm} aria-label="Confirmar">✓</button>
+      </div>
     </>
   )
 }

@@ -8,7 +8,7 @@ import { Kiosk } from './helpers/client'
  */
 
 interface KioskItem {
-  id: number; code: string; acquisition: 'unidad' | 'pedido'; kind: string
+  id: number; code: string; name: string; acquisition: 'unidad' | 'pedido'; kind: string
   status: string; price_cents: number; held_by_other: boolean; held_by_me: boolean
 }
 interface Coverage { seq: number; amount_cents: number; applied_cents: number; remaining_cents: number; status: string }
@@ -81,6 +81,14 @@ describe('apartados entre tabletas', () => {
     expect(items.find((i) => i.id === madeToOrder.id)?.held_by_other).toBe(false)
   })
 
+  it('la tableta de la novia no puede elegir vestido sin el NIP de la vendedora', async () => {
+    const refusal = await tabletB.refusal(`/api/sessions/${sessionB}/select`, { item_id: madeToOrder.id })
+    expect(refusal.status).toBe(400)
+    expect(refusal.error).toMatch(/NIP/)
+    const wrong = await tabletB.refusal(`/api/sessions/${sessionB}/select`, { item_id: madeToOrder.id, pin: '9999' })
+    expect(wrong.status).toBe(401)
+  })
+
   it('un modelo por pedido nunca cambia de estado ni se aparta', async () => {
     const refusal = await tabletB.refusal(`/api/items/${madeToOrder.id}/hold`, { session_id: sessionB })
     expect(refusal.status).toBe(409)
@@ -92,7 +100,7 @@ describe('apartados entre tabletas', () => {
 
 describe('elegir el vestido', () => {
   it('emite el folio y suelta los demás apartados de la sesión', async () => {
-    const chosen = await tabletA.post<{ contract_id: number; folio: string }>(`/api/sessions/${sessionA}/select`, { item_id: uniqueDress.id })
+    const chosen = await tabletA.post<{ contract_id: number; folio: string }>(`/api/sessions/${sessionA}/select`, { item_id: uniqueDress.id, pin: '1111' })
     folio = chosen.folio
     contractId = chosen.contract_id
     expect(folio).toMatch(/^MTY-\d{5}$/)
@@ -104,7 +112,7 @@ describe('elegir el vestido', () => {
   })
 
   it('la otra tableta ya no puede elegirlo', async () => {
-    const refusal = await tabletB.refusal(`/api/sessions/${sessionB}/select`, { item_id: uniqueDress.id })
+    const refusal = await tabletB.refusal(`/api/sessions/${sessionB}/select`, { item_id: uniqueDress.id, pin: '1111' })
     expect(refusal.status).toBe(409)
     expect(refusal.error).toMatch(/otra clienta/)
   })
@@ -115,6 +123,14 @@ describe('datos, hoja de medidas y plan', () => {
     await tabletA.post(`/api/sessions/${sessionA}/bride`, {
       name: 'María Fernanda', apellido: 'González', phone: '81 1234 5678', wedding_date: '2027-06-12',
     })
+  })
+
+  it('no acepta una fecha de evento en el pasado', async () => {
+    const refusal = await tabletA.refusal(`/api/sessions/${sessionA}/bride`, {
+      name: 'María Fernanda', apellido: 'González', phone: '8112345678', wedding_date: '2020-01-01',
+    })
+    expect(refusal.status).toBe(400)
+    expect(refusal.error).toMatch(/anterior a hoy/)
   })
 
   it('exige el teléfono completo', async () => {
@@ -137,11 +153,18 @@ describe('datos, hoja de medidas y plan', () => {
     await tabletA.post(`/api/sessions/${sessionA}/sheet-signed`)
   })
 
+  it('la hoja de medidas ya trae el modelo y el código antes de firmar', async () => {
+    // Se imprime antes de firmar, cuando items.contract_id todavía está vacío.
+    const print = await tabletA.get<{ item: { code: string; name: string } | null }>(`/api/contracts/${folio}/print`)
+    expect(print.item?.code).toBe(uniqueDress.code)
+    expect(print.item?.name).toBe(uniqueDress.name)
+  })
+
   it('ofrece sólo los planes que caben y arma el calendario', async () => {
     const quote = await tabletA.post<{ list_total_cents: number; offers: { plan: { id: number; name: string }; schedule: Coverage[] }[] }>(
       `/api/sessions/${sessionA}/quote`, {})
     expect(quote.list_total_cents).toBe(uniqueDress.price_cents)
-    const tres = quote.offers.find((o) => o.plan.name === 'Tres meses')
+    const tres = quote.offers.find((o) => o.plan.name === '40/30/30')
     expect(tres).toBeDefined()
 
     const terms = await tabletA.post<{ total_cents: number; schedule: { seq: number; amount_cents: number; due_type: string }[] }>(
@@ -275,7 +298,7 @@ describe('sesión perdida: las hojas y el folio', () => {
     lostSession = (await tabletB.post<{ id: number }>('/api/sessions', { device_label: 'Tableta 2' })).id
     const items = await kioskItems(tabletB, lostSession)
     const other = items.find((i) => i.kind === 'dress' && i.acquisition === 'unidad' && !i.held_by_other) as KioskItem
-    const chosen = await tabletB.post<{ folio: string }>(`/api/sessions/${lostSession}/select`, { item_id: other.id })
+    const chosen = await tabletB.post<{ folio: string }>(`/api/sessions/${lostSession}/select`, { item_id: other.id, pin: '1111' })
     lostFolio = chosen.folio
     expect(lostFolio).not.toBe(folio)
 
@@ -317,7 +340,7 @@ describe('sesión perdida: las hojas y el folio', () => {
     const nextSession = (await tabletB.post<{ id: number }>('/api/sessions', {})).id
     const items = await kioskItems(tabletB, nextSession)
     const another = items.find((i) => i.kind === 'dress' && i.acquisition === 'unidad' && !i.held_by_other) as KioskItem
-    const chosen = await tabletB.post<{ folio: string }>(`/api/sessions/${nextSession}/select`, { item_id: another.id })
+    const chosen = await tabletB.post<{ folio: string }>(`/api/sessions/${nextSession}/select`, { item_id: another.id, pin: '1111' })
     expect(chosen.folio).not.toBe(lostFolio)
     expect(chosen.folio).not.toBe(folio)
     expect(Number(chosen.folio.split('-')[1])).toBeGreaterThan(Number(lostFolio.split('-')[1]))

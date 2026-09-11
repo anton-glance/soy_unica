@@ -7,11 +7,17 @@ import { badRequest, conflict, notFound, unauthorized } from '../lib/errors'
 import { verifyPin } from '../lib/crypto'
 import { issueFolio } from '../lib/folio'
 import { nowIso, isDate, todayISO } from '../lib/dates'
-import { generateSchedule, offerablePlans, parseSplits, type Plan } from '../lib/plans'
+import { evaluatePlans, generateSchedule, parseSplits, type Plan } from '../lib/plans'
 import { pctOf } from '../lib/money'
 import { loadItem } from './items'
 
 const app = new Hono<AppEnv>()
+
+async function assertOwnPin(db: D1Database, s: Session, pin: string): Promise<void> {
+  if (!/^\d{4,6}$/.test(pin)) throw badRequest('Marca tu NIP para cerrar la sesión.')
+  const user = await one<{ pin_hash: string; pin_salt: string }>(db, `SELECT pin_hash, pin_salt FROM users WHERE id = ? AND active = 1`, s.userId)
+  if (!user || !(await verifyPin(pin, user.pin_hash, user.pin_salt))) throw unauthorized('NIP incorrecto.', 'bad_pin')
+}
 
 export type Stage =
   | 'browsing' | 'fitting' | 'selected' | 'bride_data' | 'sheet_printed'
@@ -182,7 +188,13 @@ app.post('/:id{[0-9]+}/select', async (c) => {
   const row = await loadSession(c.env.DB, s.store, Number(c.req.param('id')))
   assertOpen(row)
   if (row.contract_id) throw conflict('Esta sesión ya tiene un vestido elegido.')
-  const body = await readJson<{ item_id?: number }>(c)
+  const body = await readJson<{ item_id?: number; pin?: string }>(c)
+
+  // La tableta la trae la novia. Emitir folio es una acción de contrato, así
+  // que aquí se comprueba que quien la tocó es la vendedora, en el servidor y
+  // no sólo en la pantalla.
+  await assertOwnPin(c.env.DB, s, String(body.pin ?? ''))
+
   const item = await loadItem(c.env.DB, s.store, Number(body.item_id))
   if (item.kind !== 'dress') throw badRequest('Hay que elegir un vestido, no un accesorio.')
 
@@ -236,6 +248,8 @@ app.post('/:id{[0-9]+}/bride', async (c) => {
   if (digitsOnly(phone).length < 10) throw badRequest('El teléfono debe traer 10 dígitos.')
   const wedding = body.wedding_date ? String(body.wedding_date) : null
   if (wedding && !isDate(wedding)) throw badRequest('La fecha del evento no es válida.')
+  // Una boda no ocurre en el pasado: casi siempre es un año mal tecleado.
+  if (wedding && wedding < todayISO()) throw badRequest('La fecha del evento no puede ser anterior a hoy.')
 
   let customerId = row.customer_id
   if (customerId) {
@@ -349,14 +363,22 @@ app.post('/:id{[0-9]+}/quote', async (c) => {
     ? await one<{ wedding_date: string | null }>(c.env.DB, `SELECT wedding_date FROM customers WHERE id = ?`, contract.customer_id)
     : null
 
-  const offers = offerablePlans({
+  const { offers, rejected } = evaluatePlans({
     plans: await loadPlans(c.env.DB, s.store),
     listTotalCents: list_total_cents,
     signedOn: todayISO(),
     weddingDate: customer?.wedding_date ?? null,
     minDaysBeforeWedding: store?.min_days_before_wedding ?? 0,
   })
-  return c.json({ list_total_cents, accessories, surcharges: surchargeLines, offers, wedding_date: customer?.wedding_date ?? null })
+  return c.json({
+    list_total_cents,
+    accessories,
+    surcharges: surchargeLines,
+    offers,
+    // Cuando no cabe ninguno, la vendedora necesita saber qué restricción falló.
+    rejected: rejected.map((r) => ({ plan_name: r.plan.name, reason: r.reason, detail: r.detail })),
+    wedding_date: customer?.wedding_date ?? null,
+  })
 })
 
 app.post('/:id{[0-9]+}/terms', async (c) => {
@@ -374,7 +396,7 @@ app.post('/:id{[0-9]+}/terms', async (c) => {
     ? await one<{ wedding_date: string | null }>(c.env.DB, `SELECT wedding_date FROM customers WHERE id = ?`, contract.customer_id)
     : null
 
-  const offers = offerablePlans({
+  const { offers, rejected } = evaluatePlans({
     plans: await loadPlans(c.env.DB, s.store),
     listTotalCents: list_total_cents,
     signedOn: todayISO(),
@@ -382,7 +404,10 @@ app.post('/:id{[0-9]+}/terms', async (c) => {
     minDaysBeforeWedding: store?.min_days_before_wedding ?? 0,
   })
   const offer = offers.find((o) => o.plan.id === planId)
-  if (!offer) throw conflict('Ese plan no aplica para este precio o esta fecha de evento.')
+  if (!offer) {
+    const why = rejected.find((r) => r.plan.id === planId)
+    throw conflict(why ? `Ese plan no aplica: ${why.detail}` : 'Ese plan no aplica para este precio o esta fecha de evento.')
+  }
 
   const lines = [
     stmt(c.env.DB, `DELETE FROM contract_items WHERE contract_id = ? AND line_kind <> 'dress'`, contract.id),
@@ -528,11 +553,5 @@ app.post('/:id{[0-9]+}/close', async (c) => {
   await c.env.DB.batch(statements)
   return c.json({ ok: true, outcome, sheets_disposed: needsDisposal })
 })
-
-async function assertOwnPin(db: D1Database, s: Session, pin: string): Promise<void> {
-  if (!/^\d{4,6}$/.test(pin)) throw badRequest('Marca tu NIP para cerrar la sesión.')
-  const user = await one<{ pin_hash: string; pin_salt: string }>(db, `SELECT pin_hash, pin_salt FROM users WHERE id = ? AND active = 1`, s.userId)
-  if (!user || !(await verifyPin(pin, user.pin_hash, user.pin_salt))) throw unauthorized('NIP incorrecto.', 'bad_pin')
-}
 
 export default app

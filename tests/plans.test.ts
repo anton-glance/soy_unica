@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { generateSchedule, offerablePlans, type Plan } from '../worker/lib/plans'
+import { evaluatePlans, generateSchedule, offerablePlans, type Plan } from '../worker/lib/plans'
 import { splitByPercent } from '../worker/lib/money'
 
 const plan = (over: Partial<Plan>): Plan => ({
@@ -101,5 +101,83 @@ describe('qué planes se pueden ofrecer', () => {
     expect(contado?.discount_cents).toBe(185_000)
     expect(contado?.total_cents).toBe(1_665_000)
     expect(contado?.schedule[0]?.amount_cents).toBe(1_665_000)
+  })
+})
+
+describe('los cuatro planes reales de la tienda', () => {
+  // Los del contrato (docs/contrato_de_novia_nov_2024.docx, punto 1) más el de
+  // contado. Ninguno lleva precio mínimo.
+  const CONTADO_R = plan({ id: 1, name: 'Contado', splits: [100], discount_pct: 10 })
+  const MITAD_R = plan({ id: 2, name: 'Mitad y mitad', splits: [50, 50] })
+  const CUARENTA = plan({ id: 3, name: '40/30/30', splits: [40, 30, 30], max_months: 2 })
+  const VEINTE = plan({ id: 4, name: '20 × 5', splits: [20, 20, 20, 20, 20], max_months: 4 })
+  const TIENDA = [CONTADO_R, MITAD_R, CUARENTA, VEINTE]
+
+  const evaluate = (weddingDate: string | null, listTotalCents = 1_380_000) =>
+    evaluatePlans({ plans: TIENDA, listTotalCents, signedOn: '2026-09-11', weddingDate, minDaysBeforeWedding: 15 })
+
+  it('un vestido de $13,800 con boda en dos semanas ofrece contado y mitad y mitad', () => {
+    const { offers } = evaluate('2026-09-25')
+    expect(offers.map((o) => o.plan.name)).toEqual(['Contado', 'Mitad y mitad'])
+  })
+
+  it('y dice por qué los de meses no caben, no sólo que no caben', () => {
+    const { rejected } = evaluate('2026-09-25')
+    const cuarenta = rejected.find((r) => r.plan.name === '40/30/30')
+    expect(cuarenta?.reason).toBe('too_close_to_wedding')
+    expect(cuarenta?.detail).toMatch(/después de la boda/)
+  })
+
+  it('el anticipo de hoy no cuenta para la regla de días antes de la boda', () => {
+    // Se entrega en el mostrador el mismo día: contarlo dejaba sin ningún plan
+    // a una novia con boda cercana, que es justo la que paga de contado.
+    const { offers } = evaluate('2026-09-12')
+    expect(offers.map((o) => o.plan.name)).toEqual(['Contado', 'Mitad y mitad'])
+  })
+
+  it('con boda lejana caben los cuatro', () => {
+    expect(evaluate('2027-06-12').offers).toHaveLength(4)
+  })
+
+  it('sin fecha de evento sólo los que se liquidan al recoger', () => {
+    const { offers, rejected } = evaluate(null)
+    expect(offers.map((o) => o.plan.name)).toEqual(['Contado', 'Mitad y mitad'])
+    expect(rejected.every((r) => r.reason === 'needs_date')).toBe(true)
+    expect(rejected[0]?.detail).toMatch(/fecha de evento/)
+  })
+
+  it('el contado aplica su descuento y se paga en un solo pago', () => {
+    const contado = evaluate('2027-06-12').offers[0]
+    expect(contado?.discount_cents).toBe(138_000)
+    expect(contado?.total_cents).toBe(1_242_000)
+    expect(contado?.schedule).toHaveLength(1)
+  })
+
+  it('mitad y mitad liquida al recoger, sin fecha', () => {
+    const mitad = evaluate('2027-06-12').offers[1]
+    expect(mitad?.schedule[1]).toMatchObject({ due_type: 'on_pickup', due_date: null })
+  })
+
+  it('40/30/30 y 20 × 5 reparten como dice el contrato', () => {
+    const offers = evaluate('2027-06-12').offers
+    expect(offers[2]?.schedule.map((r) => r.amount_cents)).toEqual([552_000, 414_000, 414_000])
+    expect(offers[3]?.schedule.map((r) => r.amount_cents)).toEqual([276_000, 276_000, 276_000, 276_000, 276_000])
+  })
+
+  it('un plan desactivado dice que está desactivado', () => {
+    const { rejected } = evaluatePlans({
+      plans: [{ ...CONTADO_R, active: 0 }], listTotalCents: 1_380_000,
+      signedOn: '2026-09-11', weddingDate: null, minDaysBeforeWedding: 15,
+    })
+    expect(rejected[0]).toMatchObject({ reason: 'inactive' })
+  })
+
+  it('un precio fuera de rango dice el rango', () => {
+    const { rejected } = evaluatePlans({
+      plans: [plan({ name: 'Caro', min_price_cents: 5_000_000 })], listTotalCents: 1_380_000,
+      signedOn: '2026-09-11', weddingDate: null, minDaysBeforeWedding: 15,
+    })
+    expect(rejected[0]?.reason).toBe('price_below')
+    expect(rejected[0]?.detail).toContain('$50,000')
   })
 })

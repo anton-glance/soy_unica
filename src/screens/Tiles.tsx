@@ -1,5 +1,7 @@
 import { useNavigate } from '../lib/router'
 import { useSession } from '../lib/session'
+import { IconButton } from '../components/IconButton'
+import { Brandmark } from '../components/Brandmark'
 
 const TILES = [
   { to: '/sesion', label: 'Nueva sesión' },
@@ -19,27 +21,32 @@ export function Tiles() {
   const who = me?.name === role ? role : `${me?.name} · ${role}`
 
   return (
-    <div className="entry">
-      <div className="k-brand" style={{ justifyContent: 'center' }}>
-        <h1>Soy Única</h1>
-        <em>{place}</em>
-      </div>
-      <p className="lede">{who}</p>
-
-      <div className="tiles">
-        {TILES.map((tile) => (
-          <button key={tile.to} type="button" className="btn-main" onClick={() => navigate(tile.to)}>
-            {tile.label}
-          </button>
-        ))}
+    <>
+      <div className="screen-nav">
+        {/* Aquí empieza todo: no hay a dónde regresar, sólo salir. */}
+        <div className="screen-nav__slot" />
+        <div />
+        <div className="screen-nav__slot screen-nav__slot--end">
+          <IconButton kind="close" label="Salir" onClick={() => void logout()} />
+        </div>
       </div>
 
-      <div className="row" style={{ justifyContent: 'center' }}>
+      <div className="entry">
+        <Brandmark size="lg" />
+        <p className="lede">{place} · {who}</p>
+
+        <div className="tiles">
+          {TILES.map((tile) => (
+            <button key={tile.to} type="button" className="btn-main" onClick={() => navigate(tile.to)}>
+              {tile.label}
+            </button>
+          ))}
+        </div>
+
         {me?.role === 'owner' && (
           <button type="button" className="btn-quiet" onClick={() => navigate('/ajustes')}>⚙ Ajustes</button>
         )}
-        <button type="button" className="btn-quiet" onClick={() => void logout()}>Salir</button>
       </div>
-    </div>
+    </>
   )
 }

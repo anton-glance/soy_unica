@@ -7,8 +7,14 @@
     <meta name="color-scheme" content="light dark" />
     <meta name="theme-color" content="#FBF7F1" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#221C1E" media="(prefers-color-scheme: dark)" />
+    <!--
+      El .ico existe porque el navegador pide /favicon.ico por su cuenta,
+      aunque el enlace apunte al SVG. Sin él, esa petición caía en el index.html
+      del SPA y devolvía HTML donde se esperaba un icono.
+    -->
+    <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>Soy Única Novias</title>
   </head>
   <body>

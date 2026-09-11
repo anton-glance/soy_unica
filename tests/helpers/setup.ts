@@ -10,7 +10,8 @@ let worker: ChildProcess | null = null
 
 function run(cmd: string, args: string[]): Promise<void> {
   return new Promise((resolve, reject) => {
-    const child = spawn(cmd, args, { stdio: 'ignore' })
+    // CI=1 para que wrangler no pida confirmación de las migraciones.
+    const child = spawn(cmd, args, { stdio: 'ignore', env: { ...process.env, CI: '1' } })
     child.on('error', reject)
     child.on('exit', (code) => (code === 0 ? resolve() : reject(new Error(`${cmd} ${args.join(' ')} → ${code}`))))
   })
