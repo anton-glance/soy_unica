@@ -29,27 +29,35 @@ Needs outbound access to `soyunicanovias.com`.
 | flag | what it does |
 | --- | --- |
 | `--fetch` | pages `/wp-json/wc/store/v1/products?per_page=100&page=N` to the end and saves the raw JSON |
-| `--categories` | prints the site's category census and which branch each maps to, then stops |
+| `--categories` | prints the site's category census and what each one is used for, then stops |
 | `--images` | also downloads each image and re-encodes it: 1600 px, WebP, <=300 KB, the same limits as the tablet. Images already on disk are left alone, so a re-run is cheap |
 | *(no flags)* | re-reads the JSON already downloaded and regenerates the report and the `.sql`, asking the site for nothing |
 
-### Check the branch split before anything else
+### This catalog is Monterrey's alone
+
+Checked directly against the site's raw JSON: `tags` is empty on every product,
+permalinks encode category rather than branch
+(`producto/vestidos-de-novia/corte-princesa/hanna`), and none of the 14
+categories names a branch. There is no signal anywhere in this endpoint to split
+a catalog on, so every row this importer produces goes into `mty`. **CDMX starts
+empty** — its catalog is not in here and has to be built from wherever CDMX's
+actual data lives.
+
+What the categories *do* carry reliably: whether something is a dress or an
+accessory, its cut, whether it's on liquidation, the "Bridal Sale -20%"
+promotion, and rentals (out of scope, excluded). Run `--categories` to see the
+site's current census matched against what each category feeds — kind, cut,
+condition, a note, or an exclusion:
 
 ```
 node scripts/import/catalog.mjs --categories
 ```
 
-The site runs two catalogs. The same model appears in both at different prices,
-and CDMX carries premium dresses Monterrey does not, so the importer reads each
-product's categories and writes it into `mty`, `cdmx`, or both — each with that
-branch's own price.
-
-The patterns that decide this live in `STORE_RULES` in
-`scripts/import/map-product.mjs`. They were written without ever seeing the
-site. Any category that should be CDMX and prints `— (falls back to mty)` means
-a pattern is missing and the whole CDMX catalog would land in Monterrey. Edit
-`STORE_RULES`, re-run `--categories`, repeat until every row reads the branch
-you expect.
+The patterns that decide this live in `ACCESSORY_CATEGORIES`, `CUT_CATEGORIES`,
+`LIQUIDATION_CATEGORY`, `PROMO_CATEGORY` and `RENTAL_CATEGORY` in
+`scripts/import/map-product.mjs`, checked against the real census. If the site
+adds a new category, `--categories` prints it as `— not used` and it is worth a
+look before assuming it doesn't matter.
 
 **What it writes**
 
@@ -63,23 +71,30 @@ you expect.
 
 ### What to check in the report before applying
 
-1. **By branch.** Row counts and catalog value per branch. If CDMX is zero, the
-   category patterns did not match — go back to `--categories`.
-2. **The same model in both branches.** Each branch's code and price for the
-   same dress. A `$0.00` row is one she leaves unpriced on purpose; it comes in
-   flagged and cannot be sold until it has a price.
-3. **Flagged for review.** Rows missing a price or a code. These are *not*
-   rejections: they are imported with everything the site does give and land
-   under the **Por verificar** chip in Inventario with the missing fields
-   marked. Nothing is guessed.
+1. **What the categories are used for.** The site's current census against
+   kind/cut/condition/note/exclusion. A category reading `— not used` that
+   looks like it should mean something is worth a second look.
+2. **Excluded — rentals.** Out of scope for this shop's inventory, listed so
+   nobody wonders where they went.
+3. **Flagged for review.** Rows missing a price, a code, or with no category at
+   all to read kind/cut/condition off. These are *not* rejections: they are
+   imported with everything the site does give and land under the **Por
+   verificar** chip in Inventario with the missing fields marked. Nothing is
+   guessed. The `category` reason gets special mention: it is not one of the
+   fields the app's own `needs_review` recompute tracks, so check those rows by
+   hand before anyone edits and saves them — see below.
 4. **Rejected.** Only products the site gives no name for. If this list is long,
    something changed on the site and is worth looking at first.
-5. **Duplicate codes.** The code is unique per branch, so only the first of each
-   clash is written. Check the one that stays is the right one: that is what the
-   seller will type to search.
+5. **Duplicate codes.** Only the first of each clash is written. Check the one
+   that stays is the right one: that is what the seller will type to search.
 6. **Codes.** How many codes came from the SKU, from the model name, and from a
-   `s/n-` placeholder. A large placeholder count means the site lost its SKUs.
-7. **Images that could not be downloaded**, with the reason.
+   `s/n-` placeholder. The SKU count should land near 11 — that is how many of
+   this site's 200 products carry the owner's own numbering, matching the codes
+   already in the payment ledger. A large placeholder count means the site lost
+   its SKUs.
+7. **Promotion note.** How many rows carry "Bridal Sale -20%". It never touches
+   price or condition — only a note, for the owner to act on or ignore.
+8. **Images that could not be downloaded**, with the reason.
 
 ### Applying it
 
@@ -90,8 +105,7 @@ npx wrangler d1 execute soy-unica --local --persist-to .wrangler/state \
   --file docs/import/catalog.sql
 ```
 
-Images go to R2 separately, driven by the manifest so each one lands under the
-right branch's key:
+Images go to R2 separately, driven by the manifest:
 
 ```
 while IFS=$'\t' read -r local key; do
@@ -102,8 +116,7 @@ done < docs/import/catalog-r2.tsv
 
 Items come in with `INSERT OR IGNORE`: **a code that already exists is left
 alone.** It can be re-applied without duplicating anything, and without undoing
-an edit she has since made. What it will *not* do is move a row that went to the
-wrong branch — delete those by hand first if it comes to that.
+an edit she has since made.
 
 For the production run, see **[docs/DEPLOY.md](../DEPLOY.md) §6 and §7**, which
 has the same steps with `--remote` and without `--local`.

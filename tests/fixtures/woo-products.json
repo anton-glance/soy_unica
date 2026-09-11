@@ -3,119 +3,49 @@
     "id": 101,
     "name": "Vestido Madelyn",
     "slug": "vestido-madelyn",
-    "permalink": "https://soyunicanovias.com/producto/vestido-madelyn/",
-    "sku": "p139",
-    "prices": {
-      "price": "1850000",
-      "currency_minor_unit": 2,
-      "currency_code": "MXN"
-    },
-    "categories": [
-      {
-        "id": 5,
-        "name": "Vestidos de novia"
-      }
-    ],
+    "permalink": "https://soyunicanovias.com/producto/vestidos-de-novia/corte-princesa/madelyn/",
+    "sku": "P139",
+    "prices": { "price": "1850000", "currency_minor_unit": 2, "currency_code": "MXN" },
+    "categories": [{ "id": 5, "name": "Vestidos de Novia" }, { "id": 12, "name": "Corte Princesa" }],
     "attributes": [
-      {
-        "id": 1,
-        "name": "Marca",
-        "terms": [
-          {
-            "name": "Lanesta"
-          }
-        ]
-      },
-      {
-        "id": 2,
-        "name": "Color",
-        "terms": [
-          {
-            "name": "Ivory"
-          }
-        ]
-      }
+      { "id": 1, "name": "Marca", "terms": [{ "name": "Lanesta" }] },
+      { "id": 2, "name": "Color", "terms": [{ "name": "Ivory" }] }
     ],
     "images": [
-      {
-        "id": 1,
-        "src": "https://soyunicanovias.com/wp-content/uploads/madelyn-1.jpg",
-        "alt": "Madelyn frente"
-      },
-      {
-        "id": 2,
-        "src": "https://soyunicanovias.com/wp-content/uploads/madelyn-2.jpg",
-        "alt": ""
-      }
+      { "id": 1, "src": "https://soyunicanovias.com/wp-content/uploads/madelyn-1.jpg", "alt": "Madelyn frente" },
+      { "id": 2, "src": "https://soyunicanovias.com/wp-content/uploads/madelyn-2.jpg", "alt": "" }
     ]
   },
   {
     "id": 102,
     "name": "Mantilla larga bordada",
     "slug": "mantilla-larga-bordada",
-    "permalink": "https://soyunicanovias.com/producto/mantilla-larga-bordada/",
+    "permalink": "https://soyunicanovias.com/producto/accesorios/mantillas/mantilla-larga-bordada/",
     "sku": "",
-    "prices": {
-      "price": "90000",
-      "currency_minor_unit": 2
-    },
-    "categories": [
-      {
-        "id": 9,
-        "name": "Accesorios"
-      },
-      {
-        "id": 11,
-        "name": "Mantillas"
-      }
-    ],
+    "prices": { "price": "90000", "currency_minor_unit": 2 },
+    "categories": [{ "id": 9, "name": "Accesorios" }, { "id": 11, "name": "Mantillas" }],
     "attributes": [],
-    "images": [
-      {
-        "id": 3,
-        "src": "https://soyunicanovias.com/wp-content/uploads/mantilla.jpg",
-        "alt": ""
-      }
-    ]
+    "images": [{ "id": 3, "src": "https://soyunicanovias.com/wp-content/uploads/mantilla.jpg", "alt": "" }]
   },
   {
     "id": 103,
     "name": "Vestido <em>Aurora</em>",
     "slug": "vestido-aurora",
-    "sku": "p142",
-    "prices": {
-      "price": "16500",
-      "currency_minor_unit": 0
-    },
-    "categories": [
-      {
-        "id": 5,
-        "name": "Vestidos de novia"
-      }
-    ],
-    "attributes": [
-      {
-        "id": 1,
-        "name": "Marca",
-        "terms": [
-          {
-            "name": "Kira Nova"
-          }
-        ]
-      }
-    ],
+    "permalink": "https://soyunicanovias.com/producto/vestidos-de-novia/corte-a/aurora/",
+    "sku": "P142",
+    "prices": { "price": "16500", "currency_minor_unit": 0 },
+    "categories": [{ "id": 5, "name": "Vestidos de Novia" }, { "id": 13, "name": "Corte A" }],
+    "attributes": [{ "id": 1, "name": "Marca", "terms": [{ "name": "Kira Nova" }] }],
     "images": []
   },
   {
     "id": 104,
     "name": "Producto sin precio",
     "slug": "sin-precio",
+    "permalink": "https://soyunicanovias.com/producto/vestidos-de-novia/sin-precio/",
     "sku": "x1",
-    "prices": {
-      "price": "",
-      "currency_minor_unit": 2
-    },
-    "categories": [],
+    "prices": { "price": "", "currency_minor_unit": 2 },
+    "categories": [{ "id": 5, "name": "Vestidos de Novia" }],
     "attributes": [],
     "images": []
   },
@@ -123,17 +53,10 @@
     "id": 105,
     "name": "Madelyn repetida",
     "slug": "madelyn-repetida",
-    "sku": "p139",
-    "prices": {
-      "price": "1900000",
-      "currency_minor_unit": 2
-    },
-    "categories": [
-      {
-        "id": 5,
-        "name": "Vestidos de novia"
-      }
-    ],
+    "permalink": "https://soyunicanovias.com/producto/vestidos-de-novia/madelyn-repetida/",
+    "sku": "P139",
+    "prices": { "price": "1900000", "currency_minor_unit": 2 },
+    "categories": [{ "id": 5, "name": "Vestidos de Novia" }],
     "attributes": [],
     "images": []
   },
@@ -141,118 +64,58 @@
     "id": 106,
     "name": "",
     "slug": "",
+    "permalink": "",
     "sku": "",
-    "prices": {
-      "price": "1000",
-      "currency_minor_unit": 2
-    },
+    "prices": { "price": "1000", "currency_minor_unit": 2 },
     "categories": [],
     "attributes": [],
     "images": []
   },
   {
     "id": 107,
-    "name": "Vestido Luccienna",
-    "slug": "vestido-luccienna",
-    "permalink": "https://soyunicanovias.com/producto/vestido-luccienna-cdmx/",
-    "sku": "L-88",
-    "prices": {
-      "price": "2450000",
-      "currency_minor_unit": 2
-    },
+    "name": "Vestido Camila",
+    "slug": "vestido-camila",
+    "permalink": "https://soyunicanovias.com/producto/vestidos-de-novia/corte-sirena/liquidacion/camila/",
+    "sku": "P151",
+    "prices": { "price": "790000", "currency_minor_unit": 2 },
     "categories": [
-      {
-        "id": 21,
-        "name": "Vestidos de novia CDMX"
-      }
+      { "id": 5, "name": "Vestidos de Novia" }, { "id": 14, "name": "Corte Sirena" }, { "id": 20, "name": "Liquidación" }
     ],
-    "attributes": [
-      {
-        "id": 1,
-        "name": "Marca",
-        "terms": [
-          {
-            "name": "Luccienna"
-          }
-        ]
-      }
-    ],
-    "images": [
-      {
-        "id": 7,
-        "src": "https://soyunicanovias.com/wp-content/uploads/luccienna-cdmx.jpg",
-        "alt": ""
-      }
-    ]
+    "attributes": [{ "id": 1, "name": "Marca", "terms": [{ "name": "Kira Nova" }] }],
+    "images": []
   },
   {
     "id": 108,
-    "name": "Vestido Luccienna",
-    "slug": "vestido-luccienna-mty",
-    "permalink": "https://soyunicanovias.com/producto/vestido-luccienna-mty/",
-    "sku": "p201",
-    "prices": {
-      "price": "",
-      "currency_minor_unit": 2
-    },
+    "name": "Vestido Regina",
+    "slug": "vestido-regina",
+    "permalink": "https://soyunicanovias.com/producto/vestidos-de-novia/corte-a/bridal-sale/regina/",
+    "sku": "A88",
+    "prices": { "price": "1490000", "currency_minor_unit": 2 },
     "categories": [
-      {
-        "id": 22,
-        "name": "Vestidos de novia Monterrey"
-      }
+      { "id": 5, "name": "Vestidos de Novia" }, { "id": 13, "name": "Corte A" }, { "id": 21, "name": "Bridal Sale -20%" }
     ],
-    "attributes": [
-      {
-        "id": 1,
-        "name": "Marca",
-        "terms": [
-          {
-            "name": "Luccienna"
-          }
-        ]
-      }
-    ],
+    "attributes": [{ "id": 1, "name": "Marca", "terms": [{ "name": "Armonía" }] }],
     "images": []
   },
   {
     "id": 109,
-    "name": "Velo catedral",
-    "slug": "velo-catedral",
-    "permalink": "https://soyunicanovias.com/producto/velo-catedral/",
+    "name": "Abrigo de piel sintética",
+    "slug": "abrigo-piel-sintetica",
+    "permalink": "https://soyunicanovias.com/producto/renta-de-abrigos-para-novia/abrigo-piel-sintetica/",
     "sku": "",
-    "prices": {
-      "price": "",
-      "currency_minor_unit": 2
-    },
-    "categories": [
-      {
-        "id": 23,
-        "name": "Accesorios CDMX"
-      }
-    ],
+    "prices": { "price": "80000", "currency_minor_unit": 2 },
+    "categories": [{ "id": 30, "name": "Renta de abrigos para novia" }],
     "attributes": [],
     "images": []
   },
   {
     "id": 110,
-    "name": "Vestido Adelina",
-    "slug": "vestido-adelina",
-    "permalink": "https://soyunicanovias.com/producto/vestido-adelina/",
-    "sku": "A12",
-    "prices": {
-      "price": "1990000",
-      "currency_minor_unit": 2
-    },
-    "categories": [
-      {
-        "id": 22,
-        "name": "Vestidos de novia Monterrey"
-      },
-      {
-        "id": 21,
-        "name": "Vestidos de novia CDMX"
-      }
-    ],
+    "name": "Producto sin categoría",
+    "slug": "producto-sin-categoria",
+    "permalink": "https://soyunicanovias.com/producto/producto-sin-categoria/",
+    "sku": "",
+    "prices": { "price": "500000", "currency_minor_unit": 2 },
+    "categories": [],
     "attributes": [],
     "images": []
   }
