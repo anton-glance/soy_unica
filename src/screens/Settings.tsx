@@ -9,6 +9,7 @@ import { Screen } from '../components/Screen'
 interface Store {
   id: string; name: string; address: string; phone: string; report_email: string | null
   kiosk_show_prices: number; min_days_before_wedding: number; contract_template: string
+  session_timeout_hours: number
   hotel_daily_cents: number; hotel_free_days: number; late_fee_pct: number
   retention_sold_photos_months: number; retention_client_docs_months: number; retention_expense_photos_months: number
   archive_target: 'none' | 'gdrive'; archive_before_delete: number
@@ -153,6 +154,7 @@ function StoreRules({ store, onSaved }: { store: Store; onSaved: () => Promise<v
     hotel_daily: String(store.hotel_daily_cents / 100),
     hotel_free_days: String(store.hotel_free_days),
     late_fee_pct: String(store.late_fee_pct),
+    session_timeout_hours: String(store.session_timeout_hours),
     kiosk_show_prices: store.kiosk_show_prices === 1,
   })
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -177,9 +179,17 @@ function StoreRules({ store, onSaved }: { store: Store; onSaved: () => Promise<v
           {(id) => <input id={id} type="text" inputMode="numeric" value={form.hotel_free_days} onChange={set('hotel_free_days')} />}
         </Field>
       </div>
-      <Field label="Recargo por atraso (% mensual)" hint="Se sugiere; nunca se aplica solo.">
-        {(id) => <input id={id} type="text" inputMode="decimal" value={form.late_fee_pct} onChange={set('late_fee_pct')} />}
-      </Field>
+      <div className="two">
+        <Field label="Recargo por atraso (% mensual)" hint="Se sugiere; nunca se aplica solo.">
+          {(id) => <input id={id} type="text" inputMode="decimal" value={form.late_fee_pct} onChange={set('late_fee_pct')} />}
+        </Field>
+        <Field
+          label="Horas sin actividad para dar una sesión por abandonada"
+          hint="Se cierra sola y suelta los vestidos que había apartado. Conserva lo que la clienta marcó."
+        >
+          {(id) => <input id={id} type="text" inputMode="numeric" value={form.session_timeout_hours} onChange={set('session_timeout_hours')} />}
+        </Field>
+      </div>
       <label className="shot" style={{ marginBottom: 'var(--space-9)' }}>
         <input type="checkbox" checked={form.kiosk_show_prices} onChange={(e) => setForm({ ...form, kiosk_show_prices: e.target.checked })} style={{ width: 24, height: 24, minHeight: 0 }} />
         <b>Mostrar precios en el kiosco</b>
@@ -193,6 +203,7 @@ function StoreRules({ store, onSaved }: { store: Store; onSaved: () => Promise<v
             hotel_daily_cents: parseMoney(form.hotel_daily) ?? 0,
             hotel_free_days: Number(form.hotel_free_days),
             late_fee_pct: Number(form.late_fee_pct),
+            session_timeout_hours: Number(form.session_timeout_hours),
             kiosk_show_prices: form.kiosk_show_prices,
           })
           await onSaved()

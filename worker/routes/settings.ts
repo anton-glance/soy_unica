@@ -32,6 +32,7 @@ app.get('/', async (c) => {
 
 const NUMERIC = [
   'min_days_before_wedding', 'hotel_daily_cents', 'hotel_free_days', 'late_fee_pct',
+  'session_timeout_hours',
   'retention_sold_photos_months', 'retention_client_docs_months', 'retention_expense_photos_months',
 ] as const
 const TEXT = ['name', 'address', 'phone', 'report_email', 'contract_template', 'archive_target'] as const
@@ -50,6 +51,10 @@ app.patch('/store', async (c) => {
     const floor = RETENTION_FLOORS[field as keyof typeof RETENTION_FLOORS]
     if (floor !== undefined && value < floor) {
       throw conflict(`Ese periodo no puede bajar de ${floor} meses. Estas fotos son la única prueba de la tienda en una aclaración.`)
+    }
+    // Una espera de cero cerraría la sesión que la vendedora está usando.
+    if (field === 'session_timeout_hours' && value < 1) {
+      throw badRequest('La espera antes de dar una sesión por abandonada no puede bajar de una hora.')
     }
     sets.push(`${field} = ?`); args.push(field === 'late_fee_pct' ? value : Math.trunc(value))
   }

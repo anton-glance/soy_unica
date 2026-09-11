@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import type { AppEnv } from './lib/env'
+import type { AppEnv, Env } from './lib/env'
 import { errorResponse } from './lib/errors'
 import { requireSession, sellersInsertAndSelectOnly } from './lib/auth'
 import auth from './routes/auth'
@@ -15,6 +15,7 @@ import storage from './routes/storage'
 import maintenance from './routes/maintenance'
 import search from './routes/search'
 import reports from './routes/reports'
+import { reapAbandoned } from './lib/reaper'
 
 const app = new Hono<AppEnv>()
 
@@ -48,4 +49,16 @@ app.all('*', async (c) => {
   return c.env.ASSETS.fetch(c.req.raw)
 })
 
-export default app
+/**
+ * Una sesión abandonada no la cierra nadie: la cierra el tiempo. El barrido
+ * corre solo cada hora y también al abrir una sesión nueva, que es cuando de
+ * verdad importa —a la mañana siguiente, con los apartados de ayer colgados.
+ */
+async function scheduled(_event: ScheduledController, env: Env): Promise<void> {
+  for (const store of ['mty', 'cdmx']) {
+    const reaped = await reapAbandoned(env.DB, store)
+    if (reaped.length > 0) console.log(`barrido ${store}: ${reaped.length} sesiones abandonadas`)
+  }
+}
+
+export default { fetch: app.fetch, scheduled }

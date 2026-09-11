@@ -10,6 +10,7 @@ import { nowIso, isDate, todayISO, formatDateMX } from '../lib/dates'
 import { evaluatePlans, parseSplits, type Plan } from '../lib/plans'
 import { pctOf } from '../lib/money'
 import { loadItem } from './items'
+import { reapAbandoned } from '../lib/reaper'
 
 const app = new Hono<AppEnv>()
 
@@ -94,8 +95,33 @@ interface ContractRow {
 }
 
 // ────────────────────────────────────────────────────── abrir y leer ──
+/**
+ * Las sesiones abiertas de la sucursal, para que la vendedora vea de un vistazo
+ * si quedó alguna de ayer. Barre las abandonadas antes de contar: lo que se
+ * muestra son las que de verdad siguen vivas.
+ */
+app.get('/open', async (c) => {
+  const s = c.get('session')
+  const reaped = await reapAbandoned(c.env.DB, s.store)
+  const open = await all<{ id: number; stage: Stage; device_label: string; opened_at: string; last_seen: string }>(
+    c.env.DB,
+    `SELECT k.id, k.stage, k.device_label, k.opened_at,
+            COALESCE(MAX(e.at), k.opened_at) AS last_seen
+       FROM kiosk_sessions k
+       LEFT JOIN session_events e ON e.session_id = k.id
+      WHERE k.store_id = ? AND k.closed_at IS NULL
+      GROUP BY k.id
+      ORDER BY last_seen DESC`,
+    s.store,
+  )
+  return c.json({ open, count: open.length, reaped: reaped.length })
+})
+
 app.post('/', async (c) => {
   const s = c.get('session')
+  // Abrir una sesión es el momento natural para barrer: es lo primero que pasa
+  // cada mañana, que es justo cuando quedaron colgadas las de ayer.
+  await reapAbandoned(c.env.DB, s.store)
   const body = await readJson<{ device_label?: string }>(c)
   const result = await run(
     c.env.DB,

@@ -1,7 +1,10 @@
 name: CI
 
 on:
+  # Sólo main: en una rama con PR abierto, `push` y `pull_request` corrían el
+  # mismo commit dos veces.
   push:
+    branches: [main]
   pull_request:
 
 # Una corrida por rama: un push nuevo cancela la anterior, que ya no interesa.
