@@ -550,6 +550,17 @@ a.chip, a.btn-main, a.btn-quiet { text-decoration: none; }
 .tbl .mono { font-variant-numeric: tabular-nums; color: var(--ink-soft); }
 .tbl .model { font-family: var(--font-display); font-size: var(--text-lg); }
 
+/*
+ * Rows the importer could not complete. A left rule rather than a filled row:
+ * these are still ordinary stock, only missing something, and the table has to
+ * stay readable when a hundred of them arrive at once.
+ */
+.tbl tbody tr.rev td:first-child { box-shadow: inset 3px 0 0 var(--brass); }
+.tbl td .falta { font-family: var(--font-ui); font-size: var(--text-xs); color: var(--brass); }
+.field--falta input, .field--falta select, .field--falta textarea { border-color: var(--brass); background: var(--brass-soft); }
+.field--falta label .falta,
+label .falta { margin-left: var(--space-4); font-size: var(--text-xs); color: var(--brass); text-transform: uppercase; letter-spacing: .08em; }
+
 .bdg { font-size: var(--text-sm); padding: var(--space-2) 11px; border-radius: var(--radius-sm); white-space: nowrap; display: inline-block; }
 .bdg.ok { background: var(--sage-soft); color: var(--sage); }
 .bdg.warn { background: var(--brass-soft); color: var(--brass); }

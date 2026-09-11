@@ -43,7 +43,7 @@ app.route('/api/reports', reports)
 
 app.all('/api/*', (c) => c.json({ error: 'Esa ruta no existe.', code: 'not_found' }, 404))
 
-// Todo lo demás es la aplicación: el router del cliente also owns /print/...
+// Everything else is the app: the client router owns /print/... too.
 app.all('*', async (c) => {
   if (!c.env.ASSETS) return c.text('La aplicación no está compilada. Usa `npm run dev`.', 404)
   return c.env.ASSETS.fetch(c.req.raw)

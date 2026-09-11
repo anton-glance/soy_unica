@@ -254,6 +254,23 @@ app.post('/:id{[0-9]+}/select', async (c) => {
   const item = await loadItem(c.env.DB, s.store, Number(body.item_id))
   if (item.kind !== 'dress') throw badRequest('Hay que elegir un vestido, no un accesorio.')
 
+  // An item with no price would hand the plan generator a total of zero and
+  // print a contract full of nonsense. The catalogue import brings in rows the
+  // website never priced on purpose, so this is a real case, not a corrupt one:
+  // refuse here and send the seller to fix it where it belongs.
+  if (item.price_cents <= 0) {
+    throw conflict(
+      `«${item.name}» no tiene precio. Ponle el precio en Inventario antes de elegirlo: sin precio el contrato saldría en ceros.`,
+      'needs_price',
+    )
+  }
+  if (item.needs_review) {
+    throw conflict(
+      `«${item.name}» está marcado por verificar. Revísalo en Inventario y completa lo que le falta antes de elegirlo.`,
+      'needs_review',
+    )
+  }
+
   if (item.acquisition === 'unidad') {
     if (item.held_by_session !== null && item.held_by_session !== row.id) {
       throw conflict('Ese vestido lo está viendo otra clienta en este momento.')
@@ -265,12 +282,21 @@ app.post('/:id{[0-9]+}/select', async (c) => {
 
   const accessoryIds = (body.accessory_item_ids ?? []).map(Number).filter(Boolean)
   const accessories = accessoryIds.length
-    ? await all<{ id: number; code: string; name: string; price_cents: number }>(
+    ? await all<{ id: number; code: string; name: string; price_cents: number; needs_review: number }>(
         c.env.DB,
-        `SELECT id, code, name, price_cents FROM items
+        `SELECT id, code, name, price_cents, needs_review FROM items
          WHERE store_id = ? AND kind = 'accessory' AND id IN (${accessoryIds.map(() => '?').join(',')})`,
         s.store, ...accessoryIds)
     : []
+  // The same guard for the accessories: a veil the site never priced would add a
+  // line at zero to the contract and nobody would notice until it was signed.
+  const unpriced = accessories.find((a) => a.price_cents <= 0 || a.needs_review)
+  if (unpriced) {
+    throw conflict(
+      `«${unpriced.name}» no tiene precio o está por verificar. Complétalo en Inventario antes de agregarlo al contrato.`,
+      'needs_price',
+    )
+  }
 
   const folio = await issueFolio(c.env.DB, s.store)
   const result = await run(

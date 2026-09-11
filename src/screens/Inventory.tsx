@@ -17,7 +17,20 @@ interface Item {
   cost_cents?: number; price_cents: number; location: string | null; notes: string | null
   intake_date: string | null; contract_id: number | null
   tailoring_done_at: string | null; ready_notified_at: string | null; delivered_at: string | null
+  needs_review: number; review_fields: string | null
 }
+
+/** What the record sheet calls each field the importer left empty. */
+const FALTA: Record<string, string> = {
+  price: 'precio', code: 'código', size: 'talla', cost: 'costo', condition: 'condición',
+}
+
+function missingOf(item: Item): Set<string> {
+  return new Set((item.review_fields ?? '').split(',').filter(Boolean))
+}
+
+/** These have a column of their own in the table, marked there instead. */
+const HAS_COLUMN = new Set(['size', 'price', 'cost'])
 
 /** Etiqueta y color de cada estado, como en el prototipo. */
 const ST: Record<string, [string, string]> = {
@@ -40,8 +53,10 @@ export function Inventory() {
   const [kind, setKind] = useState('')
   const [sort, setSort] = useState<string>('code')
   const [dir, setDir] = useState<'asc' | 'desc'>('asc')
+  const [review, setReview] = useState(false)
   const [items, setItems] = useState<Item[]>([])
   const [counts, setCounts] = useState<{ status: string; n: number }[]>([])
+  const [reviewCount, setReviewCount] = useState(0)
   const [stale, setStale] = useState(false)
   const [open, setOpen] = useState<Item | null>(null)
   const [adding, setAdding] = useState(false)
@@ -50,16 +65,20 @@ export function Inventory() {
 
   const load = useCallback(async () => {
     const params = new URLSearchParams({ q, status, kind, sort, dir })
+    if (review) params.set('review', '1')
     try {
-      const { data, stale: fromCache } = await get<{ items: Item[]; counts: { status: string; n: number }[] }>(`/items?${params}`)
+      const { data, stale: fromCache } = await get<{
+        items: Item[]; counts: { status: string; n: number }[]; review_count: number
+      }>(`/items?${params}`)
       setItems(data.items)
       setCounts(data.counts)
+      setReviewCount(data.review_count ?? 0)
       setStale(fromCache)
       setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo cargar el inventario.')
     }
-  }, [q, status, kind, sort, dir])
+  }, [q, status, kind, sort, dir, review])
 
   useEffect(() => { void load() }, [load])
 
@@ -99,7 +118,12 @@ export function Inventory() {
         </div>
 
         <div className="row" style={{ marginBottom: 'var(--space-9)' }}>
-          <button type="button" className="chip chip--sm" aria-pressed={status === ''} onClick={() => setStatus('')}>
+          {reviewCount > 0 && (
+            <button type="button" className="chip chip--sm" aria-pressed={review} onClick={() => setReview(!review)}>
+              Por verificar ({reviewCount})
+            </button>
+          )}
+          <button type="button" className="chip chip--sm" aria-pressed={status === '' && !review} onClick={() => { setStatus(''); setReview(false) }}>
             Todos ({total})
           </button>
           {counts.map((c) => (
@@ -108,6 +132,13 @@ export function Inventory() {
             </button>
           ))}
         </div>
+
+        {review && (
+          <p className="lede">
+            Estos entraron del catálogo sin algún dato. Ábrelos y completa lo que traen marcado como «falta».
+            Un vestido sin precio no se puede elegir en una sesión.
+          </p>
+        )}
 
         <p className="muted" style={{ fontSize: 'var(--text-label)', margin: '0 0 var(--space-5)' }}>
           {items.length} de {total} artículos{isOwner ? '' : ' · los vendidos solo los ve la dueña'}
@@ -132,23 +163,33 @@ export function Inventory() {
               </tr>
             </thead>
             <tbody>
-              {items.map((item) => (
-                <tr key={item.id} onClick={() => setOpen(item)}>
+              {items.map((item) => {
+                const missing = missingOf(item)
+                return (
+                <tr key={item.id} className={item.needs_review ? 'rev' : undefined} onClick={() => setOpen(item)}>
                   <td className="mono">{item.code}</td>
                   <td className="model">
                     {item.name}
                     {item.kind === 'accessory' && (
                       <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-xs)', color: 'var(--ink-faint)' }}> accesorio</span>
                     )}
+                    {[...missing].some((f) => !HAS_COLUMN.has(f)) && (
+                      <span className="falta" style={{ display: 'block' }}>
+                        falta {[...missing].filter((f) => !HAS_COLUMN.has(f)).map((f) => FALTA[f] ?? f).join(', ')}
+                      </span>
+                    )}
                   </td>
                   <td>{item.brand ?? '—'}</td>
-                  <td>{item.size ?? '—'}</td>
-                  <td className="mono">{money(item.price_cents)}</td>
+                  <td>{missing.has('size') ? <span className="falta">falta</span> : (item.size ?? '—')}</td>
+                  <td className="mono">{missing.has('price') ? <span className="falta">falta</span> : money(item.price_cents)}</td>
                   <td><span className={`bdg ${ST[item.status]?.[1] ?? 'mute'}`}>{ST[item.status]?.[0] ?? item.status}</span></td>
                   <td className="mono">{dateMX(item.intake_date)}</td>
-                  {isOwner && <td className="mono">{money(item.cost_cents ?? 0)}</td>}
+                  {isOwner && (
+                    <td className="mono">{missing.has('cost') ? <span className="falta">falta</span> : money(item.cost_cents ?? 0)}</td>
+                  )}
                 </tr>
-              ))}
+                )
+              })}
               {items.length === 0 && (
                 <tr>
                   <td colSpan={isOwner ? 8 : 7} style={{ padding: 40, textAlign: 'center', color: 'var(--ink-faint)' }}>
@@ -192,8 +233,11 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
     { action: 'deliver', label: 'Se entregó' },
   ]
 
+  const missing = missingOf(item)
+
   // La dueña edita la ficha completa; la vendedora sólo la lee.
   const [form, setForm] = useState({
+    code: item.code,
     name: item.name, brand: item.brand ?? '', size: item.size ?? '', cut: item.cut ?? '',
     color: item.color ?? '', location: item.location ?? '', notes: item.notes ?? '',
     condition: item.condition, price: String(item.price_cents / 100), cost: String((item.cost_cents ?? 0) / 100),
@@ -216,9 +260,16 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
 
   return (
     <Dialog title={item.name} onCancel={onClose} closeLabel="Cerrar la ficha" full big>
-      <p className="muted" style={{ textAlign: 'center', margin: '0 0 var(--space-12)' }}>
+      <p className="muted" style={{ textAlign: 'center', margin: '0 0 var(--space-8)' }}>
         código {item.code} · {item.kind === 'dress' ? 'vestido' : 'accesorio'} · {item.acquisition === 'pedido' ? 'por pedido' : 'de unidad'}
       </p>
+
+      {item.needs_review === 1 && (
+        <p className="pill pill--brass" style={{ display: 'block', textAlign: 'center', margin: '0 0 var(--space-10)' }}>
+          Por verificar: falta {[...missing].map((f) => FALTA[f] ?? f).join(', ')}.
+          {missing.has('price') && ' Sin precio no se puede elegir en una sesión.'}
+        </p>
+      )}
 
       <div className="inv-grid">
           <div>
@@ -249,19 +300,24 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
             {isOwner ? (
               <>
                 <div className="f3">
+                  <Field label="Código" marked={missing.has('code')} hint={missing.has('code') ? 'El catálogo no traía código. Pon el tuyo: p139, A12, s14.' : undefined}>
+                    {(id) => <input id={id} type="text" value={form.code} onChange={set('code')} />}
+                  </Field>
                   <Field label="Modelo">{(id) => <input id={id} type="text" value={form.name} onChange={set('name')} />}</Field>
                   <Field label="Marca">{(id) => <input id={id} type="text" value={form.brand} onChange={set('brand')} />}</Field>
-                  <Field label="Estado">{(id) => <input id={id} type="text" value={ST[item.status]?.[0] ?? item.status} disabled style={{ opacity: .6 }} />}</Field>
                 </div>
                 <div className="f3">
-                  <Field label="Talla">{(id) => <input id={id} type="text" value={form.size} onChange={set('size')} />}</Field>
+                  <Field label="Talla" marked={missing.has('size')}>{(id) => <input id={id} type="text" value={form.size} onChange={set('size')} />}</Field>
                   <Field label="Corte">{(id) => <input id={id} type="text" value={form.cut} onChange={set('cut')} />}</Field>
                   <Field label="Color">{(id) => <input id={id} type="text" value={form.color} onChange={set('color')} />}</Field>
                 </div>
                 <div className="f3">
-                  <Field label="Precio de venta">{(id) => <input id={id} type="text" inputMode="decimal" value={form.price} onChange={set('price')} />}</Field>
-                  <Field label="Costo">{(id) => <input id={id} type="text" inputMode="decimal" value={form.cost} onChange={set('cost')} />}</Field>
-                  <Field label="Condición">{(id) => (
+                  <Field label="Precio de venta" marked={missing.has('price')}>{(id) => <input id={id} type="text" inputMode="decimal" value={form.price} onChange={set('price')} />}</Field>
+                  <Field label="Costo" marked={missing.has('cost')}>{(id) => <input id={id} type="text" inputMode="decimal" value={form.cost} onChange={set('cost')} />}</Field>
+                  <Field label="Estado">{(id) => <input id={id} type="text" value={ST[item.status]?.[0] ?? item.status} disabled style={{ opacity: .6 }} />}</Field>
+                </div>
+                <div className="f3">
+                  <Field label="Condición" marked={missing.has('condition')}>{(id) => (
                     <select id={id} value={form.condition} onChange={set('condition')}>
                       <option value="nuevo">Nuevo</option>
                       <option value="muestra">Muestra</option>
@@ -269,8 +325,6 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
                       <option value="liquidacion">Liquidación</option>
                     </select>
                   )}</Field>
-                </div>
-                <div className="f3">
                   <Field label="Fecha de ingreso">{(id) => <input id={id} type="date" value={form.intake_date} onChange={set('intake_date')} />}</Field>
                   <Field label="Ubicación">{(id) => <input id={id} type="text" value={form.location} onChange={set('location')} />}</Field>
                 </div>
@@ -283,10 +337,10 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
                 <Info label="Estado" value={ST[item.status]?.[0] ?? item.status} />
                 <Info label="Marca" value={item.brand ?? '—'} />
                 <Info label="Corte" value={item.cut ?? '—'} />
-                <Info label="Talla" value={item.size ?? '—'} />
+                <Info label="Talla" value={missing.has('size') ? 'falta' : (item.size ?? '—')} />
                 <Info label="Color" value={item.color ?? '—'} />
                 <Info label="Condición" value={item.condition} />
-                <Info label="Precio de venta" value={money(item.price_cents)} />
+                <Info label="Precio de venta" value={missing.has('price') ? 'falta' : money(item.price_cents)} />
                 <Info label="Ubicación" value={item.location ?? '—'} />
                 <Info label="Fecha de ingreso" value={dateMX(item.intake_date)} />
               </div>
@@ -319,6 +373,7 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
                   done="Guardado"
                   onAction={async () => {
                     await patch(`/items/${item.id}`, {
+                      code: form.code,
                       name: form.name, brand: form.brand, size: form.size, cut: form.cut,
                       color: form.color, location: form.location, notes: form.notes,
                       condition: form.condition, intake_date: form.intake_date || undefined,

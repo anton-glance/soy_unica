@@ -136,37 +136,18 @@ que dice qué hacer:
 
 ---
 
-## Primera vez en Cloudflare
+## Deploying
 
-Todavía **no está desplegado**. Cuando toque:
+Step-by-step, copy-paste commands, with a first-five-minutes checklist and a
+tablet smoke test: **[docs/DEPLOY.md](docs/DEPLOY.md)**.
 
-```bash
-npx wrangler login
+Read the two warnings in its §10 before the URL reaches anyone: the four seeded
+PINs are written in a comment in `db/migrations/0002_seed.sql`, and a
+`*.workers.dev` URL is public with nothing but the PIN screen in front of it.
 
-# 1. Base de datos. Copia el database_id que imprime a wrangler.toml.
-npx wrangler d1 create soy-unica
-
-# 2. Bucket de archivos.
-npx wrangler r2 bucket create soy-unica-files
-
-# 3. Migraciones y semilla en la base remota.
-npx wrangler d1 migrations apply soy-unica --remote
-
-# 4. Secreto de sesión. Genera uno largo y al azar; NO reutilices el de local.
-npx wrangler secret put JWT_SECRET
-
-# 5. Compila y publica (Worker + archivos estáticos).
-npm run build
-npx wrangler deploy
-```
-
-Queda en `https://soy-unica.<subdominio-de-tu-cuenta>.workers.dev`.
-
-Entra de inmediato a **Ajustes → NIP** y cambia los cuatro NIP de la semilla.
-
-En local el secreto sale de `.dev.vars`, que `npm run dev` crea desde
-`.dev.vars.example` si falta. `.dev.vars` está en `.gitignore` y nunca debe
-subirse.
+Locally the session secret comes from `.dev.vars`, which `npm run dev` creates
+from `.dev.vars.example` when it is missing. `.dev.vars` is gitignored and must
+never be committed.
 
 ---
 

@@ -5,7 +5,7 @@ import { all, one, run, stmt } from '../lib/db'
 import { auditStmt } from '../lib/audit'
 import { badRequest, conflict, notFound } from '../lib/errors'
 import { requireOwner } from '../lib/auth'
-import { canTransition, deriveStatus, type ItemAction, type ItemStatus } from '../lib/items'
+import { canTransition, deriveStatus, reviewFields, type ItemAction, type ItemStatus } from '../lib/items'
 import { balanceOf } from '../lib/payments'
 import { nowIso, todayISO } from '../lib/dates'
 
@@ -13,6 +13,8 @@ const app = new Hono<AppEnv>()
 
 export interface ItemRow {
   id: number
+  needs_review: number
+  review_fields: string | null
   store_id: string
   code: string
   kind: 'dress' | 'accessory'
@@ -43,6 +45,21 @@ function forRole<T extends { cost_cents?: number }>(row: T, role: string): T {
   const copy = { ...row }
   delete copy.cost_cents
   return copy
+}
+
+/**
+ * Recomputes `needs_review` from what the row actually holds. Called after
+ * every write that can fill one of the gaps; never set by hand.
+ */
+export async function markReview(db: D1Database, id: number): Promise<string[]> {
+  const item = await one<ItemRow>(db, `SELECT * FROM items WHERE id = ?`, id)
+  if (!item) return []
+  const missing = reviewFields(item)
+  await run(
+    db, `UPDATE items SET needs_review = ?, review_fields = ? WHERE id = ?`,
+    missing.length > 0 ? 1 : 0, missing.length > 0 ? missing.join(',') : null, id,
+  )
+  return missing
 }
 
 export async function loadItem(db: D1Database, store: string, id: number): Promise<ItemRow> {
@@ -83,6 +100,7 @@ app.get('/', async (c) => {
   const kind = c.req.query('kind') ?? ''
   const acquisition = c.req.query('acquisition') ?? ''
   const condition = c.req.query('condition') ?? ''
+  const review = c.req.query('review') === '1'
   const sort = c.req.query('sort') ?? 'code'
 
   const where: string[] = ['store_id = ?']
@@ -97,6 +115,7 @@ app.get('/', async (c) => {
   if (kind) { where.push('kind = ?'); args.push(kind) }
   if (acquisition) { where.push('acquisition = ?'); args.push(acquisition) }
   if (condition) { where.push('condition = ?'); args.push(condition) }
+  if (review) where.push('needs_review = 1')
   if (s.role !== 'owner') where.push("status <> 'sold'")
 
   const columns: Record<string, string> = {
@@ -106,10 +125,25 @@ app.get('/', async (c) => {
   const orderBy = columns[sort] ?? 'code'
   const dir = c.req.query('dir') === 'desc' ? 'DESC' : 'ASC'
 
+  /*
+   * Rows that need attention float to the top of whatever order is chosen, and
+   * within those the ones with no price come first: a priceless item is the one
+   * that cannot be sold at all, so it is the one worth fixing next.
+   */
   const rows = await all<ItemRow>(
     c.env.DB,
-    `SELECT * FROM items WHERE ${where.join(' AND ')} ORDER BY ${orderBy} ${dir} LIMIT 500`,
+    `SELECT * FROM items WHERE ${where.join(' AND ')}
+      ORDER BY needs_review DESC,
+               (needs_review = 1 AND price_cents <= 0) DESC,
+               ${orderBy} ${dir}
+      LIMIT 500`,
     ...args,
+  )
+  const review_count = await one<{ n: number }>(
+    c.env.DB,
+    `SELECT COUNT(*) AS n FROM items WHERE store_id = ? AND needs_review = 1
+     ${s.role !== 'owner' ? "AND status <> 'sold'" : ''}`,
+    s.store,
   )
   const counts = await all<{ status: string; n: number }>(
     c.env.DB,
@@ -117,7 +151,7 @@ app.get('/', async (c) => {
      ${s.role !== 'owner' ? "AND status <> 'sold'" : ''} GROUP BY status`,
     s.store,
   )
-  return c.json({ items: rows.map((r) => forRole(r, s.role)), counts })
+  return c.json({ items: rows.map((r) => forRole(r, s.role)), counts, review_count: review_count?.n ?? 0 })
 })
 
 /** Catálogo del kiosko: lo que ve la novia, con los apartados de otras tabletas. */
@@ -207,6 +241,7 @@ app.post('/', async (c) => {
     body.location ?? null, body.notes ?? null, body.intake_date ?? todayISO(),
   )
   const id = Number(result.meta.last_row_id)
+  await markReview(c.env.DB, id)
   await auditStmt(c.env.DB, { session: s, entity: 'item', entityId: id, action: 'create', after: { ...base } }).run()
   return c.json({ id }, 201)
 })
@@ -263,11 +298,21 @@ app.patch('/:id{[0-9]+}', requireOwner, async (c) => {
     price_cents: body.price_cents ?? item.price_cents,
   })
 
-  const fields = ['name', 'brand', 'size', 'cut', 'color', 'location', 'notes', 'condition', 'kind', 'acquisition', 'intake_date'] as const
+  // The code is editable: an item imported without one carries a placeholder,
+  // and she has to be able to replace it with what is written on the tag.
+  if (body.code !== undefined && String(body.code).trim() !== item.code) {
+    const taken = await one<{ id: number }>(
+      c.env.DB, `SELECT id FROM items WHERE store_id = ? AND code = ? AND id <> ?`,
+      s.store, String(body.code).trim(), item.id,
+    )
+    if (taken) throw conflict(`Ya hay un artículo con el código «${String(body.code).trim()}». Usa otro.`)
+  }
+
+  const fields = ['code', 'name', 'brand', 'size', 'cut', 'color', 'location', 'notes', 'condition', 'kind', 'acquisition', 'intake_date'] as const
   const sets: string[] = []
   const args: (string | number | null)[] = []
   for (const f of fields) {
-    if (body[f] !== undefined) { sets.push(`${f} = ?`); args.push(body[f] as string) }
+    if (body[f] !== undefined) { sets.push(`${f} = ?`); args.push(f === 'code' ? String(body[f]).trim() : (body[f] as string)) }
   }
   for (const f of ['cost_cents', 'price_cents'] as const) {
     if (body[f] !== undefined) { sets.push(`${f} = ?`); args.push(Math.trunc(body[f] as number)) }
@@ -280,6 +325,9 @@ app.patch('/:id{[0-9]+}', requireOwner, async (c) => {
     stmt(c.env.DB, `UPDATE items SET ${sets.join(', ')} WHERE id = ? AND store_id = ?`, ...args),
     auditStmt(c.env.DB, { session: s, entity: 'item', entityId: item.id, action: 'update', before: item, after: body }),
   ])
+  // Recomputed from what is now stored, so filling in the last missing field
+  // clears the flag on its own and nobody has to remember to.
+  await markReview(c.env.DB, item.id)
   return c.json({ ok: true })
 })
 
@@ -368,15 +416,16 @@ app.post('/import', requireOwner, async (c) => {
   for (let i = 1; i < lines.length; i++) {
     const cells = splitCsvLine(lines[i] as string)
     const cell = (name: string) => (index(name) >= 0 ? (cells[index(name)] ?? '').trim() : '')
+    // A missing price is no longer a rejection: the row comes in and is flagged
+    // for review. Dropping it would lose a dress the shop actually owns.
     const priceRaw = cell('price').replace(/[^0-9.]/g, '')
-    if (priceRaw === '') throw badRequest(`Falta el precio (renglón ${i + 1}).`)
     const photoUrl = cell('photo_url')
     const item: ItemInput = {
       code: cell('code'), name: cell('name'), brand: cell('brand') || undefined,
       cut: cell('cut') || undefined, size: cell('size') || undefined,
       kind: cell('kind') || 'dress', acquisition: cell('acquisition') || 'unidad',
       condition: cell('condition') || 'nuevo',
-      price_cents: Math.round(Number(priceRaw) * 100),
+      price_cents: priceRaw === '' ? 0 : Math.round(Number(priceRaw) * 100),
       // La descarga de photo_url queda para el siguiente paso; el enlace se
       // guarda en las notas para no perderlo.
       notes: photoUrl ? `foto: ${photoUrl}` : undefined,
@@ -407,7 +456,16 @@ app.post('/import', requireOwner, async (c) => {
     ),
     auditStmt(c.env.DB, { session: s, entity: 'item', entityId: null, action: 'import', after: { rows: parsed.length } }),
   ])
-  return c.json({ imported: parsed.length })
+  // Flag whatever came in incomplete. One pass per row, but an import is a
+  // deliberate one-off the owner runs, not a hot path.
+  const inserted = await all<{ id: number }>(
+    c.env.DB, `SELECT id FROM items WHERE store_id = ? AND code IN (${placeholders})`, s.store, ...codes,
+  )
+  let flagged = 0
+  for (const row of inserted) {
+    if ((await markReview(c.env.DB, row.id)).length > 0) flagged++
+  }
+  return c.json({ imported: parsed.length, needs_review: flagged })
 })
 
 function splitCsvLine(line: string): string[] {
