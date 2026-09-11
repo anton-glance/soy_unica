@@ -134,21 +134,30 @@ stays as text.
 | --- | --- |
 | `docs/import/pagos.md` | **the report to read** |
 | `docs/import/pagos.sql` | the `INSERT`s, to apply |
+| `docs/import/pendientes.html` | **the sheet to print**: the rejected rows, with every raw cell and ruled blanks for what is missing |
 | `docs/import/pagos.json` | the same thing raw, for looking at with another tool |
 
 ### What to check in the report before applying
 
-1. **Rejected.** These do not reach the `.sql`. Each one carries the raw cell
-   contents: fix it in the ledger and regenerate, or capture it by hand.
+1. **Rejected.** These do not reach the `.sql`: they are missing something that
+   cannot be deduced. Open `docs/import/pendientes.html` in a browser and print
+   it — it fits on one page — for the owner to fill the blanks in by hand; those
+   are then captured in the system like any other contract. **Watch the live
+   receivables**: the sheet boxes anyone who has already paid and has no total
+   recorded.
 2. **Dropped duplicates.** One capture is kept from each pair. The table shows
    both totals, so a row where the kept one is wrong is visible at a glance.
-3. **Possible duplicates that did not merge on their own.** Names one or two
-   letters apart on the same date. These are **imported twice** as things stand
-   and have to be decided by hand.
-4. **The $100 remainder.** Thirteen contracts with exactly one hundred pesos
+3. **Decisions made by hand.** The ones the owner has already decided, each with
+   its reason. They live in the `MANUAL` table in
+   `scripts/import/parse-pagos.mjs`: changing your mind about any one of them is
+   changing one line and regenerating.
+4. **Possible duplicates that did not merge on their own.** Names one or two
+   letters apart on the same date. While they are there they are **imported
+   twice**, until they go into the `MANUAL` table.
+5. **The $100 remainder.** Thirteen contracts with exactly one hundred pesos
    paid over. Until it is confirmed what that is, they stay as they are, with no
    invented line item.
-5. **Fragments that did not tie.** Kept as text. A lot of them means the catalog
+6. **Fragments that did not tie.** Kept as text. A lot of them means the catalog
    is not imported yet: import the catalog first and regenerate this.
 
 ### Applying it
