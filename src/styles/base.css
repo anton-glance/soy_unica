@@ -222,18 +222,6 @@ a.chip, a.btn-main, a.btn-quiet { text-decoration: none; }
 .icon-btn--lg { width: 64px; height: 64px; }
 .icon-btn--lg svg { width: 32px; height: 32px; }
 
-/* Barra de navegación de pantalla: izquierda regresar, derecha salir. */
-.screen-nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-9);
-  padding: var(--space-6) var(--gutter);
-}
-.screen-nav__title { font-family: var(--font-display); font-size: var(--text-panel); text-align: center; }
-.screen-nav__slot { display: flex; align-items: center; gap: var(--space-5); min-width: var(--tap-quiet); }
-.screen-nav__slot--end { justify-content: flex-end; }
-
 /* La marca: el logo, no el texto. */
 .brandmark { display: block; height: 34px; width: auto; }
 .brandmark--lg { height: 46px; }
@@ -258,11 +246,6 @@ a.chip, a.btn-main, a.btn-quiet { text-decoration: none; }
 }
 
 /* ── kiosco ────────────────────────────────────────────────────────────── */
-.k-top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-9); padding: var(--space-10) var(--gutter) var(--space-6); }
-.k-brand { display: flex; align-items: baseline; gap: var(--space-6); }
-.k-brand h1 { font-size: var(--text-brand); letter-spacing: .01em; }
-.k-brand em { font-style: normal; color: var(--ink-faint); font-size: var(--text-label); }
-.k-session { display: flex; align-items: center; gap: var(--space-6); }
 
 .pill { display: inline-flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-6); border-radius: var(--radius-pill); background: var(--sage-soft); color: var(--sage); font-size: var(--text-sm); }
 .pill--brass { background: var(--brass-soft); color: var(--brass); }
@@ -333,9 +316,6 @@ a.chip, a.btn-main, a.btn-quiet { text-decoration: none; }
 .detail dd { margin: 0; }
 
 .row { display: flex; gap: var(--space-6); flex-wrap: wrap; }
-.fav-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-8); }
-.fav-list figure { margin: 0; }
-.fav-list figcaption { font-family: var(--font-display); font-size: var(--text-md); padding-top: var(--space-3); }
 
 /* ── el riel de favoritos ──────────────────────────────────────────────── */
 /*
@@ -552,33 +532,13 @@ a.chip, a.btn-main, a.btn-quiet { text-decoration: none; }
 
 /* ── piezas que el prototipo no dibuja ─────────────────────────────────── */
 /* La entrada: sucursal, rol y NIP, cada una a pantalla completa. */
-.entry {
-  min-height: 100%;
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  gap: var(--space-12);
-  padding: var(--space-13) var(--gutter);
-  text-align: center;
-}
-.entry h1 { font-size: 44px; }
-.entry .lede { margin: 0; }
 .entry__choices { display: flex; flex-wrap: wrap; gap: var(--space-9); justify-content: center; }
 .entry__choices .btn-main { min-width: 300px; }
-.entry__pin { width: 100%; max-width: 380px; }
 
 /* Los cuadros del inicio: cuatro, en dos por dos. Llevan el radio de las
    tarjetas, no el de píldora: a esta altura una píldora se deforma. */
 .tiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-9); width: 100%; max-width: 720px; }
 .tiles .btn-main { width: 100%; min-height: 132px; border-radius: var(--radius); font-size: var(--text-panel); font-family: var(--font-display); }
-
-/* Barra superior de los módulos, con el mismo aire que .k-top. */
-.appbar {
-  display: flex; align-items: center; justify-content: space-between; gap: var(--space-9);
-  padding: var(--space-6) var(--gutter);
-  background: var(--linen);
-  border-bottom: 1px solid var(--tape);
-}
-.appbar strong { font-family: var(--font-display); font-weight: var(--weight-regular); font-size: var(--text-panel); }
 
 .stack > * + * { margin-top: var(--space-7); }
 .muted { color: var(--ink-faint); }
