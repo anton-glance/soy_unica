@@ -22,6 +22,7 @@ export interface ContractFull {
   signed_at: string | null
   plan_id: number | null
   plan_name: string | null
+  imported: number
   list_total_cents: number
   discount_cents: number
   total_cents: number

@@ -6,3 +6,7 @@ dist/
 .DS_Store
 .tsbuild/
 *.tsbuildinfo
+tmp/
+docs/import/pagos.json
+docs/import/catalog-raw.json
+docs/import/catalog-images/

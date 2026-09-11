@@ -1,0 +1,70 @@
+[
+  {
+    "id": 101,
+    "name": "Vestido Madelyn",
+    "slug": "vestido-madelyn",
+    "permalink": "https://soyunicanovias.com/producto/vestido-madelyn/",
+    "sku": "p139",
+    "prices": { "price": "1850000", "currency_minor_unit": 2, "currency_code": "MXN" },
+    "categories": [{ "id": 5, "name": "Vestidos de novia" }],
+    "attributes": [
+      { "id": 1, "name": "Marca", "terms": [{ "name": "Lanesta" }] },
+      { "id": 2, "name": "Color", "terms": [{ "name": "Ivory" }] }
+    ],
+    "images": [
+      { "id": 1, "src": "https://soyunicanovias.com/wp-content/uploads/madelyn-1.jpg", "alt": "Madelyn frente" },
+      { "id": 2, "src": "https://soyunicanovias.com/wp-content/uploads/madelyn-2.jpg", "alt": "" }
+    ]
+  },
+  {
+    "id": 102,
+    "name": "Mantilla larga bordada",
+    "slug": "mantilla-larga-bordada",
+    "permalink": "https://soyunicanovias.com/producto/mantilla-larga-bordada/",
+    "sku": "",
+    "prices": { "price": "90000", "currency_minor_unit": 2 },
+    "categories": [{ "id": 9, "name": "Accesorios" }, { "id": 11, "name": "Mantillas" }],
+    "attributes": [],
+    "images": [{ "id": 3, "src": "https://soyunicanovias.com/wp-content/uploads/mantilla.jpg", "alt": "" }]
+  },
+  {
+    "id": 103,
+    "name": "Vestido <em>Aurora</em>",
+    "slug": "vestido-aurora",
+    "sku": "p142",
+    "prices": { "price": "16500", "currency_minor_unit": 0 },
+    "categories": [{ "id": 5, "name": "Vestidos de novia" }],
+    "attributes": [{ "id": 1, "name": "Marca", "terms": [{ "name": "Kira Nova" }] }],
+    "images": []
+  },
+  {
+    "id": 104,
+    "name": "Producto sin precio",
+    "slug": "sin-precio",
+    "sku": "x1",
+    "prices": { "price": "", "currency_minor_unit": 2 },
+    "categories": [],
+    "attributes": [],
+    "images": []
+  },
+  {
+    "id": 105,
+    "name": "Madelyn repetida",
+    "slug": "madelyn-repetida",
+    "sku": "p139",
+    "prices": { "price": "1900000", "currency_minor_unit": 2 },
+    "categories": [{ "id": 5, "name": "Vestidos de novia" }],
+    "attributes": [],
+    "images": []
+  },
+  {
+    "id": 106,
+    "name": "",
+    "slug": "",
+    "sku": "",
+    "prices": { "price": "1000", "currency_minor_unit": 2 },
+    "categories": [],
+    "attributes": [],
+    "images": []
+  }
+]

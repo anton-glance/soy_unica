@@ -23,7 +23,7 @@ export interface InstallmentRow {
 
 export interface PaymentRow {
   id: number
-  paid_at: string
+  paid_at: string | null
   amount_cents: number
   installment_id: number | null
   voided_at: string | null
@@ -73,7 +73,12 @@ export function buildLedger(
     .map((i) => ({ ...i, applied_cents: 0, remaining_cents: i.amount_cents, status: 'pending' }))
 
   const ordered = livePayments(payments).sort((a, b) =>
-    a.paid_at === b.paid_at ? a.id - b.id : a.paid_at < b.paid_at ? -1 : 1,
+    // Un abono importado puede no traer fecha; esos van al final, en el orden
+    // en que se capturaron.
+    a.paid_at === b.paid_at ? a.id - b.id
+      : a.paid_at === null ? 1
+      : b.paid_at === null ? -1
+      : a.paid_at < b.paid_at ? -1 : 1,
   )
 
   let unapplied = 0
