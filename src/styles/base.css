@@ -441,10 +441,26 @@ a.chip, a.btn-main, a.btn-quiet { text-decoration: none; }
 .pinpad button.is-quiet { background: transparent; border: 1px solid var(--tape); color: var(--ink-soft); font-size: var(--text-md); }
 
 /* Puntos del NIP: llenos y con contraste, para verlos de lejos. */
-.pindots { display: flex; justify-content: center; gap: var(--space-6); min-height: 24px; align-items: center; }
+/*
+ * Los puntos del NIP: uno lleno por cada dígito tecleado, creciendo de
+ * izquierda a derecha. No hay huecos vacíos —el NIP puede ser de cuatro a seis
+ * dígitos y se configura por usuaria, así que seis círculos fijos mienten y de
+ * paso dirían cuántos faltan—. La raya de abajo es la línea de escritura: el
+ * área existe desde antes del primer dígito, así que nada se mueve cuando cae.
+ */
+.pindots {
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-end;
+  gap: var(--space-6);
+  height: 34px;
+  padding: 0 var(--space-3) var(--space-3);
+  border-bottom: 1px solid var(--tape);
+}
 .pindots span {
   width: 20px; height: 20px; border-radius: 50%;
   background: var(--ink);
+  flex: none;
 }
 .err { color: var(--clay); font-size: var(--text-label); min-height: 22px; margin: var(--space-1) 0 0; }
 
@@ -492,6 +508,20 @@ a.chip, a.btn-main, a.btn-quiet { text-decoration: none; }
 
 .toast { position: sticky; bottom: var(--space-9); margin: 0 var(--gutter); padding: var(--space-8) var(--space-11); border-radius: var(--radius); background: var(--sage); color: #fff; }
 .toast--clay { background: var(--clay); }
+
+/* ── reporte semanal ───────────────────────────────────────────────────── */
+/* El embudo de la semana: entraron, se probaron, compraron. */
+.funnel { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-9); margin-bottom: var(--space-13); }
+.funnel > div {
+  background: var(--paper); border: 1px solid var(--tape); border-radius: var(--radius);
+  padding: var(--space-10) var(--space-11);
+}
+.funnel b { display: block; font-family: var(--font-display); font-size: var(--text-title); font-weight: var(--weight-regular); line-height: 1; }
+.funnel span { display: block; margin-top: var(--space-4); color: var(--ink-soft); font-size: var(--text-label); }
+
+.report-head { font-size: var(--text-panel); margin: var(--space-13) 0 var(--space-8); }
+.report-row { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-9); }
+.report-row p { margin-top: var(--space-2); }
 
 /* El encabezado de cada día en el reporte de la semana, con su subtotal. */
 .day-head {

@@ -7,6 +7,7 @@ import { Inventory } from './screens/Inventory'
 import { PaymentsModule } from './screens/Payments'
 import { Expenses } from './screens/Expenses'
 import { Settings } from './screens/Settings'
+import { WeeklyReport } from './screens/WeeklyReport'
 import { SalesSession } from './screens/SalesSession'
 import { PrintMedidas } from './screens/PrintMedidas'
 import { PrintContrato } from './screens/PrintContrato'
@@ -39,6 +40,7 @@ function Routes({ path }: { path: string }) {
   if (path.startsWith('/inventario')) return <Inventory />
   if (path.startsWith('/gastos')) return <Expenses />
   if (path.startsWith('/ajustes')) return <Settings />
+  if (path.startsWith('/reporte')) return <WeeklyReport />
   return (
     <Screen title="Esa pantalla no existe" onBack={() => navigate('/')} backLabel="Regresar al inicio" center>
       <p className="lede">Regresa al inicio y vuelve a entrar por los cuadros.</p>

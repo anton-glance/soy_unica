@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 
 /** El puerto lo escoge el arranque global; aquí sólo se lee. */
 const BASE = `http://127.0.0.1:${readFileSync('.wrangler/test-port', 'utf8').trim()}`
@@ -52,5 +53,35 @@ export class Kiosk {
     const text = await res.text()
     if (!res.ok) throw new Error(`${res.status} ${res.url}: ${text}`)
     return JSON.parse(text) as T
+  }
+}
+
+/**
+ * Un SQL directo contra la misma base local que sirve el Worker de pruebas.
+ *
+ * Existe para una sola cosa: envejecer una fila y simular que pasó un día. No
+ * hay forma de mover el reloj del Worker desde fuera, y la regla que se prueba
+ * —firmar en un día distinto al que se imprimió el calendario— sólo se puede
+ * provocar así. Ninguna prueba lo usa para preparar datos que la API sepa
+ * crear.
+ */
+export async function sql(command: string): Promise<void> {
+  execFileSync('npx', [
+    'wrangler', 'd1', 'execute', 'soy-unica', '--local',
+    '--persist-to', '.wrangler/test-state', '--command', command,
+  ], { stdio: 'ignore', env: { ...process.env, CI: '1' } })
+
+  // Escribir el archivo por debajo hace que miniflare suelte su conexión y la
+  // vuelva a abrir. Hay que esperar a que regrese o la siguiente petición se
+  // encuentra el socket cerrado.
+  const deadline = Date.now() + 30_000
+  for (;;) {
+    try {
+      if ((await fetch(`${BASE}/api/health`)).ok) return
+    } catch {
+      // todavía no
+    }
+    if (Date.now() > deadline) throw new Error('el Worker de pruebas no volvió tras el SQL directo')
+    await new Promise((r) => setTimeout(r, 250))
   }
 }

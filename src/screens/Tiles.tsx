@@ -33,8 +33,13 @@ export function Tiles() {
         ))}
       </div>
 
+      {/* Las dos pantallas de la dueña. No son cuadros: los cuadros son el
+          trabajo del día y esto se abre una vez por semana. */}
       {me?.role === 'owner' && (
-        <button type="button" className="btn-quiet" onClick={() => navigate('/ajustes')}>⚙ Ajustes</button>
+        <div className="row" style={{ justifyContent: 'center' }}>
+          <button type="button" className="btn-quiet" onClick={() => navigate('/reporte')}>Reporte de la semana</button>
+          <button type="button" className="btn-quiet" onClick={() => navigate('/ajustes')}>⚙ Ajustes</button>
+        </div>
       )}
     </Screen>
   )

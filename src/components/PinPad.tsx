@@ -5,9 +5,11 @@ import { useState, type ReactNode } from 'react'
  * al cerrar la sesión de venta y al pasar la tableta de la novia a la
  * vendedora.
  *
- * Queda centrado con la tecla 5 en el centro exacto de la pantalla, y los
- * puntos muestran cuántos dígitos se llevan escritos —no seis círculos fijos
- * que no dicen nada.
+ * Queda centrado con la tecla 5 en el centro exacto de la pantalla. Los puntos
+ * son uno por dígito tecleado y crecen de izquierda a derecha: no hay huecos
+ * vacíos, y en ningún momento se consulta de cuántos dígitos es el NIP de
+ * nadie —eso se configura por usuaria en Ajustes y un endpoint que lo revelara
+ * diría cuán largo es un NIP antes de que alguien lo teclee.
  */
 export function PinPad({
   hint, error, busy, onSubmit,
@@ -39,7 +41,7 @@ export function PinPad({
     <div className="pin-stage">
       <div className="pin-anchor">
         <div className="pindots" aria-hidden="true">
-          {Array.from({ length: pin.length }, (_, i) => <span key={i} className="on" />)}
+          {Array.from({ length: pin.length }, (_, i) => <span key={i} />)}
         </div>
         <p className="err" role="alert">{local ?? error ?? ''}</p>
 

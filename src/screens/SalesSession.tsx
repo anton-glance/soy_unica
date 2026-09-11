@@ -37,7 +37,7 @@ export interface KioskItem {
 interface SessionState {
   session: { id: number; stage: Stage; contract_id: number | null; closed_at: string | null }
   favorites: number[]
-  contract: { id: number; folio: string; total_cents: number; plan_name: string | null } | null
+  contract: { id: number; folio: string; total_cents: number; plan_id: number | null; plan_name: string | null } | null
   customer: { name: string; apellido: string; phone: string; wedding_date: string | null } | null
   documents: { id: string; kind: string }[]
 }
@@ -258,8 +258,16 @@ function Kiosk({ sessionId, onChange, onClosed, onLeave }: {
           onSubmit={async (pin) => {
             setPinError(null)
             try {
-              await post('/auth/verify-pin', { pin })
-              if (view.then === 'leave') { onLeave(); return }
+              if (view.then === 'leave') {
+                // Salir del kiosco no es un traspaso: sólo comprueba el NIP.
+                await post('/auth/verify-pin', { pin })
+                onLeave()
+                return
+              }
+              // Esto sí es el traspaso, y queda escrito en la sesión con los
+              // favoritos que se van al probador.
+              await post(`/sessions/${sessionId}/handover`, { pin })
+              await onChange()
               setView({ at: 'selection', pin })
             } catch (err) {
               if (err instanceof UnauthorizedError) { void signOutToEntry('Tu sesión expiró. Vuelve a marcar tu NIP.'); return }
@@ -898,7 +906,9 @@ function ContractPrint({ sessionId, state, onDone }: { sessionId: number; state:
 
 function SignContract({ sessionId, state, onDone }: { sessionId: number; state: SessionState; onDone: () => Promise<void> }) {
   const has = state.documents.some((d) => d.kind === 'contract')
-  const [refusal, setRefusal] = useState<string | null>(null)
+  // ActionButton ya dibuja el mensaje del error; aquí sólo interesa si fue el
+  // del calendario viejo, que es el único que ofrece una salida.
+  const [stale, setStale] = useState(false)
 
   return (
     <div className="panel">
@@ -911,17 +921,33 @@ function SignContract({ sessionId, state, onDone }: { sessionId: number; state: 
         onAction={async () => {
           try {
             await post(`/sessions/${sessionId}/sign`)
-            setRefusal(null)
+            setStale(false)
             await onDone()
           } catch (err) {
-            if (err instanceof ApiError) setRefusal(err.message)
+            // El calendario impreso ya no es el de hoy: hay que reimprimir, no
+            // corregir el papel ni la base a escondidas.
+            if (err instanceof ApiError) setStale(err.code === 'stale_schedule')
             throw err
           }
         }}
       >
         Activar el contrato
       </ActionButton>
-      {refusal && <p className="err" role="alert">{refusal}</p>}
+      {stale && state.contract?.plan_id && (
+        <div className="row" style={{ marginTop: 'var(--space-8)' }}>
+          <ActionButton
+            done="Listo para imprimir"
+            onAction={async () => {
+              // Vuelve a generar el calendario con la fecha de hoy y regresa la
+              // sesión al paso de imprimir el contrato.
+              await post(`/sessions/${sessionId}/terms`, { plan_id: state.contract?.plan_id })
+              await onDone()
+            }}
+          >
+            Volver a imprimir
+          </ActionButton>
+        </div>
+      )}
       {!has && <p className="err" style={{ color: 'var(--ink-faint)' }}>Falta la foto del contrato firmado.</p>}
     </div>
   )

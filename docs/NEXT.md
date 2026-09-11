@@ -233,3 +233,61 @@ teclea y muestran cuántos dígitos lleva el NIP, en vez de seis círculos fijos
   a un palmo de la novia.
 - **La importación del catálogo de WooCommerce y de `pagos.xlsx`** (parte C de
   la ronda 3) sigue sin correr. Nada de esta ronda la toca.
+
+
+## 7. Ronda 5 — el papel, el registro de la sesión y CI
+
+### El calendario de pagos se congela al escoger el plan
+
+Antes se escribía al escoger el plan y **se volvía a generar al firmar, con la
+fecha de firma**. Si la vendedora imprimía el jueves y la novia firmaba el
+viernes, el papel que ella se llevaba y la base de datos no coincidían en una
+sola fecha de vencimiento —y el papel es el registro legal.
+
+Ahora `contracts.schedule_generated_on` guarda el día con el que se generó, que
+es el que salió impreso. `/sign` ya no genera nada: lee lo guardado. Si la firma
+cae en otro día, responde 409 con código `stale_schedule` y la pantalla ofrece
+«Volver a imprimir», que vuelve a generar con la fecha de hoy y regresa la
+sesión al paso de imprimir. `tests/frozen-schedule.test.ts` recorre eso:
+adelanta el reloj un día, comprueba la negativa, reimprime, firma y verifica
+renglón por renglón que lo guardado es lo impreso.
+
+### Lo que una sesión deja escrito
+
+La sesión es el registro de lo que pasó con una clienta que entró, haya comprado
+o no. Faltaban cuatro cosas y ya están:
+
+- **El traspaso de la tableta** es ahora un hecho de la sesión:
+  `POST /sessions/:id/handover` comprueba el NIP en el servidor y deja escrito
+  quién tomó la tableta y qué favoritos se fueron al probador.
+- **La selección vive en la sesión**, en `session_selections`, y no sólo en los
+  renglones del contrato: un contrato anulado sigue existiendo, pero lo que la
+  clienta escogió es de su historia y no puede depender de lo que le pase
+  después al contrato.
+- **Los favoritos ya no se borran al cerrar.** Se borraban justo cuando la
+  sesión se volvía histórico, y eran la única señal de demanda de la semana.
+  Los apartados del inventario sí se sueltan: eso es estado vivo.
+- **`kiosk_sessions.closed_at_stage`** guarda la etapa en que murió. `stage` se
+  sobreescribe con `'closed'` y sin esto «se fue viendo el catálogo» y «se fue
+  después de dar sus datos» se leen igual.
+
+La consecuencia: una sesión que llegó a capturar datos deja una persona
+localizable —nombre, teléfono, el vestido que quería y por qué se fue—, que es
+una lista de llamadas. Una que se fue antes deja una cuenta y un motivo, sin un
+solo dato personal, porque nunca se capturó ninguno.
+
+### El reporte semanal (sólo la mitad de sesiones)
+
+`GET /api/reports/weekly` y la pantalla `/reporte`, sólo para la dueña. El
+correo y la programación siguen fuera de alcance.
+
+El reporte es de **una sucursal**: la del cookie de quien entró. No hay forma de
+pedir la otra, y eso es a propósito —ninguna ruta lee `store_id` del cuerpo ni de
+la query. La dueña ve CDMX entrando como CDMX.
+
+### Sigue pendiente
+
+- **Las importaciones de datos** (catálogo de WooCommerce y `pagos.xlsx`) van en
+  otra rama y otro PR.
+- **El «Cerrar sesión» del kiosco sigue siendo una píldora con texto**, por la
+  misma razón de las rondas anteriores.

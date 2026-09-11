@@ -6,8 +6,8 @@ import { auditStmt } from '../lib/audit'
 import { badRequest, conflict, notFound, unauthorized } from '../lib/errors'
 import { verifyPin } from '../lib/crypto'
 import { issueFolio } from '../lib/folio'
-import { nowIso, isDate, todayISO } from '../lib/dates'
-import { evaluatePlans, generateSchedule, parseSplits, type Plan } from '../lib/plans'
+import { nowIso, isDate, todayISO, formatDateMX } from '../lib/dates'
+import { evaluatePlans, parseSplits, type Plan } from '../lib/plans'
 import { pctOf } from '../lib/money'
 import { loadItem } from './items'
 
@@ -31,7 +31,9 @@ const ALLOWED_FROM: Record<Stage, Stage[]> = {
   bride_data: ['selected', 'bride_data'],
   sheet_printed: ['bride_data', 'sheet_printed'],
   sheet_signed: ['sheet_printed'],
-  terms: ['sheet_signed', 'terms'],
+  // Desde 'contract_printed' se puede volver a 'terms': es lo que hace
+  // «Volver a imprimir» cuando el calendario impreso ya no es el de hoy.
+  terms: ['sheet_signed', 'terms', 'contract_printed'],
   contract_printed: ['terms', 'contract_printed'],
   signed: ['contract_printed'],
   payment: ['signed', 'payment'],
@@ -88,6 +90,7 @@ interface ContractRow {
   total_cents: number
   plan_id: number | null
   plan_name: string | null
+  schedule_generated_on: string | null
 }
 
 // ────────────────────────────────────────────────────── abrir y leer ──
@@ -178,6 +181,33 @@ app.post('/:id{[0-9]+}/favorites', async (c) => {
   return c.json({ favorite: true })
 })
 
+/**
+ * El momento en que la tableta pasa de manos. Es un hecho de la sesión, no de
+ * la pantalla: aquí se comprueba el NIP en el servidor y queda escrito quién
+ * tomó la tableta y qué favoritos se fueron al probador.
+ */
+app.post('/:id{[0-9]+}/handover', async (c) => {
+  const s = c.get('session')
+  const row = await loadSession(c.env.DB, s.store, Number(c.req.param('id')))
+  assertOpen(row)
+  const body = await readJson<{ pin?: string }>(c)
+  await assertOwnPin(c.env.DB, s, String(body.pin ?? ''))
+
+  const favorites = await all<{ code: string }>(
+    c.env.DB,
+    `SELECT i.code FROM session_favorites f JOIN items i ON i.id = f.item_id
+     WHERE f.session_id = ? ORDER BY f.added_at, f.item_id`,
+    row.id,
+  )
+  const codes = favorites.map((f) => f.code)
+  const detail = codes.length
+    ? `la vendedora tomó la tableta · ${codes.length} al probador: ${codes.join(', ')}`
+    : 'la vendedora tomó la tableta · sin favoritos'
+
+  await c.env.DB.batch(advance(c.env.DB, row, 'fitting', detail))
+  return c.json({ ok: true, favorites: codes })
+})
+
 // ───────────────────────────────────────────────────────── selección ──
 /**
  * Elegir libera todos los demás apartados de la sesión y crea el contrato en
@@ -240,7 +270,14 @@ app.post('/:id{[0-9]+}/select', async (c) => {
     ...accessories.map((a, i) =>
       stmt(c.env.DB, `INSERT INTO contract_items (contract_id, item_id, description, price_cents, line_kind, sort)
                       VALUES (?,?,?,?, 'accessory', ?)`, contractId, a.id, `${a.name} (${a.code})`, a.price_cents, i + 1)),
-    ...advance(c.env.DB, row, 'selected', `vestido ${item.code}, folio ${folio}`),
+    // El mismo hecho, en el renglón de la sesión: un contrato anulado sigue
+    // existiendo, pero lo que la vendedora escogió es del historial de la
+    // clienta y no puede depender de qué le pase después al contrato.
+    stmt(c.env.DB, `INSERT OR REPLACE INTO session_selections (session_id, item_id, line_kind) VALUES (?,?,'dress')`, row.id, item.id),
+    ...accessories.map((a) =>
+      stmt(c.env.DB, `INSERT OR REPLACE INTO session_selections (session_id, item_id, line_kind) VALUES (?,?,'accessory')`, row.id, a.id)),
+    ...advance(c.env.DB, row, 'selected',
+      `vestido ${item.code}${accessories.length ? ` · accesorios: ${accessories.map((a) => a.code).join(', ')}` : ' · sin accesorios'} · folio ${folio}`),
     auditStmt(c.env.DB, { session: s, entity: 'contract', entityId: contractId, action: 'draft', after: { folio, item: item.code } }),
   ])
   return c.json({ contract_id: contractId, folio })
@@ -431,10 +468,11 @@ app.post('/:id{[0-9]+}/terms', async (c) => {
     throw conflict(why ? `Ese plan no aplica: ${why.detail}` : 'Ese plan no aplica para este precio o esta fecha de evento.')
   }
 
-  // Las parcialidades se escriben aquí, al escoger el plan, no hasta firmar:
-  // el contrato se imprime ANTES de la firma y el calendario tiene que salir en
-  // el papel que la novia firma. Al firmar se vuelven a generar con la fecha de
-  // firma, que es la que manda.
+  // Las parcialidades se escriben aquí, al escoger el plan, y ya no se vuelven
+  // a tocar: el contrato se imprime ANTES de la firma, así que estas fechas son
+  // las que salen en el papel que la novia se lleva. Se guarda con qué día se
+  // generaron; si la firma cae en otro día, /sign se niega y hay que reimprimir.
+  const generatedOn = todayISO()
   const lines = [
     stmt(c.env.DB, `DELETE FROM installments WHERE contract_id = ?`, contract.id),
     ...offer.schedule.map((r) =>
@@ -447,13 +485,18 @@ app.post('/:id{[0-9]+}/terms', async (c) => {
     ...surchargeLines.map((sc, i) =>
       stmt(c.env.DB, `INSERT INTO contract_items (contract_id, item_id, description, price_cents, line_kind, sort)
                       VALUES (?,?,?,?, 'surcharge', ?)`, contract.id, null, sc.name, sc.charge_cents, 100 + i)),
-    stmt(c.env.DB, `UPDATE contracts SET plan_id = ?, plan_name = ?, list_total_cents = ?, discount_cents = ?, total_cents = ?, updated_at = ?
-                    WHERE id = ?`, offer.plan.id, offer.plan.name, list_total_cents, offer.discount_cents, offer.total_cents, nowIso(), contract.id),
+    stmt(c.env.DB, `UPDATE contracts SET plan_id = ?, plan_name = ?, list_total_cents = ?, discount_cents = ?, total_cents = ?,
+                                         schedule_generated_on = ?, updated_at = ?
+                    WHERE id = ?`, offer.plan.id, offer.plan.name, list_total_cents, offer.discount_cents, offer.total_cents,
+                    generatedOn, nowIso(), contract.id),
     ...advance(c.env.DB, row, 'terms', offer.plan.name),
     auditStmt(c.env.DB, { session: s, entity: 'contract', entityId: contract.id, action: 'terms', after: { plan: offer.plan.name, total_cents: offer.total_cents } }),
   ]
   await c.env.DB.batch(lines)
-  return c.json({ plan: offer.plan.name, total_cents: offer.total_cents, schedule: offer.schedule, dress_price_cents: dressPrice })
+  return c.json({
+    plan: offer.plan.name, total_cents: offer.total_cents, schedule: offer.schedule,
+    dress_price_cents: dressPrice, schedule_generated_on: generatedOn,
+  })
 })
 
 app.post('/:id{[0-9]+}/contract-printed', async (c) => {
@@ -467,8 +510,10 @@ app.post('/:id{[0-9]+}/contract-printed', async (c) => {
 
 /**
  * Firmar: el contrato sale de borrador sólo con las dos fotos (hoja de medidas
- * y contrato). Aquí se escriben las parcialidades y el vestido único queda
- * apartado.
+ * y contrato). Las parcialidades NO se vuelven a generar aquí: ya se
+ * escribieron al escoger el plan y son las que salieron impresas. El papel
+ * firmado es el registro legal, así que la base de datos se ajusta al papel y
+ * no al revés.
  */
 app.post('/:id{[0-9]+}/sign', async (c) => {
   const s = c.get('session')
@@ -482,20 +527,29 @@ app.post('/:id{[0-9]+}/sign', async (c) => {
   if (!kinds.has('measurement_sheet')) throw conflict('Falta la foto de la hoja de medidas firmada.')
   if (!kinds.has('contract')) throw conflict('Falta la foto del contrato firmado. Tómala antes de activar el contrato.')
 
-  const planRow = await one<Plan & { splits: string }>(c.env.DB, `SELECT * FROM plans WHERE id = ? AND store_id = ?`, contract.plan_id, s.store)
-  if (!planRow) throw conflict('El plan del contrato ya no existe.')
-  const plan: Plan = { ...planRow, splits: parseSplits(planRow.splits) }
+  // Si se firma en un día distinto al que se generó el calendario, el papel que
+  // la novia tiene enfrente trae otras fechas de vencimiento que las que
+  // quedarían guardadas. No se corrige ninguno de los dos en silencio: se
+  // reimprime.
   const signedOn = todayISO()
-  const schedule = generateSchedule(plan, contract.total_cents, signedOn)
+  if (contract.schedule_generated_on && contract.schedule_generated_on !== signedOn) {
+    throw conflict(
+      `El contrato impreso trae el calendario del ${formatDateMX(contract.schedule_generated_on)} y hoy es ` +
+        `${formatDateMX(signedOn)}: las fechas de pago del papel ya no son las de hoy. ` +
+        'Vuelve a imprimir el contrato con las fechas nuevas y que lo firme sobre ese.',
+      'stale_schedule',
+    )
+  }
+
+  const schedule = await all<{ seq: number; due_type: string; due_date: string | null; amount_cents: number }>(
+    c.env.DB, `SELECT seq, due_type, due_date, amount_cents FROM installments WHERE contract_id = ? ORDER BY seq`, contract.id,
+  )
+  if (schedule.length === 0) throw conflict('Este contrato no tiene calendario de pagos. Vuelve a escoger el plan.')
 
   const dress = await one<{ item_id: number | null }>(
     c.env.DB, `SELECT item_id FROM contract_items WHERE contract_id = ? AND line_kind = 'dress'`, contract.id,
   )
   const statements: D1PreparedStatement[] = [
-    stmt(c.env.DB, `DELETE FROM installments WHERE contract_id = ?`, contract.id),
-    ...schedule.map((r) =>
-      stmt(c.env.DB, `INSERT INTO installments (contract_id, seq, due_type, due_date, amount_cents) VALUES (?,?,?,?,?)`,
-        contract.id, r.seq, r.due_type, r.due_date, r.amount_cents)),
     stmt(c.env.DB, `UPDATE contracts SET status = 'active', signed_at = ?, updated_at = ? WHERE id = ? AND status = 'draft'`,
       nowIso(), nowIso(), contract.id),
     ...advance(c.env.DB, row, 'signed', contract.folio),
@@ -558,14 +612,18 @@ app.post('/:id{[0-9]+}/close', async (c) => {
 
   const now = nowIso()
   const statements: D1PreparedStatement[] = [
+    // `closed_at_stage` guarda hasta dónde llegó: 'stage' se sobreescribe con
+    // 'closed' y sin esto no se distingue la que se fue viendo el catálogo de
+    // la que se fue después de dar sus datos.
     stmt(c.env.DB,
-      `UPDATE kiosk_sessions SET stage = 'closed', closed_at = ?, outcome = ?, reason = ?, note = ?, sheets_disposed = ? WHERE id = ?`,
-      now, outcome, reason, String(body.note ?? '').trim() || null, needsDisposal ? 1 : null, row.id),
-    stmt(c.env.DB, `INSERT INTO session_events (session_id, stage, detail) VALUES (?, 'closed', ?)`, row.id, `${outcome}: ${reason}`),
-    // Suelta todos los apartados y borra los favoritos de la sesión.
+      `UPDATE kiosk_sessions SET stage = 'closed', closed_at_stage = ?, closed_at = ?, outcome = ?, reason = ?, note = ?, sheets_disposed = ? WHERE id = ?`,
+      row.stage, now, outcome, reason, String(body.note ?? '').trim() || null, needsDisposal ? 1 : null, row.id),
+    stmt(c.env.DB, `INSERT INTO session_events (session_id, stage, detail) VALUES (?, 'closed', ?)`, row.id, `${outcome}: ${reason} · murió en «${row.stage}»`),
+    // Se sueltan los apartados, que son estado vivo del inventario. Los
+    // favoritos NO se borran: son la señal de demanda de la semana y el único
+    // registro de qué vino a buscar una clienta que no compró.
     stmt(c.env.DB, `UPDATE items SET status = 'available', held_by_session = NULL, updated_at = ?
                     WHERE held_by_session = ? AND status = 'watching'`, now, row.id),
-    stmt(c.env.DB, `DELETE FROM session_favorites WHERE session_id = ?`, row.id),
     auditStmt(c.env.DB, { session: s, entity: 'kiosk_session', entityId: row.id, action: 'close', after: { outcome, reason } }),
   ]
 
