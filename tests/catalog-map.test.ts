@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 // @ts-expect-error — the importer is an untyped .mjs script, on purpose.
-import { toItem, storesFor } from '../scripts/import/map-product.mjs'
+import { toItem } from '../scripts/import/map-product.mjs'
 
 /**
  * C1 — one WooCommerce Store API product to one inventory item.
@@ -10,12 +10,18 @@ import { toItem, storesFor } from '../scripts/import/map-product.mjs'
  * the half that matters: the mapping. What cannot be done from this environment
  * is downloading the real catalog — the network policy only allows the package
  * registries out.
+ *
+ * There is no branch split here. The real category census (`--categories`
+ * against the actual site) came back with 200 products, 14 categories, and
+ * none of them naming a branch — no `tags`, no branch in the permalink, nothing
+ * to split on. Everything this importer produces goes into Monterrey; CDMX's
+ * catalog has to come from somewhere else.
  */
 
 interface Mapped {
   code: string; code_from: string; name: string; brand: string | null; color: string | null
-  kind: string; acquisition: string; price_cents: number; stores: string[]
-  review: string[]; problems: string[]
+  kind: string; cut: string | null; condition: string; promo: boolean; acquisition: string
+  price_cents: number; review: string[]; problems: string[]; excluded: string | null
   images: { src: string }[]
 }
 
@@ -25,7 +31,7 @@ const byId = (id: number) => mapped[fixture.findIndex((p) => (p as { id: number 
 
 describe('the item code', () => {
   it('is the site SKU when there is one', () => {
-    expect(byId(101).code).toBe('p139')
+    expect(byId(101).code).toBe('P139')
     expect(byId(101).code_from).toBe('sku')
   })
 
@@ -35,17 +41,22 @@ describe('the item code', () => {
     expect(byId(102).code_from).toBe('name')
   })
 
-  it('never passes the website slug off as a code', () => {
+  it('never passes the website slug or the WooCommerce id off as a code', () => {
     const slugs = fixture.map((p) => (p as { slug?: string }).slug).filter(Boolean)
+    const ids = fixture.map((p) => String((p as { id: number }).id))
     for (const item of mapped) {
       if (item.code_from === 'placeholder') continue
       expect(slugs).not.toContain(item.code)
+      expect(ids).not.toContain(item.code)
     }
   })
 
   it('marks an invented code visibly and flags it for review', () => {
-    expect(byId(106).code).toMatch(/^s\/n-/)
-    expect(byId(106).review).toContain('code')
+    // Product 110 has no SKU, no usable name fragment beyond its own text, and
+    // a slug — falls to the placeholder.
+    const placeholder = mapped.find((m) => m.code_from === 'placeholder')
+    expect(placeholder?.code).toMatch(/^s\/n-/)
+    expect(placeholder?.review).toContain('code')
   })
 })
 
@@ -64,26 +75,12 @@ describe('the price', () => {
   })
 })
 
-describe('the branch split', () => {
-  it('reads the branch off the categories', () => {
-    expect(byId(107).stores).toEqual(['cdmx'])
-    expect(byId(108).stores).toEqual(['mty'])
-  })
-
-  it('puts a product carrying both categories into both branches', () => {
-    expect(byId(110).stores.sort()).toEqual(['cdmx', 'mty'])
-  })
-
-  it('keeps each branch its own price for the same model', () => {
-    // Luccienna is two products on the site: CDMX priced, Monterrey not.
-    expect(byId(107).price_cents).toBe(2_450_000)
-    expect(byId(108).price_cents).toBe(0)
-    expect(byId(108).review).toContain('price')
-  })
-
-  it('falls back to Monterrey when no category names a branch', () => {
-    expect(byId(101).stores).toEqual(['mty'])
-    expect(storesFor([])).toEqual(['mty'])
+describe('there is no branch split', () => {
+  it('toItem never mentions a store or branch', () => {
+    // @ts-expect-error — intentionally checking the shape has no such field.
+    expect(byId(101).store).toBeUndefined()
+    // @ts-expect-error — intentionally checking the shape has no such field.
+    expect(byId(101).stores).toBeUndefined()
   })
 })
 
@@ -99,14 +96,64 @@ describe('what comes out of the attributes', () => {
   })
 })
 
-describe('dress or accessory', () => {
-  it('comes from the site categories', () => {
+describe('dress or accessory, read from the real categories', () => {
+  it('"Vestidos de Novia" is a dress, "Accesorios"/"Mantillas" is an accessory', () => {
     expect(byId(101).kind).toBe('dress')
     expect(byId(102).kind).toBe('accessory')
   })
 
-  it('falls back to the model name when the category is silent', () => {
-    expect(byId(109).kind).toBe('accessory')
+  it('falls back to the model name only when there is no category at all', () => {
+    expect(byId(110).kind).toBe('dress')
+  })
+})
+
+describe('cut, read from the "Corte …" categories', () => {
+  it('maps Corte Princesa / Corte A / Corte Sirena', () => {
+    expect(byId(101).cut).toBe('Princesa')
+    expect(byId(103).cut).toBe('A')
+    expect(byId(107).cut).toBe('Sirena')
+  })
+
+  it('stays null when no cut category is present', () => {
+    expect(byId(102).cut).toBeNull()
+  })
+})
+
+describe('condition, read from "Liquidación"', () => {
+  it('is liquidacion for that category, nuevo otherwise', () => {
+    expect(byId(107).condition).toBe('liquidacion')
+    expect(byId(101).condition).toBe('nuevo')
+  })
+})
+
+describe('the "Bridal Sale -20%" promotion', () => {
+  it('is recorded as a flag, never as a condition or a price change', () => {
+    const promo = byId(108)
+    expect(promo.promo).toBe(true)
+    expect(promo.condition).toBe('nuevo')
+    expect(promo.price_cents).toBe(1_490_000)
+  })
+
+  it('is false for a product outside the promotion', () => {
+    expect(byId(101).promo).toBe(false)
+  })
+})
+
+describe('rentals are excluded, not imported or rejected', () => {
+  it('marks the rental category as excluded', () => {
+    expect(byId(109).excluded).toBe('rental')
+    expect(byId(109).problems).toEqual([])
+  })
+
+  it('leaves everything else unexcluded', () => {
+    expect(byId(101).excluded).toBeNull()
+  })
+})
+
+describe('a product with no categories at all', () => {
+  it('is flagged for review rather than guessed or dropped', () => {
+    expect(byId(110).review).toContain('category')
+    expect(byId(110).problems).toEqual([])
   })
 })
 

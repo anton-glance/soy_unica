@@ -44,7 +44,7 @@ time. Steps 1–6 before step 9.
 | `d1 create` / `r2 bucket create` | **no** | errors that the name is taken — harmless, but do not "fix" it by creating a second one under another name |
 | `secret put JWT_SECRET` | **no, not safely** | it succeeds, and every tablet is logged out at once because the cookies signed with the old secret stop verifying. Only re-run it deliberately |
 | `d1 migrations apply --remote` | yes | already-applied migrations are skipped; wrangler tracks them in `d1_migrations` |
-| `d1 execute --file docs/import/catalog.sql --remote` | yes | every statement is `INSERT OR IGNORE`, so rows already carrying that code in that branch are left alone, edits she has made are not overwritten, and nothing is duplicated |
+| `d1 execute --file docs/import/catalog.sql --remote` | yes | every statement is `INSERT OR IGNORE`, so rows already carrying that code are left alone, edits she has made are not overwritten, and nothing is duplicated |
 | `r2 object put` | yes | overwrites the object at the same key with identical bytes |
 | `npm run build` | yes | rebuilds `dist/` from scratch |
 | `wrangler deploy` | yes | publishes a new version; the previous one stays in the dashboard to roll back to |
@@ -147,29 +147,39 @@ The catalog SQL is generated on your machine and is **not** in the repository �
 `docs/import/catalog.sql` and `catalog.md` are gitignored, precisely so that
 nobody can apply a file built from test fixtures to the real database.
 
+**This catalog is Monterrey's alone.** Checked directly against the site's raw
+JSON: `tags` is empty on every product, permalinks encode category rather than
+branch, and none of its 14 categories names a branch — there is no signal here
+to split a store on. Every row this importer produces goes into `mty`. **CDMX
+starts empty**; its catalog has to come from wherever CDMX's actual data lives,
+which is outside the scope of this endpoint.
+
 ```bash
 # Download the catalog (needs outbound access to soyunicanovias.com).
 node scripts/import/catalog.mjs --fetch
 
-# What categories does the site actually use, and which branch does each map to?
+# What does the site's current category census feed — kind, cut, condition,
+# a note, or an exclusion? Read this before going further.
 node scripts/import/catalog.mjs --categories
 ```
 
-**Read that census before going further.** The branch split is driven by
-`STORE_RULES` in `scripts/import/map-product.mjs`, written without ever having
-seen the site. Any category that should be CDMX and prints `— (falls back to
-mty)` means the pattern needs a line added, and the whole CDMX catalog would
-otherwise land in Monterrey. Edit `STORE_RULES`, re-run `--categories`, repeat
-until every row reads the branch you expect.
+A category printing `— not used` that looks like it should mean something (a
+new promotion, a new cut) is worth a line added to `ACCESSORY_CATEGORIES`,
+`CUT_CATEGORIES`, `LIQUIDATION_CATEGORY`, `PROMO_CATEGORY` or
+`RENTAL_CATEGORY` in `scripts/import/map-product.mjs` before importing.
 
 ```bash
 # Report + SQL + images.
 node scripts/import/catalog.mjs --images
 ```
 
-Now read `docs/import/catalog.md` end to end — particularly **By branch**,
-**The same model in both branches** and **Flagged for review**. It is the last
-point at which a mistake is free. Then:
+Now read `docs/import/catalog.md` end to end — particularly **What the
+categories are used for**, **Excluded**, and **Flagged for review**. The
+`category` reason there is worth a second look before anyone edits and saves
+one of those rows in Inventario: it is not one of the fields the app's own
+`needs_review` recompute tracks (only price, code, size, cost, condition), so a
+later save can clear the flag without the kind or cut actually being fixed.
+This is the last point at which a mistake is free. Then:
 
 ```bash
 npx wrangler d1 execute soy-unica --remote --file docs/import/catalog.sql
@@ -184,19 +194,14 @@ npx wrangler d1 execute soy-unica --remote \
   --command "SELECT store_id, COUNT(*) AS items, SUM(needs_review) AS por_verificar FROM items GROUP BY store_id"
 ```
 
-Those numbers must match the **By branch** table in the report. If Monterrey has
-everything and CDMX has nothing, the category patterns did not match — fix
-`STORE_RULES`, re-run the generator, and apply again. The re-apply is safe:
-`INSERT OR IGNORE` will not duplicate the rows that already landed, but note it
-also will **not** move a row that went to the wrong branch. Delete those by
-hand first if it comes to that.
+That should show only `mty`. `INSERT OR IGNORE` means the SQL can be re-applied
+without duplicating anything already there.
 
 ## 7. The catalog images
 
 `--images` wrote the re-encoded WebP files to `docs/import/catalog-images/` and a
 manifest, `docs/import/catalog-r2.tsv`, with one `localpath<TAB>r2key` line per
-upload. A dress that appears in both catalogs is uploaded twice, once per branch,
-because a `files` row belongs to one branch.
+upload.
 
 There is **no `--local` flag anywhere in this section.** With `--local`, wrangler
 writes to the miniflare directory on your laptop, reports success, and the kiosk

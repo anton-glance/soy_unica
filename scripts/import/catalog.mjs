@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 import { writeFileSync, mkdirSync, existsSync, readFileSync, statSync } from 'node:fs'
 import { createRequire } from 'node:module'
-import { toItem, STORE_RULES, DEFAULT_STORE } from './map-product.mjs'
+import {
+  toItem, ACCESSORY_CATEGORIES, CUT_CATEGORIES, LIQUIDATION_CATEGORY, PROMO_CATEGORY, RENTAL_CATEGORY,
+} from './map-product.mjs'
 
 /**
- * Imports the soyunicanovias.com catalog into the two branches.
+ * Imports the soyunicanovias.com catalog into Monterrey.
  *
  * Reads the public WooCommerce Store API — `/wp-json/wc/store/v1/products` —
  * which needs no key. Downloads the images, re-encodes them with the same
@@ -13,9 +15,10 @@ import { toItem, STORE_RULES, DEFAULT_STORE } from './map-product.mjs'
  * site's own images: if it goes down or moves host tomorrow, the kiosk would be
  * left with no photos.
  *
- * The site runs two catalogs, so a product is split by its categories: CDMX
- * rows go to `cdmx` with the CDMX price, Monterrey rows to `mty` with the
- * Monterrey price, and a product carrying both categories is written into both.
+ * This catalog is Monterrey's alone. Its 200 products carry no branch signal
+ * anywhere — no category, no tag, no field of any kind names CDMX or
+ * Monterrey — so everything here goes into `mty`, and CDMX's catalog has to be
+ * built from wherever CDMX's actual data lives. See `--categories` below.
  *
  * Like the ledger importer, it writes to no database: it produces the report,
  * a `.sql` applied by hand, and the image manifest.
@@ -28,7 +31,7 @@ import { toItem, STORE_RULES, DEFAULT_STORE } from './map-product.mjs'
  */
 
 const BASE = 'https://soyunicanovias.com/wp-json/wc/store/v1/products'
-const STORES = ['mty', 'cdmx']
+const STORE = 'mty'
 const OUT = 'docs/import'
 const RAW = `${OUT}/catalog-raw.json`
 const IMAGES = `${OUT}/catalog-images`
@@ -40,9 +43,7 @@ const TARGET = { maxEdge: 1600, startQuality: 72, minQuality: 40, maxBytes: 300 
 const bytes = (n) => (n < 1024 ? `${n} B` : n < 1024 ** 2 ? `${(n / 1024).toFixed(0)} KB` : `${(n / 1024 ** 2).toFixed(1)} MB`)
 const q = (v) => (v === null || v === undefined ? 'NULL' : `'${String(v).replace(/'/g, "''")}'`)
 const pesos = (cents) => `$${(cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}`
-/** Model names as the shop says them out loud, for matching the same dress across branches. */
-const modelKey = (name) => String(name).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-  .replace(/^(vestido|traje)\s+(de\s+(novia|gala|noche)\s+)?/, '').replace(/[^a-z0-9]+/g, ' ').trim()
+const plural = (n, one, many) => (n === 1 ? one : many)
 
 // ────────────────────────────────────────────────────────────── download ──
 async function fetchAll() {
@@ -103,13 +104,20 @@ if (wantFetch) {
 }
 
 /*
- * The category census. The branch split is only as good as these patterns, and
- * they were written without ever seeing the site, so print what it actually
- * uses and check before importing anything.
+ * The category census. There is no branch signal in this catalog at all — this
+ * printout is for checking what field, if any, each category feeds: kind, cut,
+ * condition, the promo note, or an outright exclusion (rentals).
  */
 const census = new Map()
 for (const product of raw) {
-  for (const c of product.categories ?? []) {
+  const cats = product.categories ?? []
+  if (cats.length === 0) {
+    const row = census.get('(sin categorizar)') ?? { name: '(sin categorizar)', n: 0 }
+    row.n++
+    census.set('(sin categorizar)', row)
+    continue
+  }
+  for (const c of cats) {
     const name = String(c.name ?? '').replace(/<[^>]*>/g, '').trim()
     if (!name) continue
     const row = census.get(name) ?? { name, n: 0 }
@@ -117,63 +125,47 @@ for (const product of raw) {
     census.set(name, row)
   }
 }
-const categoryRows = [...census.values()].sort((a, b) => b.n - a.n).map((row) => ({
-  ...row,
-  store: STORE_RULES.filter((r) => r.test.test(row.name)).map((r) => r.store).join(' + ') || `— (falls back to ${DEFAULT_STORE})`,
-}))
+const fieldFor = (name) => {
+  if (name === '(sin categorizar)') return 'flagged for review — no data to categorize from'
+  if (RENTAL_CATEGORY.test(name)) return 'excluded — rental, out of scope'
+  if (ACCESSORY_CATEGORIES.test(name)) return 'kind = accessory'
+  if (/^vestidos de novia$/i.test(name)) return 'kind = dress'
+  const cut = CUT_CATEGORIES.find((rule) => rule.test.test(name))
+  if (cut) return `cut = ${cut.cut}`
+  if (LIQUIDATION_CATEGORY.test(name)) return 'condition = liquidacion'
+  if (PROMO_CATEGORY.test(name)) return 'note only (promotion) — price and condition untouched'
+  return '— not used'
+}
+const categoryRows = [...census.values()].sort((a, b) => b.n - a.n).map((row) => ({ ...row, field: fieldFor(row.name) }))
 
 if (wantCategories) {
   console.log(`${raw.length} products, ${categoryRows.length} categories\n`)
-  for (const row of categoryRows) console.log(`${String(row.n).padStart(4)}  ${row.name.padEnd(42)} → ${row.store}`)
+  for (const row of categoryRows) console.log(`${String(row.n).padStart(4)}  ${row.name.padEnd(42)} → ${row.field}`)
   process.exit(0)
 }
 
-const products = raw.map(toItem)
-const rejected = products.filter((p) => p.problems.length > 0)
-const usable = products.filter((p) => p.problems.length === 0)
+const mapped = raw.map(toItem)
+const rejected = mapped.filter((p) => p.problems.length > 0)
+const excluded = mapped.filter((p) => p.problems.length === 0 && p.excluded)
+const candidates = mapped.filter((p) => p.problems.length === 0 && !p.excluded)
 
-/*
- * One product becomes one row per branch it belongs to. The code is unique per
- * branch, so the collision check runs per branch too: the same `A12` in both
- * catalogs is not a collision, it is the same dress on two racks.
- */
+/* The code is unique per branch (there is only one branch here). */
 const rows = []
 const collisions = []
-const byStore = new Map(STORES.map((s) => [s, new Map()]))
-for (const product of usable) {
-  for (const store of product.stores) {
-    if (!byStore.has(store)) byStore.set(store, new Map())
-    const seen = byStore.get(store)
-    if (seen.has(product.code)) { collisions.push({ store, product, first: seen.get(product.code) }); continue }
-    const row = { ...product, store }
-    seen.set(product.code, row)
-    rows.push(row)
-  }
+const seen = new Map()
+for (const product of candidates) {
+  if (seen.has(product.code)) { collisions.push({ product, first: seen.get(product.code) }); continue }
+  const row = { ...product, store: STORE }
+  seen.set(product.code, row)
+  rows.push(row)
 }
 
-const bothCatalogs = usable.filter((p) => p.stores.length > 1)
-const noBranch = usable.filter((p) => (p.categories ?? []).every((c) => !STORE_RULES.some((r) => r.test.test(c))))
-
-/* The same model sold by both branches, whether as one product or as two. */
-const byModel = new Map()
-for (const row of rows) {
-  const key = modelKey(row.name)
-  if (!key) continue
-  const bucket = byModel.get(key) ?? []
-  bucket.push(row)
-  byModel.set(key, bucket)
-}
-const sharedModels = [...byModel.entries()]
-  .filter(([, bucket]) => new Set(bucket.map((r) => r.store)).size > 1)
-  .map(([key, bucket]) => ({ key, rows: bucket }))
-  .sort((a, b) => a.key.localeCompare(b.key))
-
-// Images are downloaded once per product and referenced by every branch row.
+// Images are downloaded once per product.
 let imageReport = { downloaded: 0, reused: 0, bytesIn: 0, bytesOut: 0, failed: [], tooBig: [] }
 const shots = new Map()
 if (wantImages) {
   mkdirSync(IMAGES, { recursive: true })
-  for (const product of usable) {
+  for (const product of candidates) {
     const list = []
     for (const [i, img] of product.images.slice(0, 5).entries()) {
       // Named by the site's product id, not by the code: the code can change
@@ -209,11 +201,6 @@ if (wantImages) {
   process.stdout.write('\n')
 }
 
-/*
- * A file row belongs to one branch, so a product in both catalogs gets two file
- * rows pointing at the same picture. The manifest says which local file goes to
- * which R2 key; the deploy loops over it rather than guessing the layout.
- */
 const uploads = []
 for (const row of rows) {
   row.files = (shots.get(row.source_id) ?? []).map((shot) => {
@@ -227,34 +214,34 @@ for (const row of rows) {
 // ──────────────────────────────────────────────────────────────── report ──
 const lines = []
 const say = (s = '') => lines.push(s)
-const storeRows = (store) => rows.filter((r) => r.store === store)
 const flagged = rows.filter((r) => r.review.length > 0)
+const dresses = rows.filter((r) => r.kind === 'dress').length
 
 say('# Catalog import — soyunicanovias.com')
 say()
-say(`Source: \`${BASE}\`.`)
+say(`Source: \`${BASE}\`. Destination branch: \`${STORE}\`.`)
 say('**None of this has been written to any database.**')
+say()
+say('## CDMX is not in this catalog')
+say()
+say('Checked directly against the raw JSON: `tags` is empty on every product, permalinks encode')
+say('category rather than branch (`producto/vestidos-de-novia/corte-princesa/hanna`), and none of')
+say('the 14 categories names a branch. There is no signal here to split on, so every row in this')
+say('import goes into **`mty`**. CDMX starts empty and its catalog has to be built from wherever')
+say('CDMX\'s actual data lives — this endpoint does not carry it.')
 say()
 say('## Summary')
 say()
 say('| | |')
 say('|---|---|')
-say(`| products on the site | ${products.length} |`)
+say(`| products on the site | ${mapped.length} |`)
 say(`| rejected outright | ${rejected.length} |`)
-say(`| inventory rows to write | **${rows.length}** |`)
+say(`| excluded (rentals, out of scope) | ${excluded.length} |`)
+say(`| inventory rows to write | **${rows.length}** — ${dresses} ${plural(dresses, 'dress', 'dresses')}, ` +
+  `${rows.length - dresses} ${plural(rows.length - dresses, 'accessory', 'accessories')} |`)
 say(`| of those, flagged for review | ${flagged.length} |`)
-say(`| duplicate codes within a branch | ${collisions.length} |`)
-say()
-say('## By branch')
-say()
-say('| branch | rows | dresses | accessories | flagged | catalog value |')
-say('|---|---|---|---|---|---|')
-for (const store of STORES) {
-  const mine = storeRows(store)
-  say(`| \`${store}\` | ${mine.length} | ${mine.filter((r) => r.kind === 'dress').length} | `
-    + `${mine.filter((r) => r.kind === 'accessory').length} | ${mine.filter((r) => r.review.length > 0).length} | `
-    + `${pesos(mine.reduce((n, r) => n + r.price_cents, 0))} |`)
-}
+say(`| duplicate codes | ${collisions.length} |`)
+say(`| catalog value | ${pesos(rows.reduce((n, r) => n + r.price_cents, 0))} |`)
 say()
 say('Everything comes in as **made to order**: the site\'s stock flags are not trustworthy and')
 say('claiming a physical unit that may not exist is worse than the reverse. Size and cost stay')
@@ -262,51 +249,24 @@ say('empty on purpose — a made-to-order dress is cut to the bride\'s measureme
 say('bought up front — so neither counts as a gap.')
 say()
 
-say('## Branch split')
+say('## What the categories are used for')
 say()
-say('The branch is read off each product\'s categories. Check this table against the site before')
-say('importing: the patterns live in `STORE_RULES` in `scripts/import/map-product.mjs`, and a')
-say('category that matches nothing falls back to `' + DEFAULT_STORE + '`.')
+say('Read directly off each product\'s categories, checked against the site\'s own census:')
 say()
-say('| products | category | branch |')
+say('| products | category | used for |')
 say('|---|---|---|')
-for (const row of categoryRows) say(`| ${row.n} | ${row.name} | ${row.store} |`)
+for (const row of categoryRows) say(`| ${row.n} | ${row.name} | ${row.field} |`)
 say()
 
-if (bothCatalogs.length > 0) {
-  say('### Products carrying both branches\' categories')
+if (excluded.length > 0) {
+  say(`## Excluded — ${excluded.length} ${plural(excluded.length, 'rental', 'rentals')}`)
   say()
-  say('One product on the site, one row in each branch, at the same price.')
+  say('Renting a coat is not selling a dress: out of scope for this shop\'s inventory. Excluded')
+  say('rather than imported or rejected, and listed here so nobody wonders where they went.')
   say()
-  say('| code | model | price |')
+  say('| id | model | categories |')
   say('|---|---|---|')
-  for (const p of bothCatalogs) say(`| \`${p.code}\` | ${p.name} | ${pesos(p.price_cents)} |`)
-  say()
-}
-if (sharedModels.length > 0) {
-  say('### The same model in both branches')
-  say()
-  say('Matched on the model name, so this also catches the pairs the site lists as two separate')
-  say('products. A price of $0.00 is the Monterrey row she leaves unpriced on purpose because the')
-  say('dress also sits in the CDMX catalog — it comes in flagged, and cannot be sold until it has a price.')
-  say()
-  say('| model | branch | code | price |')
-  say('|---|---|---|---|')
-  for (const m of sharedModels) {
-    for (const r of m.rows.sort((a, b) => a.store.localeCompare(b.store))) {
-      say(`| ${r.name} | \`${r.store}\` | \`${r.code}\` | ${pesos(r.price_cents)} |`)
-    }
-  }
-  say()
-}
-if (noBranch.length > 0) {
-  say(`### No branch category — ${noBranch.length} products`)
-  say()
-  say(`These carry no category naming a branch, so they go to \`${DEFAULT_STORE}\` only.`)
-  say()
-  say('| code | model | categories |')
-  say('|---|---|---|')
-  for (const p of noBranch) say(`| \`${p.code}\` | ${p.name} | ${p.categories.join(', ') || '—'} |`)
+  for (const p of excluded) say(`| ${p.source_id} | ${p.name} | ${p.categories.join(', ') || '—'} |`)
   say()
 }
 
@@ -320,14 +280,28 @@ if (flagged.length > 0) {
   say('zero price is refused server-side when a seller tries to pick it in a session, so a zero can')
   say('never reach a printed contract.')
   say()
-  for (const [reason, n] of [...byReason.entries()].sort((a, b) => b[1] - a[1])) say(`- \`${reason}\` — ${n} rows`)
+  for (const [reason, n] of [...byReason.entries()].sort((a, b) => b[1] - a[1])) say(`- \`${reason}\` — ${n} ${plural(n, 'row', 'rows')}`)
   say()
-  say('| branch | code | model | missing | what the site gave |')
+  const categoryFlagged = flagged.filter((r) => r.review.includes('category'))
+  if (categoryFlagged.length > 0) {
+    say(`\`category\` means the product carried no categories at all — ${categoryFlagged.length} of them —`)
+    say('so kind, cut and condition could not be read off anything. They come in as a dress by')
+    say('default; a person needs to look at each one and correct kind, cut and condition by hand.')
+    say('This is not tracked by the app\'s own `needs_review` recompute (it only knows price, code,')
+    say('size, cost and condition), so once she opens one of these and saves, the flag can clear even')
+    say('if kind or cut is still wrong — check them here, once, before that happens:')
+    say()
+    say('| code | model |')
+    say('|---|---|')
+    for (const r of categoryFlagged) say(`| \`${r.code}\` | ${r.name} |`)
+    say()
+  }
+  say('| code | model | kind | missing | what the site gave |')
   say('|---|---|---|---|---|')
   for (const row of flagged) {
     const gave = [row.brand && `marca ${row.brand}`, row.color && `color ${row.color}`,
       row.images.length && `${row.images.length} fotos`, row.categories.join(' / ')].filter(Boolean).join(' · ')
-    say(`| \`${row.store}\` | \`${row.code}\` | ${row.name} | ${row.review.join(', ')} | ${gave || '—'} |`)
+    say(`| \`${row.code}\` | ${row.name} | ${row.kind} | ${row.review.join(', ')} | ${gave || '—'} |`)
   }
   say()
 }
@@ -346,23 +320,25 @@ if (rejected.length > 0) {
 if (collisions.length > 0) {
   say('## Duplicate codes')
   say()
-  say('The code is unique per branch, so only the first row is written.')
+  say('The code is unique, so only the first row is written.')
   say()
-  say('| branch | code | kept | dropped |')
-  say('|---|---|---|---|')
+  say('| code | kept | dropped |')
+  say('|---|---|---|')
   for (const c of collisions) {
-    say(`| \`${c.store}\` | \`${c.product.code}\` | ${c.first.name} (${c.first.source_id}) | ${c.product.name} (${c.product.source_id}) |`)
+    say(`| \`${c.product.code}\` | ${c.first.name} (${c.first.source_id}) | ${c.product.name} (${c.product.source_id}) |`)
   }
   say()
 }
 
 say('## Codes')
 say()
-const fromCount = (from) => usable.filter((p) => p.code_from === from).length
+const fromCount = (from) => candidates.filter((p) => p.code_from === from).length
 say('`items.code` is what the seller types to search and what is written on paper — `p139`, `A12`,')
 say('`s14`, `madelyn`. It is taken, in this order:')
 say()
-say(`1. the site's **SKU**, when there is one — ${fromCount('sku')} products;`)
+say(`1. the site's **SKU**, when there is one — ${fromCount('sku')} products. Checked against the raw`)
+say('   JSON directly: these are her own numbering (`P21`, `P33`, `P42`, ...) and the same codes that')
+say('   already appear in the payment ledger, so these are the highest-value codes in this import;')
 say(`2. otherwise the **model name**, lowercased, with a leading "Vestido" dropped — ${fromCount('name')} products;`)
 say(`3. otherwise a visible \`s/n-\` placeholder, flagged \`code\` — ${fromCount('placeholder')} products.`)
 say()
@@ -370,19 +346,28 @@ say('The website slug and the WooCommerce id are never passed off as a code. A p
 say('stays flagged until she types the code on the tag, and the flag clears itself when she does.')
 say()
 
+const promoCount = rows.filter((r) => r.promo).length
+if (promoCount > 0) {
+  say('## Promotion note')
+  say()
+  say(`${promoCount} ${plural(promoCount, 'product carries', 'products carry')} the site's "Bridal Sale -20%" category. That is a promotion, not`)
+  say('a fact about the garment, so it never touches `price_cents` or `condition` — it is recorded as')
+  say('a note on the item instead, for the owner to act on or ignore as she likes.')
+  say()
+}
+
 say('## Images')
 say()
 if (!wantImages) {
   say('_Not run with `--images`, so nothing was downloaded._')
-  const total = usable.reduce((n, p) => n + Math.min(p.images.length, 5), 0)
+  const total = candidates.reduce((n, p) => n + Math.min(p.images.length, 5), 0)
   say(`The site offers ${total} images for these products (five per item at most).`)
 } else {
   say(`Downloaded and re-encoded: **${imageReport.downloaded}**, from ${bytes(imageReport.bytesIn)} to ${bytes(imageReport.bytesOut)}.`)
   if (imageReport.reused > 0) say(`Another ${imageReport.reused} were already on disk and were left alone.`)
   say(`Tablet limits: ${TARGET.maxEdge} px, WebP, <=${bytes(TARGET.maxBytes)}.`)
   say()
-  say(`\`${MANIFEST}\` lists ${uploads.length} uploads as \`local<TAB>r2key\`. A product in both`)
-  say('catalogs is uploaded twice, once per branch, because a file row belongs to one branch.')
+  say(`\`${MANIFEST}\` lists ${uploads.length} uploads as \`local<TAB>r2key\`.`)
   say()
   if (imageReport.tooBig.length > 0) {
     say(`${imageReport.tooBig.length} images are still over the cap with quality at the floor; they are kept anyway.`)
@@ -406,15 +391,17 @@ sql.push('-- Apply to the LOCAL database only until the report has been reviewed
 sql.push('--   npx wrangler d1 execute soy-unica --local --persist-to .wrangler/state --file docs/import/catalog.sql')
 sql.push('--')
 sql.push('-- Every statement is INSERT OR IGNORE, so re-running it changes nothing that is')
-sql.push('-- already there: items already carrying the same code in the same branch are left')
-sql.push('-- alone, and so are edits she has since made to them.')
+sql.push('-- already there: items already carrying the same code are left alone, and so are')
+sql.push('-- edits she has since made to them.')
 for (const row of rows) {
+  const notes = [`importado del sitio · ${row.categories.join(', ') || 'sin categoría'}`]
+  if (row.promo) notes.push('promoción sitio: Bridal Sale -20%')
   sql.push('')
-  sql.push(`-- ${row.store} · ${row.permalink ?? row.source_id}`)
-  sql.push('INSERT OR IGNORE INTO items (store_id, code, kind, acquisition, condition, name, brand, color,')
+  sql.push(`-- ${row.permalink ?? row.source_id}`)
+  sql.push('INSERT OR IGNORE INTO items (store_id, code, kind, acquisition, condition, name, brand, cut, color,')
   sql.push('                            price_cents, notes, intake_date, needs_review, review_fields)')
-  sql.push(`  VALUES ('${row.store}', ${q(row.code)}, '${row.kind}', 'pedido', 'nuevo', ${q(row.name)}, ${q(row.brand)}, ${q(row.color)},`)
-  sql.push(`          ${row.price_cents}, ${q(`importado del sitio · ${row.categories.join(', ')}`)}, date('now'),`)
+  sql.push(`  VALUES ('${row.store}', ${q(row.code)}, '${row.kind}', 'pedido', '${row.condition}', ${q(row.name)}, ${q(row.brand)}, ${q(row.cut)}, ${q(row.color)},`)
+  sql.push(`          ${row.price_cents}, ${q(notes.join(' · '))}, date('now'),`)
   sql.push(`          ${row.review.length > 0 ? 1 : 0}, ${row.review.length > 0 ? q(row.review.join(',')) : 'NULL'});`)
   for (const f of row.files ?? []) {
     sql.push('INSERT OR IGNORE INTO files (id, store_id, kind, r2_key, mime, bytes, width, height, created_by)')
@@ -431,5 +418,5 @@ writeFileSync(`${OUT}/catalog.md`, lines.join('\n'))
 writeFileSync(`${OUT}/catalog.sql`, sql.join('\n'))
 if (wantImages) writeFileSync(MANIFEST, uploads.map((u) => `${u.local}\t${u.key}`).join('\n') + '\n')
 console.log(`report   → ${OUT}/catalog.md`)
-console.log(`sql      → ${OUT}/catalog.sql   (${rows.length} rows: ${STORES.map((s) => `${s} ${storeRows(s).length}`).join(', ')})`)
+console.log(`sql      → ${OUT}/catalog.sql   (${rows.length} rows into ${STORE})`)
 if (wantImages) console.log(`manifest → ${MANIFEST}   (${uploads.length} uploads)`)
