@@ -96,18 +96,26 @@ INSERT INTO users (store_id, name, role, pin_hash, pin_salt) VALUES
   ('cdmx', 'Vendedora', 'seller', 'hVXsO40w9eth6UZJ4RIqpFxRYianMmaAuUOpAP8RqsM', 'j_TWwCgS-EJs-Uxi4_3SzQ');
 
 -- ──────────────────────────────────────────────────── planes de pago ──────
--- Conjunto fijo. `max_months = 0` significa que lo que resta se liquida al
--- recoger el vestido, sin fecha: son los únicos planes que se pueden ofrecer
--- cuando la novia todavía no tiene fecha de evento.
+-- Los cuatro de la tienda. Los tres primeros están escritos en el punto 1 del
+-- contrato real (docs/contrato_de_novia_nov_2024.docx):
+--   a) 50% (apartado) y 50% (cuando vestido esta listo)
+--   b) 40% (apartado) - 30% - 30% (cada mes)
+--   c) 20% 5 meses
+-- El de contado es el cuarto, con su descuento configurable en Ajustes.
+--
+-- `max_months = 0` significa que lo que resta se liquida al recoger el
+-- vestido, sin fecha: son los únicos planes que se pueden ofrecer cuando la
+-- novia todavía no tiene fecha de evento. Ningún plan lleva precio mínimo: la
+-- dueña lo pone en Ajustes si algún día lo quiere.
 INSERT INTO plans (store_id, name, splits, min_price_cents, max_price_cents, max_months, discount_pct, sort) VALUES
-  ('mty',  'Pago de contado',        '[100]',                     0,       NULL, 0, 10, 1),
-  ('mty',  'Mitad y mitad',          '[50,50]',                   0,       NULL, 0,  0, 2),
-  ('mty',  'Tres meses',             '[50,25,25]',           800000,       NULL, 2,  0, 3),
-  ('mty',  'Seis meses',             '[40,12,12,12,12,12]', 1500000,       NULL, 5,  0, 4),
-  ('cdmx', 'Pago de contado',        '[100]',                     0,       NULL, 0, 10, 1),
-  ('cdmx', 'Mitad y mitad',          '[50,50]',                   0,       NULL, 0,  0, 2),
-  ('cdmx', 'Tres meses',             '[50,25,25]',           800000,       NULL, 2,  0, 3),
-  ('cdmx', 'Seis meses',             '[40,12,12,12,12,12]', 1500000,       NULL, 5,  0, 4);
+  ('mty',  'Contado',        '[100]',                0, NULL, 0, 10, 1),
+  ('mty',  'Mitad y mitad',  '[50,50]',              0, NULL, 0,  0, 2),
+  ('mty',  '40/30/30',       '[40,30,30]',           0, NULL, 2,  0, 3),
+  ('mty',  '20 × 5',         '[20,20,20,20,20]',     0, NULL, 4,  0, 4),
+  ('cdmx', 'Contado',        '[100]',                0, NULL, 0, 10, 1),
+  ('cdmx', 'Mitad y mitad',  '[50,50]',              0, NULL, 0,  0, 2),
+  ('cdmx', '40/30/30',       '[40,30,30]',           0, NULL, 2,  0, 3),
+  ('cdmx', '20 × 5',         '[20,20,20,20,20]',     0, NULL, 4,  0, 4);
 
 -- ───────────────────────────────────────────────────────────── cargos ─────
 -- Tomados del contrato real. Donde el contrato marca un rango se siembra el
@@ -156,7 +164,10 @@ FROM commission_rules WHERE store_id = 'mty';
 -- con su nomenclatura real (p139, s14, A12, madelyn, mantilla 039), listos
 -- para reemplazarse por las existencias del prototipo (docs/prototype.html).
 -- Las de `acquisition = 'pedido'` son modelos que se mandan a hacer: nunca se
--- apartan, para que dos novias puedan encargar el mismo.
+-- apartan, para que dos novias puedan encargar el mismo. Llevan el nombre del
+-- modelo más «a medida»: la unidad en rack y el mismo modelo por encargo son
+-- dos artículos distintos, a distinto precio, y en el catálogo de la novia se
+-- veían como un renglón repetido con dos precios.
 INSERT INTO items (store_id, code, kind, acquisition, condition, name, brand, size, cut, color, cost_cents, price_cents, location, intake_date) VALUES
   ('mty', 'p139',        'dress',     'unidad', 'nuevo',       'Madelyn',    'Lanesta',       '10', 'Sirena',    'Ivory',      850000, 1850000, 'Pasillo A', '2025-02-14'),
   ('mty', 'p142',        'dress',     'unidad', 'nuevo',       'Aurora',     'Kira Nova',     '12', 'Princesa',  'Blanco',     780000, 1650000, 'Pasillo A', '2025-02-14'),
@@ -167,9 +178,9 @@ INSERT INTO items (store_id, code, kind, acquisition, condition, name, brand, si
   ('mty', 'A12',         'dress',     'unidad', 'nuevo',       'Regina',     'Armonía',       '10', 'Corte A',   'Ivory',      700000, 1490000, 'Pasillo C', '2025-05-06'),
   ('mty', 'A18',         'dress',     'unidad', 'exhibicion',  'Fernanda',   'Annie Victor',  '12', 'Corte A',   'Blanco',     660000, 1380000, 'Pasillo C', '2025-05-06'),
   ('mty', 'A24',         'dress',     'unidad', 'nuevo',       'Sofía',      'Lanesta',       '08', 'Sirena',    'Champagne',  880000, 1890000, 'Pasillo C', '2025-06-18'),
-  ('mty', 'madelyn',     'dress',     'pedido', 'nuevo',       'Madelyn',    'Lanesta',       'A medida', 'Sirena',   'A elegir',      0, 2100000, 'Catálogo',  '2025-01-09'),
-  ('mty', 'aurora',      'dress',     'pedido', 'nuevo',       'Aurora',     'Kira Nova',     'A medida', 'Princesa', 'A elegir',      0, 1950000, 'Catálogo',  '2025-01-09'),
-  ('mty', 'isabella',    'dress',     'pedido', 'nuevo',       'Isabella',   'Armonía',       'A medida', 'Corte A',  'A elegir',      0, 1750000, 'Catálogo',  '2025-01-09'),
+  ('mty', 'madelyn',     'dress',     'pedido', 'nuevo',       'Madelyn a medida',  'Lanesta',   'A medida', 'Sirena',   'A elegir',      0, 2100000, 'Catálogo',  '2025-01-09'),
+  ('mty', 'aurora',      'dress',     'pedido', 'nuevo',       'Aurora a medida',   'Kira Nova', 'A medida', 'Princesa', 'A elegir',      0, 1950000, 'Catálogo',  '2025-01-09'),
+  ('mty', 'isabella',    'dress',     'pedido', 'nuevo',       'Isabella a medida', 'Armonía',   'A medida', 'Corte A',  'A elegir',      0, 1750000, 'Catálogo',  '2025-01-09'),
   ('mty', 'mantilla 039','accessory', 'unidad', 'nuevo',       'Mantilla larga bordada', NULL, 'Única', NULL, 'Ivory',        38000,   90000, 'Vitrina',   '2025-02-14'),
   ('mty', 'mantilla 041','accessory', 'unidad', 'nuevo',       'Mantilla corta',         NULL, 'Única', NULL, 'Blanco',       18000,   45000, 'Vitrina',   '2025-02-14'),
   ('mty', 'velo 07',     'accessory', 'unidad', 'nuevo',       'Velo dos capas',         NULL, 'Única', NULL, 'Ivory',        22000,   58000, 'Vitrina',   '2025-03-02'),

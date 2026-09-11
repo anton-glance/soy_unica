@@ -15,11 +15,33 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * La cookie se venció o el servidor ya no reconoce la sesión. Quien lo reciba
+ * tiene que devolver a la persona a la pantalla de sucursal y rol: nunca
+ * dejarla en una pantalla sin salida.
+ */
+export class UnauthorizedError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'UnauthorizedError'
+  }
+}
+
 export class OfflineError extends Error {
   constructor() {
     super('No hay conexión. Este cambio NO se guardó. Vuelve a intentar cuando regrese la señal.')
     this.name = 'OfflineError'
   }
+}
+
+/**
+ * Un 401 puede ser dos cosas muy distintas y confundirlas es caro: que la
+ * cookie se venció —hay que regresar a la pantalla de sucursal y rol— o que
+ * alguien acaba de teclear mal un NIP en una pantalla intermedia, donde sacar a
+ * la vendedora del sistema sería absurdo. El código del error las separa.
+ */
+function isExpiredSession(status: number, code: string | undefined): boolean {
+  return status === 401 && code !== 'bad_pin'
 }
 
 async function parse(res: Response): Promise<unknown> {
@@ -71,12 +93,13 @@ export async function get<T>(path: string): Promise<Read<T>> {
     const body = await parse(res)
     if (!res.ok) {
       const err = body as { error?: string; code?: string }
+      if (isExpiredSession(res.status, err?.code)) throw new UnauthorizedError(err?.error ?? 'Tu sesión expiró.')
       throw new ApiError(err?.error ?? 'No se pudo consultar.', res.status, err?.code ?? 'error')
     }
     cacheWrite(path, body)
     return { data: body as T, stale: false }
   } catch (err) {
-    if (err instanceof ApiError) throw err
+    if (err instanceof ApiError || err instanceof UnauthorizedError) throw err
     const cached = cacheRead<T>(path)
     if (cached !== null) return { data: cached, stale: true }
     throw new OfflineError()
@@ -98,6 +121,7 @@ async function write<T>(path: string, method: string, body?: unknown): Promise<T
   const parsed = await parse(res)
   if (!res.ok) {
     const err = parsed as { error?: string; code?: string }
+    if (isExpiredSession(res.status, err?.code)) throw new UnauthorizedError(err?.error ?? 'Tu sesión expiró.')
     throw new ApiError(err?.error ?? 'No se pudo guardar.', res.status, err?.code ?? 'error')
   }
   return parsed as T
@@ -105,6 +129,7 @@ async function write<T>(path: string, method: string, body?: unknown): Promise<T
 
 export const post = <T>(path: string, body?: unknown) => write<T>(path, 'POST', body)
 export const patch = <T>(path: string, body?: unknown) => write<T>(path, 'PATCH', body)
+export const put = <T>(path: string, body?: unknown) => write<T>(path, 'PUT', body)
 export const del = <T>(path: string) => write<T>(path, 'DELETE')
 
 /** Sube una foto ya comprimida en la tableta. */

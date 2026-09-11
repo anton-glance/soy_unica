@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { clearCache, get, post } from './api'
+import { navigate } from './router'
 
 export interface Me {
   userId: number
@@ -15,6 +16,12 @@ interface SessionValue {
   loading: boolean
   refresh: () => Promise<void>
   logout: () => Promise<void>
+  /**
+   * Devuelve a la persona a la pantalla de sucursal y rol. Se llama cuando el
+   * servidor deja de reconocer la sesión, para que nunca quede una pantalla
+   * sin salida.
+   */
+  signOutToEntry: (reason?: string) => Promise<void>
 }
 
 const Ctx = createContext<SessionValue | null>(null)
@@ -44,7 +51,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => { void refresh() }, [refresh])
 
-  const value = useMemo(() => ({ me, loading, refresh, logout }), [me, loading, refresh, logout])
+  const signOutToEntry = useCallback(async (reason?: string) => {
+    await logout()
+    if (reason) sessionStorage.setItem('su:entryNotice', reason)
+    navigate('/', true)
+  }, [logout])
+
+  const value = useMemo(
+    () => ({ me, loading, refresh, logout, signOutToEntry }),
+    [me, loading, refresh, logout, signOutToEntry],
+  )
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
 

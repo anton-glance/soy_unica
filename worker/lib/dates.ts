@@ -40,6 +40,18 @@ export function daysBetween(from: string, to: string): number {
   return Math.round((toUTC(to).getTime() - toUTC(from).getTime()) / 86_400_000)
 }
 
+/**
+ * El lunes de la semana a la que pertenece la fecha. La tienda cuenta la
+ * semana de lunes a domingo, no de domingo a sábado.
+ */
+export function weekStart(date: string): string {
+  const d = toUTC(date)
+  // getUTCDay(): 0 = domingo. El domingo pertenece a la semana que empezó
+  // el lunes anterior, seis días atrás.
+  const back = (d.getUTCDay() + 6) % 7
+  return addDays(date, -back)
+}
+
 /** dd/mm/aaaa, como se lee en la tienda. */
 export function formatDateMX(date: string): string {
   const [y, m, d] = date.split('-')

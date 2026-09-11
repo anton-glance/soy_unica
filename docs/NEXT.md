@@ -8,7 +8,14 @@ Los tres provisionales se reemplazaron por lo real:
 | --- | --- |
 | `prototype.html` | Todos los valores de `src/styles/tokens.css` salen de ahí, con sus mismos nombres (`--ivory`, `--paper`, `--linen`, `--tape`, `--ink`, `--brass`, `--sage`, `--clay`, `--wine`), incluida su paleta oscura. `src/styles/base.css` es su capa de componentes, con sus mismas clases. Sus dos tipografías —Jost y Prata— van empaquetadas en `src/assets/fonts/`, no traídas de Google, para que la tienda se vea igual sin internet. |
 | `contrato_de_novia_nov_2024.docx` | Es la plantilla sembrada, palabra por palabra, con sus nueve puntos y hasta sus erratas (`el pago pago a tiempo`, `se se realicen`). Los blancos que el sistema conoce son marcadores; los que no —el plazo de entrega y los días para tomar medidas— siguen siendo rayas para llenar a mano. |
-| `medidas_soy_unica_mty.docx` | `src/screens/PrintMedidas.tsx` lo reproduce: el membrete con el logo y la dirección del encabezado de Word, las trece medidas en su orden exacto, el bloque de campos repetido dos veces —como viene en el documento—, el diagrama de medidas, el párrafo de conformidad y los tres bloques de firma: medidas, ajustes y entrega. |
+| `medidas_soy_unica_mty.docx` | `src/screens/PrintMedidas.tsx` lo reproduce: el membrete con el logo y la dirección del encabezado de Word, las trece medidas en su orden exacto, el diagrama de medidas, el párrafo de conformidad y los tres bloques de firma: medidas, ajustes y entrega. |
+
+> **Corrección de la ronda anterior.** Ahí se afirmó que el bloque de datos de
+> la novia venía dos veces en el documento y se imprimió duplicado. Era falso.
+> El bloque vive dentro de un `mc:AlternateContent`, que trae la misma caja de
+> texto en dos codificaciones —`mc:Choice` con el dibujo moderno y
+> `mc:Fallback` con el VML antiguo—; un extractor que recorre el árbol completo
+> las cuenta las dos. Un renderizador escoge una. El bloque va **una** vez.
 
 Las dos imágenes del formato (`word/media/`) se extrajeron a `src/assets/`: el
 logo de la tienda y el diagrama de busto, cintura, caderas, altura y hueco de
@@ -132,3 +139,155 @@ Ni una tabla, ni una dependencia, ni una ruta se agregó para nada de esto:
   calendario. Se dejó en el lugar del prototipo, con el tamaño del título de
   pantalla: es el número más grande de ese panel sin romper la jerarquía del
   diseño.
+
+## 5. Ronda 3 — lo que cambió
+
+### La novia ya no puede llegar al contrato
+
+Antes, abrir un vestido ofrecía «Elegir este vestido» y saltaba directo a los
+datos de la novia: la pantalla de la vendedora, en una tableta que trae la
+clienta en las manos. Ahora el kiosco sólo deja ver, marcar favoritos y pedir
+pasar al probador; de ahí sale el aviso de entregar la tableta y el NIP de la
+vendedora. **El NIP se comprueba en el servidor** (`POST /sessions/:id/select`
+lo exige), así que no se puede saltar desde el navegador.
+
+### Dos errores que sólo aparecieron al probar
+
+- **Ningún plan cabía para una boda cercana.** El anticipo se paga el mismo día
+  de la firma, pero la regla de «días mínimos antes de la boda» lo estaba
+  contando como si fuera una parcialidad futura. Con boda en dos semanas eso
+  descartaba hasta el pago de contado, que es justo lo que esa novia haría.
+  Ahora la regla sólo mira los pagos posteriores a la firma.
+- **La hoja de medidas salía sin modelo ni color.** El vestido se buscaba por
+  `items.contract_id`, que sólo se sella al firmar; la hoja se imprime antes.
+  Ahora se busca por el renglón del contrato, que existe desde que se elige.
+
+### Sigue pendiente
+
+- **El «Cerrar sesión» del kiosco sigue siendo una píldora con texto**, no una
+  cruz. Es una acción con consecuencias —libera apartados y borra favoritos— y
+  está a un palmo de la novia; una cruz sin etiqueta ahí se confunde con
+  «salir» y se toca sin querer. Si se prefiere la cruz, es un cambio de una
+  línea.
+- **El id de la sesión de venta vive en `localStorage`.** Si alguna vez se
+  restaura un respaldo de la base, los ids guardados en las tabletas no
+  existirán del otro lado. La aplicación ya se recupera sola —descarta el id y
+  abre una sesión nueva—, pero conviene saberlo antes de restaurar.
+
+
+## 6. Ronda 4 — un solo marco, el paso de selección y los bloqueos
+
+### El marco es uno para toda la aplicación
+
+`src/components/Screen.tsx` es la cabecera de **todas** las pantallas. Ninguna
+dibuja la suya. La barra es fija, mide siempre `--bar-h` (96 px) y reparte tres
+huecos que existen aunque vayan vacíos —así nada se mueve de sitio al cambiar de
+pantalla:
+
+- izquierda, el regreso: círculo de 52 px con contorno fino y una flecha, sin
+  etiqueta, siempre en x = 34. Falta sólo en la primera pantalla, la de la
+  sucursal, que no tiene padre.
+- centro, el título, uno y sólo uno, en la letra de display a 44 px —el tamaño
+  que ya usaba «Selecciona tu rol».
+- derecha, la (X): únicamente en los cuatro cuadros, donde significa salir del
+  sistema. Ninguna pantalla interior la lleva.
+
+Los diálogos no usan `<Screen>`: llevan su (X) arriba a la derecha y no tienen
+regreso. Su encabezado sí comparte el reparto —hueco, título centrado, (X)— para
+que el título quede al centro de verdad.
+
+Los títulos repetidos de Inventario y Registrar gasto se borraron: ahora viven
+sólo en la barra.
+
+### El teclado del NIP
+
+La tecla **5 cae en el centro exacto de la pantalla** (50 vw / 50 vh), medido en
+el navegador en los tres teclados: entrada, entrega de la tableta y cierre de
+sesión. Va anclado al viewport, no al hueco que deja la barra, que era el error
+de antes: quedaba media barra más abajo. Los puntos ahora se llenan conforme se
+teclea y muestran cuántos dígitos lleva el NIP, en vez de seis círculos fijos.
+
+### Lo que se encontró probando, y no estaba en la lista
+
+- **La barra se comía los toques de los diálogos.** `.veil` estaba en z-index 20
+  y la barra en 30: la (X) de un diálogo a pantalla completa era inalcanzable
+  porque el hueco vacío de la barra interceptaba el toque. El velo pasó a 100.
+- **El pie de acción caía fuera de la pantalla.** `<main>` medía el alto
+  completo, así que el pie quedaba justo debajo del borde inferior: el botón
+  existía y no se veía. Ahora el pie es pegajoso, mide siempre `--footer-h`
+  (110 px) y la acción propia de una pantalla —«Guardar el plan»— se pega
+  encima de él, nunca debajo.
+- **El contrato se imprimía sin calendario de pagos.** Las parcialidades se
+  escribían al firmar, pero el contrato se imprime *antes* de la firma: la hoja
+  que la novia firmaba llevaba la tabla en blanco. Ahora se escriben al escoger
+  el plan y se vuelven a generar al firmar, con la fecha de firma. Lo destapó la
+  prueba nueva `tests/plan-to-contract.test.ts`.
+- **`input[type=tel]` no estaba en la lista de campos.** Por eso el teléfono
+  salía angosto: el selector de `base.css` enumera tipos y `tel` no aparecía.
+  Medido en el navegador, ahora mide lo mismo que el nombre y la fecha (518 px).
+
+### Sigue pendiente
+
+- **El «Cerrar sesión» del kiosco sigue siendo una píldora con texto**, no una
+  cruz, por la misma razón de la ronda 3: es una acción con consecuencias y está
+  a un palmo de la novia.
+- **La importación del catálogo de WooCommerce y de `pagos.xlsx`** (parte C de
+  la ronda 3) sigue sin correr. Nada de esta ronda la toca.
+
+
+## 7. Ronda 5 — el papel, el registro de la sesión y CI
+
+### El calendario de pagos se congela al escoger el plan
+
+Antes se escribía al escoger el plan y **se volvía a generar al firmar, con la
+fecha de firma**. Si la vendedora imprimía el jueves y la novia firmaba el
+viernes, el papel que ella se llevaba y la base de datos no coincidían en una
+sola fecha de vencimiento —y el papel es el registro legal.
+
+Ahora `contracts.schedule_generated_on` guarda el día con el que se generó, que
+es el que salió impreso. `/sign` ya no genera nada: lee lo guardado. Si la firma
+cae en otro día, responde 409 con código `stale_schedule` y la pantalla ofrece
+«Volver a imprimir», que vuelve a generar con la fecha de hoy y regresa la
+sesión al paso de imprimir. `tests/frozen-schedule.test.ts` recorre eso:
+adelanta el reloj un día, comprueba la negativa, reimprime, firma y verifica
+renglón por renglón que lo guardado es lo impreso.
+
+### Lo que una sesión deja escrito
+
+La sesión es el registro de lo que pasó con una clienta que entró, haya comprado
+o no. Faltaban cuatro cosas y ya están:
+
+- **El traspaso de la tableta** es ahora un hecho de la sesión:
+  `POST /sessions/:id/handover` comprueba el NIP en el servidor y deja escrito
+  quién tomó la tableta y qué favoritos se fueron al probador.
+- **La selección vive en la sesión**, en `session_selections`, y no sólo en los
+  renglones del contrato: un contrato anulado sigue existiendo, pero lo que la
+  clienta escogió es de su historia y no puede depender de lo que le pase
+  después al contrato.
+- **Los favoritos ya no se borran al cerrar.** Se borraban justo cuando la
+  sesión se volvía histórico, y eran la única señal de demanda de la semana.
+  Los apartados del inventario sí se sueltan: eso es estado vivo.
+- **`kiosk_sessions.closed_at_stage`** guarda la etapa en que murió. `stage` se
+  sobreescribe con `'closed'` y sin esto «se fue viendo el catálogo» y «se fue
+  después de dar sus datos» se leen igual.
+
+La consecuencia: una sesión que llegó a capturar datos deja una persona
+localizable —nombre, teléfono, el vestido que quería y por qué se fue—, que es
+una lista de llamadas. Una que se fue antes deja una cuenta y un motivo, sin un
+solo dato personal, porque nunca se capturó ninguno.
+
+### El reporte semanal (sólo la mitad de sesiones)
+
+`GET /api/reports/weekly` y la pantalla `/reporte`, sólo para la dueña. El
+correo y la programación siguen fuera de alcance.
+
+El reporte es de **una sucursal**: la del cookie de quien entró. No hay forma de
+pedir la otra, y eso es a propósito —ninguna ruta lee `store_id` del cuerpo ni de
+la query. La dueña ve CDMX entrando como CDMX.
+
+### Sigue pendiente
+
+- **Las importaciones de datos** (catálogo de WooCommerce y `pagos.xlsx`) van en
+  otra rama y otro PR.
+- **El «Cerrar sesión» del kiosco sigue siendo una píldora con texto**, por la
+  misma razón de las rondas anteriores.

@@ -3,14 +3,16 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "dev:web": "vite --port 5180 --strictPort",
     "dev:api": "wrangler dev --port 8790 --local --persist-to .wrangler/state",
     "build": "tsc -b && vite build",
     "db:reset": "node scripts/db-reset.mjs",
-    "db:migrate": "wrangler d1 migrations apply soy-unica --local --persist-to .wrangler/state",
+    "db:migrate": "node scripts/db-migrate.mjs",
     "typecheck": "tsc -b",
     "lint": "eslint .",
     "test": "vitest run",

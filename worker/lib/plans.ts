@@ -78,33 +78,102 @@ export interface OfferInput {
   minDaysBeforeWedding: number
 }
 
+/** Por qué un plan no se puede ofrecer para este precio y esta fecha. */
+export type RejectionReason =
+  | 'inactive'
+  | 'price_below'
+  | 'price_above'
+  | 'months'
+  | 'needs_date'
+  | 'too_close_to_wedding'
+
+export interface PlanRejection {
+  plan: Plan
+  reason: RejectionReason
+  /** En español, dicho de forma que se pueda actuar. */
+  detail: string
+}
+
+export interface PlanEvaluation {
+  offers: PlanOffer[]
+  rejected: PlanRejection[]
+}
+
+/**
+ * Evalúa todos los planes y dice, uno por uno, si cabe o por qué no. Cuando no
+ * cabe ninguno, la vendedora necesita saber cuál de las tres restricciones
+ * falló —el precio, los meses o los días antes de la boda— para saber qué
+ * mover.
+ */
+export function evaluatePlans(input: OfferInput): PlanEvaluation {
+  const { plans, listTotalCents, signedOn, weddingDate, minDaysBeforeWedding } = input
+  const offers: PlanOffer[] = []
+  const rejected: PlanRejection[] = []
+  const reject = (plan: Plan, reason: RejectionReason, detail: string) => rejected.push({ plan, reason, detail })
+
+  for (const plan of plans) {
+    if (!plan.active) {
+      reject(plan, 'inactive', 'Está desactivado en Ajustes.')
+      continue
+    }
+    if (listTotalCents < plan.min_price_cents) {
+      reject(plan, 'price_below', `Es para ventas desde ${mxn(plan.min_price_cents)}.`)
+      continue
+    }
+    if (plan.max_price_cents !== null && listTotalCents > plan.max_price_cents) {
+      reject(plan, 'price_above', `Es para ventas hasta ${mxn(plan.max_price_cents)}.`)
+      continue
+    }
+    // El plan no puede pedir más meses con fecha de los que tiene autorizados.
+    if (plan.max_months > 0 && plan.splits.length - 1 > plan.max_months) {
+      reject(plan, 'months', `Necesita ${plan.splits.length - 1} meses y tiene ${plan.max_months} autorizados.`)
+      continue
+    }
+    if (!weddingDate && hasDatedInstallments(plan)) {
+      reject(plan, 'needs_date', 'Lleva parcialidades con fecha y la novia todavía no tiene fecha de evento.')
+      continue
+    }
+
+    const { total_cents, discount_cents } = priceAfterDiscount(plan, listTotalCents)
+    const schedule = generateSchedule(plan, total_cents, signedOn)
+
+    if (weddingDate) {
+      // La regla de días antes de la boda mira sólo los pagos que caen DESPUÉS
+      // de la firma. El anticipo se entrega hoy, en el mostrador: no puede
+      // estar «demasiado cerca» de nada. Contarlo dejaba sin ningún plan a una
+      // novia con boda en dos semanas, que es justo cuando paga de contado.
+      const lastDated = [...schedule].reverse().find((r) => r.due_date !== null && r.due_date > signedOn)
+      if (lastDated?.due_date) {
+        const margin = daysBetween(lastDated.due_date, weddingDate)
+        if (margin < minDaysBeforeWedding) {
+          reject(
+            plan,
+            'too_close_to_wedding',
+            margin < 0
+              ? 'Su último pago caería después de la boda.'
+              : `Su último pago caería ${margin} ${margin === 1 ? 'día' : 'días'} antes de la boda y se piden ${minDaysBeforeWedding}.`,
+          )
+          continue
+        }
+      }
+    }
+
+    offers.push({ plan, total_cents, discount_cents, schedule })
+  }
+
+  return { offers, rejected }
+}
+
 /**
  * Devuelve sólo los planes que caben: activos, dentro del rango de precio, con
  * suficientes meses para sus parcialidades y —cuando hay boda— cuya última
  * parcialidad cae al menos `minDaysBeforeWedding` antes del evento.
  */
 export function offerablePlans(input: OfferInput): PlanOffer[] {
-  const { plans, listTotalCents, signedOn, weddingDate, minDaysBeforeWedding } = input
-  const offers: PlanOffer[] = []
+  return evaluatePlans(input).offers
+}
 
-  for (const plan of plans) {
-    if (!plan.active) continue
-    if (listTotalCents < plan.min_price_cents) continue
-    if (plan.max_price_cents !== null && listTotalCents > plan.max_price_cents) continue
-    // El plan no puede pedir más meses con fecha de los que tiene autorizados.
-    if (plan.splits.length - 1 > plan.max_months && plan.max_months > 0) continue
-    if (!weddingDate && hasDatedInstallments(plan)) continue
-
-    const { total_cents, discount_cents } = priceAfterDiscount(plan, listTotalCents)
-    const schedule = generateSchedule(plan, total_cents, signedOn)
-
-    if (weddingDate) {
-      const lastDated = [...schedule].reverse().find((r) => r.due_date !== null)
-      if (lastDated?.due_date && daysBetween(lastDated.due_date, weddingDate) < minDaysBeforeWedding) continue
-    }
-
-    offers.push({ plan, total_cents, discount_cents, schedule })
-  }
-
-  return offers
+/** Pesos sin centavos, como los escribe la tienda. */
+function mxn(cents: number): string {
+  return '$' + String(Math.round(cents / 100)).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 }

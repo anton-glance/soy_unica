@@ -1,4 +1,4 @@
-import { rmSync, mkdirSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, rmSync, mkdirSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { spawn, type ChildProcess } from 'node:child_process'
 
@@ -10,7 +10,8 @@ let worker: ChildProcess | null = null
 
 function run(cmd: string, args: string[]): Promise<void> {
   return new Promise((resolve, reject) => {
-    const child = spawn(cmd, args, { stdio: 'ignore' })
+    // CI=1 para que wrangler no pida confirmación de las migraciones.
+    const child = spawn(cmd, args, { stdio: 'ignore', env: { ...process.env, CI: '1' } })
     child.on('error', reject)
     child.on('exit', (code) => (code === 0 ? resolve() : reject(new Error(`${cmd} ${args.join(' ')} → ${code}`))))
   })
@@ -34,6 +35,12 @@ function freePort(): Promise<number> {
  * pruebas de integración hablan HTTP igual que la tableta de la tienda.
  */
 export async function setup(): Promise<void> {
+  // El Worker necesita JWT_SECRET para firmar la cookie. `.dev.vars` está en
+  // .gitignore, así que en una clona limpia —o en CI— no existe: se crea desde
+  // el ejemplo. Sin esto, `npm test` sólo pasa en una máquina donde ya se
+  // hubiera corrido `npm run dev`.
+  if (!existsSync('.dev.vars')) copyFileSync('.dev.vars.example', '.dev.vars')
+
   rmSync(STATE, { recursive: true, force: true })
   mkdirSync('dist', { recursive: true })
   mkdirSync('.wrangler', { recursive: true })

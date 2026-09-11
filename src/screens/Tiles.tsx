@@ -1,5 +1,7 @@
 import { useNavigate } from '../lib/router'
 import { useSession } from '../lib/session'
+import { Brandmark } from '../components/Brandmark'
+import { Screen } from '../components/Screen'
 
 const TILES = [
   { to: '/sesion', label: 'Nueva sesión' },
@@ -19,12 +21,9 @@ export function Tiles() {
   const who = me?.name === role ? role : `${me?.name} · ${role}`
 
   return (
-    <div className="entry">
-      <div className="k-brand" style={{ justifyContent: 'center' }}>
-        <h1>Soy Única</h1>
-        <em>{place}</em>
-      </div>
-      <p className="lede">{who}</p>
+    // La única pantalla con (X): aquí sí significa salir del sistema.
+    <Screen title={<Brandmark />} onClose={() => void logout()} closeLabel="Salir" center>
+      <p className="lede">{place} · {who}</p>
 
       <div className="tiles">
         {TILES.map((tile) => (
@@ -34,12 +33,14 @@ export function Tiles() {
         ))}
       </div>
 
-      <div className="row" style={{ justifyContent: 'center' }}>
-        {me?.role === 'owner' && (
+      {/* Las dos pantallas de la dueña. No son cuadros: los cuadros son el
+          trabajo del día y esto se abre una vez por semana. */}
+      {me?.role === 'owner' && (
+        <div className="row" style={{ justifyContent: 'center' }}>
+          <button type="button" className="btn-quiet" onClick={() => navigate('/reporte')}>Reporte de la semana</button>
           <button type="button" className="btn-quiet" onClick={() => navigate('/ajustes')}>⚙ Ajustes</button>
-        )}
-        <button type="button" className="btn-quiet" onClick={() => void logout()}>Salir</button>
-      </div>
-    </div>
+        </div>
+      )}
+    </Screen>
   )
 }

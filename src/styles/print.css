@@ -6,9 +6,15 @@
  * ocupa ese espacio en lugar del encabezado de Word.
  */
 
+/*
+ * El margen vive aquí y en ningún otro lado: así la hoja sale del diálogo de
+ * impresión con el ancho correcto sin que nadie toque «escala» ni «márgenes».
+ * 12 mm es un poco más apretado que el documento original de Word (1.18 in a
+ * los lados), y es lo que deja caber cada copia en una sola página.
+ */
 @page {
   size: letter portrait;
-  margin: 12mm 0 14mm;
+  margin: 12mm;
 }
 
 .print-sheet {
@@ -78,10 +84,19 @@
 
 .print-toolbar { display: flex; gap: var(--space-6); justify-content: center; align-items: center; flex-wrap: wrap; padding: var(--space-9) var(--gutter); }
 
+.print-overlay { position: fixed; inset: 0; background: #fff; overflow: auto; z-index: 200; }
+
 @media print {
+  /* La hoja vive en un portal fuera de #root: esconder #root deja sólo la hoja. */
+  html.is-printing #root { display: none !important; }
+  .print-overlay { position: static; overflow: visible; background: none; }
   .print-toolbar { display: none !important; }
+  /* La hoja va por un portal fuera de #root, así que su barra se esconde aparte. */
+  .topbar { display: none !important; }
+  .screen { padding-top: 0 !important; }
   body { background: #fff; }
-  .print-sheet { width: auto; min-height: 0; margin: 0; padding: 0; box-shadow: none; }
+  /* El margen ya lo pone @page: la hoja no vuelve a meter el suyo. */
+  .print-sheet, .print-sheet--contract { width: auto; min-height: 0; margin: 0; padding: 0; box-shadow: none; }
   .print-page-break { break-after: page; }
 }
 

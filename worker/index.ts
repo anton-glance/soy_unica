@@ -14,6 +14,7 @@ import settings from './routes/settings'
 import storage from './routes/storage'
 import maintenance from './routes/maintenance'
 import search from './routes/search'
+import reports from './routes/reports'
 
 const app = new Hono<AppEnv>()
 
@@ -37,6 +38,7 @@ app.route('/api/settings', settings)
 app.route('/api/storage', storage)
 app.route('/api/maintenance', maintenance)
 app.route('/api/search', search)
+app.route('/api/reports', reports)
 
 app.all('/api/*', (c) => c.json({ error: 'Esa ruta no existe.', code: 'not_found' }, 404))
 

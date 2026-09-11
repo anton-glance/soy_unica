@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
 import { get } from '../lib/api'
+import { Screen } from '../components/Screen'
 import { dateMX } from '../lib/format'
-import logo from '../assets/logo-soy-unica.jpg'
+// En papel va la versión en tinta sobre transparente: sin el recuadro negro
+// del documento, que además se comería el tóner.
+import logo from '../assets/brand/logo-ink.png'
 import diagrama from '../assets/medidas-diagrama.jpg'
 import type { ContractPrint } from './printTypes'
 
@@ -10,10 +13,14 @@ import type { ContractPrint } from './printTypes'
  * (docs/medidas_soy_unica_mty.docx), reproducido tal cual.
  *
  * De ese documento salen, en este orden: el membrete con el logo y la
- * dirección, el bloque de campos —que en el original aparece dos veces en la
- * misma hoja—, el diagrama de medidas, el párrafo de conformidad y los tres
- * bloques de firma: medidas, ajustes y entrega. La misma hoja física se firma
- * tres veces a lo largo de la vida del vestido.
+ * dirección, el bloque de campos, el diagrama de medidas, el párrafo de
+ * conformidad y los tres bloques de firma: medidas, ajustes y entrega. La
+ * misma hoja física se firma tres veces a lo largo de la vida del vestido.
+ *
+ * El bloque de campos va UNA vez. En el XML del .docx parece venir dos veces,
+ * pero son las dos ramas de un mc:AlternateContent —mc:Choice con el dibujo
+ * moderno y mc:Fallback con el mismo cuadro de texto en VML—; un extractor que
+ * recorre el árbol completo cuenta las dos y ve un duplicado que no existe.
  *
  * Los datos de la novia y el folio salen impresos. Las trece medidas salen en
  * blanco, para llenarse a mano: no existe ni un campo numérico de medidas en
@@ -29,7 +36,7 @@ const MEDIDAS = [
   'Altura de axila', 'cintura a piso', 'Bíceps',
 ]
 
-export function PrintMedidas({ folio }: { folio: string }) {
+export function PrintMedidas({ folio, onBack }: { folio: string; onBack?: () => void }) {
   const [data, setData] = useState<ContractPrint | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -43,8 +50,12 @@ export function PrintMedidas({ folio }: { folio: string }) {
     if (data) document.title = `Medidas ${data.contract.folio}`
   }, [data])
 
-  if (error) return <div className="wrap"><p className="err">{error}</p></div>
-  if (!data) return <div className="wrap"><span className="spinner" aria-hidden="true" /></div>
+  const back = onBack ?? (() => window.history.back())
+
+  if (error) {
+    return <Screen title="Hoja de medidas" onBack={back} backLabel="Regresar a la sesión"><div className="wrap"><p className="err">{error}</p></div></Screen>
+  }
+  if (!data) return <Screen title="Hoja de medidas" onBack={back} backLabel="Regresar a la sesión" center><span className="spinner" aria-hidden="true" /></Screen>
 
   const fields = {
     'Nombre de novia': data.customer?.name ?? '',
@@ -56,9 +67,8 @@ export function PrintMedidas({ folio }: { folio: string }) {
   }
 
   return (
-    <>
+    <Screen title="Hoja de medidas" onBack={back} backLabel="Regresar a la sesión">
       <div className="print-toolbar">
-        <button type="button" className="btn-quiet" onClick={() => window.history.back()}>Regresar</button>
         <button type="button" className="btn-main" onClick={() => window.print()}>Imprimir</button>
         <p className="muted">2 copias · Carta vertical</p>
       </div>
@@ -78,23 +88,20 @@ export function PrintMedidas({ folio }: { folio: string }) {
             <img src={diagrama} alt="Diagrama con busto, cintura, caderas, altura y hueco de piso" />
           </figure>
 
-          {/* En el formato original este bloque viene dos veces en la hoja. */}
-          {[1, 2].map((pass) => (
-            <div className="print-fields print-block" key={pass}>
-              {Object.entries(fields).map(([label, value]) => (
-                <span className="print-field" key={label}>
-                  <span className="print-field__label">{label}</span>
-                  <span className="print-field__rule print-field__rule--filled print-field__rule--wide">{value}</span>
-                </span>
-              ))}
-              {MEDIDAS.map((label) => (
-                <span className="print-field" key={label}>
-                  <span className="print-field__label">{label}</span>
-                  <span className="print-field__rule" />
-                </span>
-              ))}
-            </div>
-          ))}
+          <div className="print-fields print-block">
+            {Object.entries(fields).map(([label, value]) => (
+              <span className="print-field" key={label}>
+                <span className="print-field__label">{label}</span>
+                <span className="print-field__rule print-field__rule--filled print-field__rule--wide">{value}</span>
+              </span>
+            ))}
+            {MEDIDAS.map((label) => (
+              <span className="print-field" key={label}>
+                <span className="print-field__label">{label}</span>
+                <span className="print-field__rule" />
+              </span>
+            ))}
+          </div>
 
           <div style={{ clear: 'both' }} />
 
@@ -147,6 +154,6 @@ export function PrintMedidas({ folio }: { folio: string }) {
           </div>
         </section>
       ))}
-    </>
+    </Screen>
   )
 }

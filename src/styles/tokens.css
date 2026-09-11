@@ -44,6 +44,10 @@
   --tap-field: 60px;   /* campos de captura */
   --tap-key: 72px;     /* teclas del NIP */
 
+  /* ── marco universal ───────────────────────────────────────────────────── */
+  --bar-h: 96px;       /* alto de la barra superior: igual en toda la app */
+  --footer-h: 110px;   /* alto del pie de acción: también igual en toda la app */
+
   /* ── tipografía ────────────────────────────────────────────────────────── */
   --font-ui: 'Jost', system-ui, -apple-system, sans-serif;
   --font-display: 'Prata', Georgia, serif;
@@ -62,6 +66,7 @@
   --text-brand: 30px;  /* marca del kiosco y puntos del NIP */
   --text-inv: 32px;    /* título de la ficha de inventario */
   --text-detail: 34px; /* título del detalle del vestido */
+  --text-title: 44px;  /* título de la barra superior: el de «Selecciona tu rol» */
 
   --weight-light: 300; /* peso del cuerpo en el prototipo */
   --weight-regular: 400;
