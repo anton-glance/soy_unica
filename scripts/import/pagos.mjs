@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { writeFileSync, mkdirSync } from 'node:fs'
-import { parsePagos, dedupe, nearDuplicates } from './parse-pagos.mjs'
+import { parsePagos, dedupe, nearDuplicates, MANUAL, parsePayments } from './parse-pagos.mjs'
+import { pendientesHtml } from './pendientes.mjs'
 import { readWorkbook } from './xlsx.mjs'
 
 /**
@@ -64,6 +65,25 @@ for (const sheet of sheets) {
   for (const row of kept) (row.problems.length ? rejected : good).push(row)
 }
 
+/*
+ * Un renglón rechazado puede traer abonos ya cobrados aunque le falte el total:
+ * ese dinero existe y la clienta debe o no debe según eso, así que se suma para
+ * poder avisarlo. No se usa para nada más —el renglón sigue fuera de la
+ * importación.
+ */
+for (const row of rejected) {
+  const cobrado = Object.entries(row.raw)
+    // La columna 0 es la fecha de firma, que también empieza con dígito y se
+    // leería como un abono de $2,026. Las notas de regalo tampoco son abonos.
+    .filter(([i, v]) => Number(i) !== 0 && typeof v === 'string' && !/r[ae]galo/i.test(v))
+    .flatMap(([, v]) => parsePayments(v, 2026))
+    .reduce((n, p) => n + p.amount_cents, 0)
+  if (cobrado > 0 && !row.total_cents) {
+    row.flag = `⚠ Ya pagó ${money(cobrado)} y el libro no le anota total: es una cuenta por cobrar viva. `
+      + 'No se pierde, pero hasta que se complete este renglón no existe en el sistema.'
+  }
+}
+
 // El folio se asigna aquí para que el reporte y el SQL nombren lo mismo.
 good.forEach((row, i) => { row.folio = `MTY-IMP-${String(i + 1).padStart(4, '0')}` })
 
@@ -125,8 +145,12 @@ say()
 
 say('## Rechazados')
 say()
-say('Ninguno de estos entra al `.sql`. Cada uno lleva el contenido crudo del renglón tal como')
-say('está en la hoja, para poder corregirlo en el libro o decidirlo a mano.')
+say('Ninguno de estos entra al `.sql`. Les falta un dato que **no se puede adivinar**, y')
+say('adivinarlo sería peor que dejarlos fuera.')
+say()
+say('**`docs/import/pendientes.html` es la hoja para imprimir**: los cinco renglones con todas')
+say('sus celdas tal como están en el libro y los huecos en blanco para completarlos a mano.')
+say('Una vez completados se capturan en el sistema como cualquier contrato.')
 say()
 if (rejected.length === 0) say('Ninguno.')
 for (const r of rejected) {
@@ -140,22 +164,36 @@ for (const r of rejected) {
   say()
 }
 
-say('## Duplicados descartados')
+say('## Decisiones tomadas a mano')
 say()
-say('**Qué los hace duplicados:** misma hoja, **misma fecha de firma** y **mismo nombre**')
+say('Éstas **no** salieron de ninguna regla automática: las decidió la dueña mirando los')
+say('renglones. Viven en la tabla `MANUAL` de `scripts/import/parse-pagos.mjs`, cada una con su')
+say('motivo; cambiar de opinión sobre cualquiera es cambiar una línea de esa tabla y volver a')
+say('generar.')
+say()
+for (const m of MANUAL) {
+  say(`### \`${m.sheet}\` filas ${m.rows.join(' y ')} — ${m.who}`)
+  say()
+  say(`**${m.kind}.** ${m.why}`)
+  say()
+}
+
+say('## Capturas duplicadas descartadas')
+say()
+say('**Qué las hace duplicados:** misma hoja, **misma fecha de firma** y **mismo nombre**')
 say('—comparado sin acentos ni espacios y recortado a diez letras, porque el libro trae')
-say('«nereyda concocoan» y «nereyda concepcion» para la misma clienta, y «julieta yahaira rdz»')
-say('y «juieta yahaira»—. Febrero está capturado dos veces: un bloque temprano y otro más abajo')
-say('con más abonos. Se conserva **el último**, que es el más completo.')
+say('«nereyda concocoan» y «nereyda concepcion» para la misma clienta—. Febrero está capturado')
+say('dos veces: un bloque temprano y otro más abajo con más abonos. Se conserva **la última que**')
+say('**sirva**: si la tardía se rechaza, gana la anterior, porque perder a la clienta es peor.')
 say()
-say('Los totales de las dos capturas no siempre coinciden, así que aquí están los dos: si en')
-say('algún renglón el bueno fuera el descartado, se ve de inmediato.')
+say('Los totales de las dos capturas no siempre coinciden, así que aquí están los dos.')
 say()
-if (duplicates.length === 0) say('Ninguno.')
+const autoDropped = duplicates.filter((d) => !d.manual)
+if (autoDropped.length === 0) say('Ninguna.')
 else {
   say('| hoja | fila descartada | clienta | firma | total descartado | fila conservada | total conservado |')
   say('|---|---|---|---|---|---|---|')
-  for (const d of duplicates) {
+  for (const d of autoDropped) {
     const k = d.superseded_by
     say(`| \`${d.sheet}\` | ${d.rowNumber} | ${d.nombre} | ${d.signed_on ?? '—'} | ${d.total_cents ? money(d.total_cents) : '—'} | ${k?.rowNumber ?? '—'} | ${k?.total_cents ? money(k.total_cents) : '—'} |`)
   }
@@ -165,8 +203,9 @@ say()
 say('## Posibles duplicados que NO se juntaron solos')
 say()
 say('Misma hoja, misma fecha de firma, nombres a una o dos letras de distancia. **No se**')
-say('**fusionan**: juntar a dos clientas distintas es peor que dejar dos renglones. Pero si')
-say('éstas son la misma persona, ahora mismo se importa dos veces y hay que decidirlo a mano.')
+say('**fusionan solas**: juntar a dos clientas distintas es peor que dejar dos renglones. Cada')
+say('una que aparezca aquí se importa dos veces hasta que alguien la decida y entre a la tabla')
+say('`MANUAL`.')
 say()
 if (suspects.length === 0) say('Ninguno.')
 else {
@@ -330,10 +369,12 @@ good.forEach((row) => {
 sql.push('')
 
 mkdirSync(OUT, { recursive: true })
+writeFileSync(`${OUT}/pendientes.html`, pendientesHtml(rejected))
 writeFileSync(`${OUT}/pagos.md`, lines.join('\n'))
 writeFileSync(`${OUT}/pagos.sql`, sql.join('\n'))
 writeFileSync(`${OUT}/pagos.json`, JSON.stringify({ good, rejected, duplicates }, null, 2))
 console.log(`reporte  → ${OUT}/pagos.md`)
 console.log(`sql      → ${OUT}/pagos.sql   (${good.length} contratos, ${payments} abonos)`)
 console.log(`crudo    → ${OUT}/pagos.json`)
+console.log(`hoja     → ${OUT}/pendientes.html   (${rejected.length} renglones por completar a mano)`)
 void wb

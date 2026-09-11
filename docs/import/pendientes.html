@@ -1,0 +1,100 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Renglones por completar a mano — libro de pagos 2026</title>
+<style>
+  @page { size: letter portrait; margin: 11mm; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 8pt/1.25 Jost, system-ui, -apple-system, sans-serif; color: #332A2E; }
+  h1 { font: 400 14pt/1.05 Prata, Georgia, serif; margin: 0 0 1.4mm; }
+  .lede { margin: 0 0 2.4mm; color: #6E6167; font-size: 7.5pt; max-width: 165mm; }
+  .row { border: 0.4pt solid #9C8F94; border-radius: 1.6mm; padding: 1.6mm 2.2mm; margin-bottom: 1.8mm; break-inside: avoid; }
+  .row header { display: flex; align-items: baseline; justify-content: space-between; gap: 4mm; }
+  h2 { font: 400 10.5pt/1.05 Prata, Georgia, serif; margin: 0; }
+  .where { font-size: 7pt; color: #6E6167; font-variant-numeric: tabular-nums; }
+  .why { margin: 0.6mm 0 1mm; font-size: 7.2pt; color: #9A5B45; }
+  .flag { margin: 0 0 1mm; padding: 0.9mm 1.6mm; border-left: 1.2pt solid #7B3B4A; background: #F3E3DC; font-size: 7.2pt; }
+  .two { display: flex; gap: 3.5mm; align-items: flex-start; }
+  .cells { flex: 0 0 92mm; font-size: 6.8pt; column-count: 2; column-gap: 3mm; }
+  .cell { display: flex; gap: 1.2mm; border-bottom: 0.3pt solid #E3D8C9; padding: 0.3mm 0; break-inside: avoid; }
+  .col { color: #9C8F94; white-space: nowrap; flex: 0 0 9mm; }
+  .val { font-variant-numeric: tabular-nums; word-break: break-word; }
+  .fields { flex: 1; }
+  .field { display: flex; align-items: baseline; gap: 1.8mm; margin-bottom: 2.4mm; }
+  .lbl { font-size: 7.4pt; white-space: nowrap; }
+  .rule { flex: 1; border-bottom: 0.6pt solid #332A2E; min-width: 20mm; height: 3.4mm; }
+  .field em { font-style: normal; font-size: 6.6pt; color: #9C8F94; white-space: nowrap; }
+  .sign { display: flex; gap: 8mm; margin-top: 2.5mm; }
+  .sign .field { flex: 1; margin: 0; }
+  footer { margin-top: 2mm; font-size: 6.8pt; color: #6E6167; border-top: 0.4pt solid #E3D8C9; padding-top: 1.2mm; }
+</style>
+<h1>Renglones por completar a mano</h1>
+<p class="lede">
+  Libro de pagos 2026 (<code>docs/pagos.xlsx</code>). Estos 5 contratos <b>no</b> entraron a la
+  importación: les falta un dato que no se puede deducir del libro, y adivinarlo sería peor que
+  dejarlos fuera. Abajo va cada renglón con <b>todas</b> sus celdas tal como están escritas, y los
+  huecos en blanco. Una vez completados se capturan a mano en el sistema, como cualquier contrato.
+</p>
+<section class="row">
+      <header>
+        <h2>paola chapa</h2>
+        <span class="where">junio 26 · fila 5</span>
+      </header>
+      <p class="why">no trae ni anticipo ni total</p>
+      <p class="flag">⚠ Ya pagó $11,800 y el libro no le anota total: es una cuenta por cobrar viva. No se pierde, pero hasta que se complete este renglón no existe en el sistema.</p>
+      <div class="two">
+        <div class="cells"><div class="cell"><span class="col">col 0</span><span class="val">2026-06-06</span></div><div class="cell"><span class="col">col 1</span><span class="val">paola chapa</span></div><div class="cell"><span class="col">col 4</span><span class="val">madelyn ,mantilla045,crinolina 6 aros</span></div><div class="cell"><span class="col">col 7</span><span class="val">ctiara66</span></div><div class="cell"><span class="col">col 10</span><span class="val">2500 17-jun</span></div><div class="cell"><span class="col">col 11</span><span class="val">5100 9-jul</span></div><div class="cell"><span class="col">col 12</span><span class="val">4200 11-ago</span></div><div class="cell"><span class="col">col 17</span><span class="val">2500 de regalo</span></div></div>
+        <div class="fields"><div class="field"><span class="lbl">Anticipo</span><span class="rule"></span><em>el que se cobró al firmar</em></div><div class="field"><span class="lbl">Total del contrato</span><span class="rule"></span><em>precio pactado</em></div></div>
+      </div>
+    </section><section class="row">
+      <header>
+        <h2>belem orea</h2>
+        <span class="where">jul26 · fila 1 · firmó 2026-07-08</span>
+      </header>
+      <p class="why">números sueltos entre el anticipo y el total, en las columnas 12: 5000</p>
+      
+      <div class="two">
+        <div class="cells"><div class="cell"><span class="col">col 0</span><span class="val">2026-07-08</span></div><div class="cell"><span class="col">col 1</span><span class="val">belem orea</span></div><div class="cell"><span class="col">col 3</span><span class="val"> mantilla 039</span></div><div class="cell"><span class="col">col 5</span><span class="val">1,200</span></div><div class="cell"><span class="col">col 6</span><span class="val">3800 31-jul</span></div><div class="cell"><span class="col">col 12</span><span class="val">5,000</span></div><div class="cell"><span class="col">col 16</span><span class="val">29,100</span></div><div class="cell"><span class="col">col 17</span><span class="val">2500 de regalo</span></div></div>
+        <div class="fields"><div class="field"><span class="lbl">Total del contrato</span><span class="rule"></span><em>cuál de los importes del renglón es el bueno</em></div></div>
+      </div>
+    </section><section class="row">
+      <header>
+        <h2>anna olivares</h2>
+        <span class="where">jul26 · fila 3 · firmó 2026-07-23</span>
+      </header>
+      <p class="why">números sueltos entre el anticipo y el total, en las columnas 12: 41000</p>
+      
+      <div class="two">
+        <div class="cells"><div class="cell"><span class="col">col 0</span><span class="val">2026-07-23</span></div><div class="cell"><span class="col">col 1</span><span class="val">anna olivares</span></div><div class="cell"><span class="col">col 3</span><span class="val">mantilla 039</span></div><div class="cell"><span class="col">col 4</span><span class="val">      amalia m</span></div><div class="cell"><span class="col">col 5</span><span class="val">11,000</span></div><div class="cell"><span class="col">col 6</span><span class="val">7000 22-ago</span></div><div class="cell"><span class="col">col 12</span><span class="val">41,000</span></div><div class="cell"><span class="col">col 14</span><span class="val">3000 de regalo accesorios</span></div><div class="cell"><span class="col">col 16</span><span class="val">15,000</span></div><div class="cell"><span class="col">col 17</span><span class="val">1500 de regalo</span></div></div>
+        <div class="fields"><div class="field"><span class="lbl">Total del contrato</span><span class="rule"></span><em>cuál de los importes del renglón es el bueno</em></div></div>
+      </div>
+    </section><section class="row">
+      <header>
+        <h2>abigail mancilla</h2>
+        <span class="where">ago 26 · fila 4 · firmó 2026-08-17</span>
+      </header>
+      <p class="why">el abono «120000 4-sept» es mayor que el total (20000)</p>
+      
+      <div class="two">
+        <div class="cells"><div class="cell"><span class="col">col 0</span><span class="val">2026-08-17</span></div><div class="cell"><span class="col">col 1</span><span class="val">abigail mancilla</span></div><div class="cell"><span class="col">col 5</span><span class="val">cherry</span></div><div class="cell"><span class="col">col 9</span><span class="val">8,000</span></div><div class="cell"><span class="col">col 10</span><span class="val">120000 4-sept</span></div><div class="cell"><span class="col">col 16</span><span class="val">20,000</span></div></div>
+        <div class="fields"><div class="field"><span class="lbl">Monto correcto de ese abono</span><span class="rule"></span><em>el escrito es imposible contra el total</em></div></div>
+      </div>
+    </section><section class="row">
+      <header>
+        <h2>doris encinia</h2>
+        <span class="where">ago 26 · fila 5</span>
+      </header>
+      <p class="why">sólo trae un número (2750): no se sabe si es anticipo o total</p>
+      
+      <div class="two">
+        <div class="cells"><div class="cell"><span class="col">col 0</span><span class="val">2026-08-29</span></div><div class="cell"><span class="col">col 1</span><span class="val">doris encinia</span></div><div class="cell"><span class="col">col 3</span><span class="val">crinolina 3 aros</span></div><div class="cell"><span class="col">col 5</span><span class="val">p139</span></div><div class="cell"><span class="col">col 9</span><span class="val">2,750</span></div></div>
+        <div class="fields"><div class="field"><span class="lbl">¿Los $2,750 son anticipo o total?</span><span class="rule"></span><em>marque uno: ☐ anticipo   ☐ total</em></div><div class="field"><span class="lbl">El otro importe</span><span class="rule"></span><em>el que falta de los dos</em></div></div>
+      </div>
+    </section>
+<div class="sign">
+  <div class="field"><span class="lbl">Completó</span><span class="rule"></span></div>
+  <div class="field"><span class="lbl">Fecha</span><span class="rule"></span></div>
+</div>
+<footer>
+  Generado por <code>scripts/import/pagos.mjs</code> desde <code>docs/pagos.xlsx</code>. Ningún importe de
+  esta hoja fue calculado ni supuesto por el sistema.
+</footer>
