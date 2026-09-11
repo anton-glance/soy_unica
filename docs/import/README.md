@@ -33,10 +33,10 @@ imágenes, una petición por cada una.
 
 | archivo | qué es |
 | --- | --- |
-| `docs/import/catalog-raw.json` | la respuesta cruda del sitio, tal cual |
+| `docs/import/catalog-raw.json` | la respuesta cruda del sitio, tal cual. No se versiona |
 | `docs/import/catalog.md` | **el reporte que hay que leer** |
 | `docs/import/catalog.sql` | los `INSERT`, para aplicar |
-| `docs/import/catalog-images/` | las imágenes ya recodificadas, en `.webp` |
+| `docs/import/catalog-images/` | las imágenes ya recodificadas, en `.webp`. No se versionan: van a R2 |
 
 ### Qué revisar en el reporte antes de aplicar
 
@@ -98,7 +98,7 @@ como texto.
 | --- | --- |
 | `docs/import/pagos.md` | **el reporte que hay que leer** |
 | `docs/import/pagos.sql` | los `INSERT`, para aplicar |
-| `docs/import/pagos.json` | lo mismo en crudo, por si hace falta revisarlo con otra herramienta |
+| `docs/import/pagos.json` | lo mismo en crudo, por si hace falta mirarlo con otra herramienta. No se versiona: son miles de renglones generados que taparían los reportes en el diff |
 
 ### Qué revisar en el reporte antes de aplicar
 
