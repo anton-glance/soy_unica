@@ -1,10 +1,15 @@
 import { useId, type ReactNode } from 'react'
 
-export function Field({ label, hint, error, children }: { label: string; hint?: string; error?: string; children: (id: string) => ReactNode }) {
+export function Field({ label, hint, error, marked, children }: {
+  label: string; hint?: string; error?: string
+  /** Marks a field the importer could not fill: the record sheet shows which ones she still owes. */
+  marked?: boolean
+  children: (id: string) => ReactNode
+}) {
   const id = useId()
   return (
-    <div className="field">
-      <label htmlFor={id}>{label}</label>
+    <div className={marked ? 'field field--falta' : 'field'}>
+      <label htmlFor={id}>{label}{marked && <span className="falta">falta</span>}</label>
       {children(id)}
       {hint && <p className="err" style={{ color: 'var(--ink-faint)' }}>{hint}</p>}
       {error && <p className="err" role="alert">{error}</p>}

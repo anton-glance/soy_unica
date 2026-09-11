@@ -1,85 +1,121 @@
-# Importaciones
+# Imports
 
-Dos importadores, en `scripts/import/`. **Ninguno escribe en ninguna base.**
-Cada uno produce un reporte en Markdown y un archivo `.sql`; aplicarlo es un
-comando aparte que corres tú. Ésa es toda la protección: la única forma de que
-esto toque una base es que una persona lo aplique a propósito, y el reporte
-existe para que esa persona sepa qué está aplicando.
+Two importers, in `scripts/import/`. **Neither writes to any database.** Each
+produces a Markdown report and a `.sql` file; applying it is a separate command
+you run yourself. That is the whole safety mechanism: the only way any of this
+touches a database is for a person to apply it on purpose, and the report exists
+so that person knows what they are applying.
 
-Todo lo que generan cae en esta misma carpeta, `docs/import/`.
+Everything they generate lands in this folder, `docs/import/`. The catalog's
+output is gitignored on purpose: it is built from the live site on your machine,
+and a `catalog.sql` built from test fixtures must never be mistakable for the
+real thing. The ledger's `pagos.md` and `pagos.sql` are committed, because they
+came from the real spreadsheet and were reviewed row by row in the repository.
 
 ---
 
-## 1 · Catálogo del sitio
+## 1 · The website catalog
 
-### Bajarlo
+### Downloading it
 
 ```
-node scripts/import/catalog.mjs --fetch --images
+node scripts/import/catalog.mjs --fetch
 ```
 
-Necesita salida a internet (`soyunicanovias.com`). Tarda: son cientos de
-imágenes, una petición por cada una.
+Needs outbound access to `soyunicanovias.com`.
 
-**Las banderas**
+**The flags**
 
-| bandera | qué hace |
+| flag | what it does |
 | --- | --- |
-| `--fetch` | pagina `/wp-json/wc/store/v1/products?per_page=100&page=N` hasta que se acaba, y guarda el JSON crudo |
-| `--images` | además baja cada imagen y la vuelve a codificar: 1600 px, WebP, ≤300 KB, los mismos límites que la tableta |
-| *(sin banderas)* | vuelve a leer el JSON ya bajado y regenera el reporte y el `.sql`, sin volver a pedir nada |
+| `--fetch` | pages `/wp-json/wc/store/v1/products?per_page=100&page=N` to the end and saves the raw JSON |
+| `--categories` | prints the site's category census and which branch each maps to, then stops |
+| `--images` | also downloads each image and re-encodes it: 1600 px, WebP, <=300 KB, the same limits as the tablet. Images already on disk are left alone, so a re-run is cheap |
+| *(no flags)* | re-reads the JSON already downloaded and regenerates the report and the `.sql`, asking the site for nothing |
 
-**Qué escribe**
+### Check the branch split before anything else
 
-| archivo | qué es |
+```
+node scripts/import/catalog.mjs --categories
+```
+
+The site runs two catalogs. The same model appears in both at different prices,
+and CDMX carries premium dresses Monterrey does not, so the importer reads each
+product's categories and writes it into `mty`, `cdmx`, or both — each with that
+branch's own price.
+
+The patterns that decide this live in `STORE_RULES` in
+`scripts/import/map-product.mjs`. They were written without ever seeing the
+site. Any category that should be CDMX and prints `— (falls back to mty)` means
+a pattern is missing and the whole CDMX catalog would land in Monterrey. Edit
+`STORE_RULES`, re-run `--categories`, repeat until every row reads the branch
+you expect.
+
+**What it writes**
+
+| file | what it is |
 | --- | --- |
-| `docs/import/catalog-raw.json` | la respuesta cruda del sitio, tal cual. No se versiona |
-| `docs/import/catalog.md` | **el reporte que hay que leer** |
-| `docs/import/catalog.sql` | los `INSERT`, para aplicar |
-| `docs/import/catalog-images/` | las imágenes ya recodificadas, en `.webp`. No se versionan: van a R2 |
+| `docs/import/catalog-raw.json` | the site's raw response, untouched |
+| `docs/import/catalog.md` | **the report to read** |
+| `docs/import/catalog.sql` | the `INSERT`s, to apply |
+| `docs/import/catalog-images/` | the re-encoded `.webp` images |
+| `docs/import/catalog-r2.tsv` | `localpath<TAB>r2key`, one line per upload |
 
-### Qué revisar en el reporte antes de aplicar
+### What to check in the report before applying
 
-1. **El aviso de arriba.** Si el reporte sigue diciendo que las cifras salen de
-   una fixture, el `--fetch` no corrió: no apliques nada.
-2. **Rechazados.** Productos sin código o sin precio legible. Cada uno con su
-   motivo. Si son muchos, algo cambió en el sitio y conviene mirarlo antes.
-3. **Códigos repetidos.** El código es único por sucursal, así que de cada
-   choque sólo entra el primero. Revisa que el que se queda sea el bueno: ése es
-   el que la vendedora va a teclear para buscar.
-4. **Imágenes que no se pudieron bajar**, con su motivo.
-5. **Proyección de almacenamiento.** Cuántos megas agrega y a cuánto deja el
-   total. Si eso deja el bucket cerca de su tope, mejor saberlo antes.
+1. **By branch.** Row counts and catalog value per branch. If CDMX is zero, the
+   category patterns did not match — go back to `--categories`.
+2. **The same model in both branches.** Each branch's code and price for the
+   same dress. A `$0.00` row is one she leaves unpriced on purpose; it comes in
+   flagged and cannot be sold until it has a price.
+3. **Flagged for review.** Rows missing a price or a code. These are *not*
+   rejections: they are imported with everything the site does give and land
+   under the **Por verificar** chip in Inventario with the missing fields
+   marked. Nothing is guessed.
+4. **Rejected.** Only products the site gives no name for. If this list is long,
+   something changed on the site and is worth looking at first.
+5. **Duplicate codes.** The code is unique per branch, so only the first of each
+   clash is written. Check the one that stays is the right one: that is what the
+   seller will type to search.
+6. **Codes.** How many codes came from the SKU, from the model name, and from a
+   `s/n-` placeholder. A large placeholder count means the site lost its SKUs.
+7. **Images that could not be downloaded**, with the reason.
 
-### Aplicar
+### Applying it
 
-Primero **local**, siempre:
+**Local first, always:**
 
 ```
 npx wrangler d1 execute soy-unica --local --persist-to .wrangler/state \
   --file docs/import/catalog.sql
 ```
 
-Las imágenes van a R2 aparte, una por una:
+Images go to R2 separately, driven by the manifest so each one lands under the
+right branch's key:
 
 ```
-for f in docs/import/catalog-images/*.webp; do
-  npx wrangler r2 object put "soy-unica-files/mty/item_photo/$(basename "$f")" \
-    --file "$f" --local
-done
+while IFS=$'\t' read -r local key; do
+  npx wrangler r2 object put "soy-unica-files/$key" --file "$local" \
+    --content-type image/webp --local
+done < docs/import/catalog-r2.tsv
 ```
 
-Los artículos entran con `INSERT OR IGNORE`: **un código que ya exista no se
-toca**. Se puede volver a aplicar sin duplicar nada.
+Items come in with `INSERT OR IGNORE`: **a code that already exists is left
+alone.** It can be re-applied without duplicating anything, and without undoing
+an edit she has since made. What it will *not* do is move a row that went to the
+wrong branch — delete those by hand first if it comes to that.
+
+For the production run, see **[docs/DEPLOY.md](../DEPLOY.md) §6 and §7**, which
+has the same steps with `--remote` and without `--local`.
 
 ---
 
-## 2 · Contratos de 2026 del libro de pagos
+## 2 · The 2026 contracts from the payments ledger
 
-### Generarlo
+### Generating it
 
-Necesita el catálogo actual para amarrar los fragmentos del producto a un
-artículo, así que se le pasa en una bandera:
+It needs the current catalog to tie product fragments to an item, so the catalog
+is passed in on a flag:
 
 ```
 ITEMS=$(npx wrangler d1 execute soy-unica --local --persist-to .wrangler/state \
@@ -89,73 +125,75 @@ ITEMS=$(npx wrangler d1 execute soy-unica --local --persist-to .wrangler/state \
 node scripts/import/pagos.mjs --items="$ITEMS"
 ```
 
-Sin `--items` corre igual, pero ningún fragmento amarra con nada y todo queda
-como texto.
+Without `--items` it still runs, but no fragment ties to anything and everything
+stays as text.
 
-**Qué escribe**
+**What it writes**
 
-| archivo | qué es |
+| file | what it is |
 | --- | --- |
-| `docs/import/pagos.md` | **el reporte que hay que leer** |
-| `docs/import/pagos.sql` | los `INSERT`, para aplicar |
-| `docs/import/pagos.json` | lo mismo en crudo, por si hace falta mirarlo con otra herramienta. No se versiona: son miles de renglones generados que taparían los reportes en el diff |
+| `docs/import/pagos.md` | **the report to read** |
+| `docs/import/pagos.sql` | the `INSERT`s, to apply |
+| `docs/import/pagos.json` | the same thing raw, for looking at with another tool |
 
-### Qué revisar en el reporte antes de aplicar
+### What to check in the report before applying
 
-1. **Rechazados.** No entran al `.sql`. Cada uno trae el contenido crudo del
-   renglón: se corrige en el libro y se vuelve a generar, o se captura a mano.
-2. **Duplicados descartados.** De cada pareja se conserva una captura. La tabla
-   muestra los dos totales: si en algún renglón el bueno fuera el descartado, se
-   ve de inmediato.
-3. **Posibles duplicados que no se juntaron solos.** Nombres a una o dos letras
-   de distancia, misma fecha. Ahora mismo **se importan las dos veces**. Hay que
-   decidirlo a mano.
-4. **El resto de $100.** Trece contratos con exactamente cien pesos pagados de
-   más. Mientras no se confirme qué es, se quedan así, sin renglón inventado.
-5. **Fragmentos que no amarraron.** Se guardan como texto. Si son muchos, es
-   señal de que el catálogo todavía no está importado: importa primero el
-   catálogo y vuelve a generar esto.
+1. **Rejected.** These do not reach the `.sql`. Each one carries the raw cell
+   contents: fix it in the ledger and regenerate, or capture it by hand.
+2. **Dropped duplicates.** One capture is kept from each pair. The table shows
+   both totals, so a row where the kept one is wrong is visible at a glance.
+3. **Possible duplicates that did not merge on their own.** Names one or two
+   letters apart on the same date. These are **imported twice** as things stand
+   and have to be decided by hand.
+4. **The $100 remainder.** Thirteen contracts with exactly one hundred pesos
+   paid over. Until it is confirmed what that is, they stay as they are, with no
+   invented line item.
+5. **Fragments that did not tie.** Kept as text. A lot of them means the catalog
+   is not imported yet: import the catalog first and regenerate this.
 
-### Aplicar
+### Applying it
 
 ```
 npx wrangler d1 execute soy-unica --local --persist-to .wrangler/state \
   --file docs/import/pagos.sql
 ```
 
-**Ojo:** a diferencia del catálogo, esto **no** es repetible. Cada corrida
-inserta clientas y contratos nuevos con folios nuevos. Si hay que rehacerlo,
-primero se borra lo importado:
+**Careful:** unlike the catalog, this is **not** repeatable. Each run inserts
+new customers and contracts with new folios. To redo it, delete what was
+imported first:
 
 ```sql
-DELETE FROM contracts WHERE imported = 1;              -- se lleva sus renglones y abonos
+DELETE FROM contracts WHERE imported = 1;              -- takes its lines and payments with it
 DELETE FROM customers WHERE source = 'pagos.xlsx';
 ```
 
----
-
-## El orden importa
-
-El catálogo va **primero**. La importación del libro amarra cada fragmento de
-producto —`p139`, `mantilla 045`, `crinolina 6 aros`— contra `items.code`, y con
-el catálogo provisional de la semilla casi ninguno encuentra su artículo.
-
-```
-1. catálogo  --fetch --images   → revisar → aplicar
-2. pagos     --items="$ITEMS"   → revisar → aplicar
-```
-
-El reporte del libro dice, en «Fragmentos de producto», cuántos amarraron y
-cuántos quedaron como texto. Ese par de números es la forma de comprobar que el
-orden se respetó.
+This is why the ledger import is **not** part of the first deploy. See
+`docs/DEPLOY.md` §10.
 
 ---
 
-## Producción
+## The order matters
 
-Nada de esto se aplica a una base remota hasta que los dos reportes estén
-revisados. Cuando lo estén, es el mismo comando sin `--local --persist-to`:
+The catalog goes **first**. The ledger import ties each product fragment —
+`p139`, `mantilla 045`, `crinolina 6 aros` — against `items.code`, and with only
+the seed's placeholder catalog almost none of them find their item.
 
 ```
-npx wrangler d1 execute soy-unica --remote --file docs/import/pagos.sql
+1. catalog  --categories → --fetch --images  → review → apply
+2. pagos    --items="$ITEMS"                 → review → apply
+```
+
+The ledger report says, under "Fragmentos de producto", how many tied and how
+many stayed as text. That pair of numbers is how you check the order was kept.
+
+---
+
+## Production
+
+None of this is applied to a remote database until both reports have been
+reviewed. When they have, it is the same command with `--remote` in place of
+`--local --persist-to`:
+
+```
+npx wrangler d1 execute soy-unica --remote --file docs/import/catalog.sql
 ```

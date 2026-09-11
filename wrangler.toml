@@ -1,5 +1,6 @@
 name = "soy-unica"
 main = "worker/index.ts"
+account_id = "b41f43e44f162196d7b514aa31455fd4"
 compatibility_date = "2024-12-30"
 
 # Static assets (the built Vite app). Every non-/api path falls through to
@@ -12,15 +13,15 @@ not_found_handling = "single-page-application"
 [[d1_databases]]
 binding = "DB"
 database_name = "soy-unica"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "3d740430-898e-4705-90b7-6718aadf7ae5"
 migrations_dir = "db/migrations"
 
 [[r2_buckets]]
 binding = "R2"
 bucket_name = "soy-unica-files"
 
-# El barrido de sesiones abandonadas: cada hora en punto. Con un tiempo de
-# espera de 4 horas por omisión, una sesión olvidada se suelta la misma noche.
+# The abandoned-session sweep: every hour, on the hour. With the default
+# four-hour timeout, a session left open is released the same night.
 [triggers]
 crons = ["0 * * * *"]
 

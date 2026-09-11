@@ -94,3 +94,41 @@ export function hotelCharge(
   const days_charged = Math.max(0, elapsed - freeDays)
   return { days_charged, amount_cents: days_charged * dailyCents }
 }
+
+/**
+ * Prefix the catalog importer puts on a code it had to invent because the site
+ * carried neither an SKU nor a usable model name. It is deliberately visible in
+ * the code column, and it is what keeps the `code` flag alive across recomputes:
+ * the moment she types her own code the prefix is gone and the flag clears.
+ */
+export const NO_CODE_PREFIX = 's/n-'
+
+/**
+ * Which fields an item is still missing. The single source of truth for the
+ * `needs_review` flag: the importer calls it, and so does every write that can
+ * fill one of these in, so filling the last gap clears the flag by itself.
+ *
+ * `cost` and `size` are only meaningful for stock on the rack. A made-to-order
+ * model is never bought up front and is cut to the bride's measurements, so a
+ * zero cost and a blank size there are facts, not gaps.
+ */
+export function reviewFields(item: {
+  code?: string | null
+  price_cents?: number | null
+  size?: string | null
+  cost_cents?: number | null
+  condition?: string | null
+  acquisition?: string | null
+}): string[] {
+  const missing: string[] = []
+  // Price first: it is the one that blocks a sale.
+  if (!item.price_cents || item.price_cents <= 0) missing.push('price')
+  const code = String(item.code ?? '').trim()
+  if (!code || code.startsWith(NO_CODE_PREFIX)) missing.push('code')
+  if (item.acquisition !== 'pedido') {
+    if (!String(item.size ?? '').trim()) missing.push('size')
+    if (!item.cost_cents || item.cost_cents <= 0) missing.push('cost')
+  }
+  if (!String(item.condition ?? '').trim()) missing.push('condition')
+  return missing
+}
