@@ -340,10 +340,10 @@ npx wrangler d1 execute soy-unica --local --persist-to .wrangler/state --file do
 
 ### C2 — los contratos de 2026 · corrido
 
-`docs/import/pagos.md`. De 67 renglones en las nueve hojas de 2026: **51
-importables**, 6 rechazados, 10 duplicados descartados. Aplicado a la base
-local: 51 contratos, 182 abonos, 51 clientas, 22 créditos de regalo, cero
-parcialidades generadas, y las dos aritméticas cuadran en los 51.
+`docs/import/pagos.md`. De 67 renglones en las nueve hojas de 2026: **52
+importables**, 5 rechazados, 10 duplicados descartados. Aplicado a la base
+local: 52 contratos, 185 abonos, 52 clientas, 22 créditos de regalo, cero
+parcialidades generadas, y las dos aritméticas cuadran en los 52.
 
 El libro está lleno a mano desde 2018 y se nota: tres distribuciones de columnas
 distintas, una hoja sin encabezado, un encabezado que miente sobre dónde está el
@@ -352,10 +352,17 @@ que era 12000, y once clientas de febrero capturadas dos veces. Nada de eso se
 adivina en silencio: lo que no se entiende se rechaza con el contenido crudo de
 la celda.
 
-**Lo que hay que confirmar antes de tocar producción:** el regalo de accesorios.
-El encargo decía que `26500-1500=25000` tiene que cuadrar; los números del libro
-dicen que el total de la hoja **ya es** lo que la novia paga. Está argumentado en
-el reporte con la evidencia de los dos lados.
+**El regalo de accesorios está confirmado:** la columna «total» de la hoja ya
+trae la cifra neta, así que el regalo no se vuelve a restar.
+
+**Lo que sigue sin resolverse**, y está listado renglón por renglón en el
+reporte: trece contratos con exactamente cien pesos pagados de más —la sospecha
+es el «porta traje $100» cobrado al recoger, sin confirmar, y no se le inventó
+renglón a nadie—, y una pareja de nombres a una letra de distancia que hoy se
+importa dos veces.
+
+`docs/import/README.md` tiene los comandos exactos, qué escribe cada uno y qué
+revisar antes de aplicar.
 
 ### C1 — el catálogo · escrito y probado, no corrido
 

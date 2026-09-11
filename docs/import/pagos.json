@@ -1,0 +1,4193 @@
+{
+  "good": [
+    {
+      "sheet": "ene 26",
+      "rowNumber": 2,
+      "raw": {
+        "0": "2026-01-10",
+        "1": "evelyn yazmin flores",
+        "3": "p53 , mantilla 045",
+        "4": 4000,
+        "5": "cancelo",
+        "11": 22000,
+        "12": "regalo 1500 para accesorios"
+      },
+      "problems": [],
+      "signed_on": "2026-01-10",
+      "nombre": "evelyn yazmin flores",
+      "producto": "p53 , mantilla 045",
+      "fragments": [
+        "p53",
+        "mantilla 045"
+      ],
+      "anticipo_cents": 400000,
+      "abonos": [],
+      "list_total_cents": 2350000,
+      "gift_cents": 150000,
+      "total_cents": 2200000,
+      "paid_cents": 400000,
+      "balance_cents": 1800000,
+      "folio": "MTY-IMP-0001",
+      "lines": [
+        {
+          "fragment": "p53",
+          "item": null
+        },
+        {
+          "fragment": "mantilla 045",
+          "item": null
+        }
+      ]
+    },
+    {
+      "sheet": "ene 26",
+      "rowNumber": 3,
+      "raw": {
+        "0": "2026-01-16",
+        "1": "laura denise sifuentes",
+        "3": "s10 de exhibicion",
+        "4": 2000,
+        "5": "2100 17 feb",
+        "11": 4000
+      },
+      "problems": [],
+      "signed_on": "2026-01-16",
+      "nombre": "laura denise sifuentes",
+      "producto": "s10 de exhibicion",
+      "fragments": [
+        "s10 de exhibicion"
+      ],
+      "anticipo_cents": 200000,
+      "abonos": [
+        {
+          "amount_cents": 210000,
+          "paid_at": "2026-02-17",
+          "raw": "2100 17 feb",
+          "column": 5
+        }
+      ],
+      "list_total_cents": 400000,
+      "gift_cents": 0,
+      "total_cents": 400000,
+      "paid_cents": 410000,
+      "balance_cents": -10000,
+      "folio": "MTY-IMP-0002",
+      "lines": [
+        {
+          "fragment": "s10 de exhibicion",
+          "item": null
+        }
+      ]
+    },
+    {
+      "sheet": "ene 26",
+      "rowNumber": 4,
+      "raw": {
+        "0": "2026-01-17",
+        "1": "karina elizabeth kiroga",
+        "3": "p139,mantilla045 crinolina 6 aros",
+        "4": 5000,
+        "5": "3375 17 feb",
+        "6": "3375 17 mar",
+        "7": "3375 17 abril",
+        "8": "3375 6-jun",
+        "9": "200 7-jun",
+        "10": "1100 6-jul",
+        "11": 19700
+      },
+      "problems": [],
+      "signed_on": "2026-01-17",
+      "nombre": "karina elizabeth kiroga",
+      "producto": "p139,mantilla045 crinolina 6 aros",
+      "fragments": [
+        "p139",
+        "mantilla045 crinolina 6 aros"
+      ],
+      "anticipo_cents": 500000,
+      "abonos": [
+        {
+          "amount_cents": 337500,
+          "paid_at": "2026-02-17",
+          "raw": "3375 17 feb",
+          "column": 5
+        },
+        {
+          "amount_cents": 337500,
+          "paid_at": "2026-03-17",
+          "raw": "3375 17 mar",
+          "column": 6
+        },
+        {
+          "amount_cents": 337500,
+          "paid_at": "2026-04-17",
+          "raw": "3375 17 abril",
+          "column": 7
+        },
+        {
+          "amount_cents": 337500,
+          "paid_at": "2026-06-06",
+          "raw": "3375 6-jun",
+          "column": 8
+        },
+        {
+          "amount_cents": 20000,
+          "paid_at": "2026-06-07",
+          "raw": "200 7-jun",
+          "column": 9
+        },
+        {
+          "amount_cents": 110000,
+          "paid_at": "2026-07-06",
+          "raw": "1100 6-jul",
+          "column": 10
+        }
+      ],
+      "list_total_cents": 1970000,
+      "gift_cents": 0,
+      "total_cents": 1970000,
+      "paid_cents": 1980000,
+      "balance_cents": -10000,
+      "folio": "MTY-IMP-0003",
+      "lines": [
+        {
+          "fragment": "p139",
+          "item": {
+            "id": 1,
+            "code": "p139",
+            "name": "Madelyn",
+            "kind": "dress"
+          }
+        },
+        {
+          "fragment": "mantilla045 crinolina 6 aros",
+          "item": null
+        }
+      ]
+    },
+    {
+      "sheet": "ene 26",
+      "rowNumber": 5,
+      "raw": {
+        "0": "2026-01-24",
+        "1": "hannia yamileth rodriguez",
+        "3": "p146, velo 022",
+        "4": 3300,
+        "5": "3425 21 feb",
+        "6": "3500 21 marz",
+        "7": "3500 24 abril",
+        "8": "3300 26 mayo",
+        "9": "70 6-jun",
+        "11": 17000,
+        "12": "regalo 1500 para accesorios"
+      },
+      "problems": [],
+      "signed_on": "2026-01-24",
+      "nombre": "hannia yamileth rodriguez",
+      "producto": "p146, velo 022",
+      "fragments": [
+        "p146",
+        "velo 022"
+      ],
+      "anticipo_cents": 330000,
+      "abonos": [
+        {
+          "amount_cents": 342500,
+          "paid_at": "2026-02-21",
+          "raw": "3425 21 feb",
+          "column": 5
+        },
+        {
+          "amount_cents": 350000,
+          "paid_at": "2026-03-21",
+          "raw": "3500 21 marz",
+          "column": 6
+        },
+        {
+          "amount_cents": 350000,
+          "paid_at": "2026-04-24",
+          "raw": "3500 24 abril",
+          "column": 7
+        },
+        {
+          "amount_cents": 330000,
+          "paid_at": "2026-05-26",
+          "raw": "3300 26 mayo",
+          "column": 8
+        },
+        {
+          "amount_cents": 7000,
+          "paid_at": "2026-06-06",
+          "raw": "70 6-jun",
+          "column": 9
+        }
+      ],
+      "list_total_cents": 1850000,
+      "gift_cents": 150000,
+      "total_cents": 1700000,
+      "paid_cents": 1709500,
+      "balance_cents": -9500,
+      "folio": "MTY-IMP-0004",
+      "lines": [
+        {
+          "fragment": "p146",
+          "item": null
+        },
+        {
+          "fragment": "velo 022",
+          "item": null
+        }
+      ]
+    },
+    {
+      "sheet": "ene 26",
+      "rowNumber": 6,
+      "raw": {
+        "0": "2026-01-24",
+        "1": "alejandra jaime",
+        "3": "j1129, ,mantilla 016 3 aros",
+        "4": 11800,
+        "5": "5900 24 feb",
+        "6": "650 24 feb",
+        "7": "5900 20 marz",
+        "8": "5900  9 abril",
+        "9": "200 28 abril",
+        "10": "900 18-may",
+        "11": 31150,
+        "12": "regalo 2500 para accesorios"
+      },
+      "problems": [],
+      "signed_on": "2026-01-24",
+      "nombre": "alejandra jaime",
+      "producto": "j1129, ,mantilla 016 3 aros",
+      "fragments": [
+        "j1129",
+        "mantilla 016 3 aros"
+      ],
+      "anticipo_cents": 1180000,
+      "abonos": [
+        {
+          "amount_cents": 590000,
+          "paid_at": "2026-02-24",
+          "raw": "5900 24 feb",
+          "column": 5
+        },
+        {
+          "amount_cents": 65000,
+          "paid_at": "2026-02-24",
+          "raw": "650 24 feb",
+          "column": 6
+        },
+        {
+          "amount_cents": 590000,
+          "paid_at": "2026-03-20",
+          "raw": "5900 20 marz",
+          "column": 7
+        },
+        {
+          "amount_cents": 590000,
+          "paid_at": "2026-04-09",
+          "raw": "5900 9 abril",
+          "column": 8
+        },
+        {
+          "amount_cents": 20000,
+          "paid_at": "2026-04-28",
+          "raw": "200 28 abril",
+          "column": 9
+        },
+        {
+          "amount_cents": 90000,
+          "paid_at": "2026-05-18",
+          "raw": "900 18-may",
+          "column": 10
+        }
+      ],
+      "list_total_cents": 3365000,
+      "gift_cents": 250000,
+      "total_cents": 3115000,
+      "paid_cents": 3125000,
+      "balance_cents": -10000,
+      "folio": "MTY-IMP-0005",
+      "lines": [
+        {
+          "fragment": "j1129",
+          "item": null
+        },
+        {
+          "fragment": "mantilla 016 3 aros",
+          "item": null
+        }
+      ]
+    },
+    {
+      "sheet": "ene 26",
+      "rowNumber": 7,
+      "raw": {
+        "0": "2026-01-29",
+        "1": "lizbeth jaqueline villanueva",
+        "3": "melissa ,crinolina 6 aros",
+        "4": 3500,
+        "5": "3500 25 feb",
+        "6": "3500 26 marz",
+        "7": "3500 28 abril ",
+        "8": "3600 18-jun",
+        "11": 17500,
+        "12": "regalo 1500 para accesorios"
+      },
+      "problems": [],
+      "signed_on": "2026-01-29",
+      "nombre": "lizbeth jaqueline villanueva",
+      "producto": "melissa ,crinolina 6 aros",
+      "fragments": [
+        "melissa",
+        "crinolina 6 aros"
+      ],
+      "anticipo_cents": 350000,
+      "abonos": [
+        {
+          "amount_cents": 350000,
+          "paid_at": "2026-02-25",
+          "raw": "3500 25 feb",
+          "column": 5
+        },
+        {
+          "amount_cents": 350000,
+          "paid_at": "2026-03-26",
+          "raw": "3500 26 marz",
+          "column": 6
+        },
+        {
+          "amount_cents": 350000,
+          "paid_at": "2026-04-28",
+          "raw": "3500 28 abril",
+          "column": 7
+        },
+        {
+          "amount_cents": 360000,
+          "paid_at": "2026-06-18",
+          "raw": "3600 18-jun",
+          "column": 8
+        }
+      ],
+      "list_total_cents": 1900000,
+      "gift_cents": 150000,
+      "total_cents": 1750000,
+      "paid_cents": 1760000,
+      "balance_cents": -10000,
+      "folio": "MTY-IMP-0006",
+      "lines": [
+        {
+          "fragment": "melissa",
+          "item": null
+        },
+        {
+          "fragment": "crinolina 6 aros",
+          "item": null
+        }
+      ]
+    },
+    {
+      "sheet": "marzo 26",
+      "rowNumber": 2,
+      "raw": {
+        "0": "2026-03-07",
+        "1": "desteny barajas ",
+        "3": "p20 de liquidacion",
+        "4": 5000,
+        "10": 5000
+      },
+      "problems": [],
+      "signed_on": "2026-03-07",
+      "nombre": "desteny barajas",
+      "producto": "p20 de liquidacion",
+      "fragments": [
+        "p20 de liquidacion"
+      ],
+      "anticipo_cents": 500000,
+      "abonos": [],
+      "list_total_cents": 500000,
+      "gift_cents": 0,
+      "total_cents": 500000,
+      "paid_cents": 500000,
+      "balance_cents": 0,
+      "folio": "MTY-IMP-0007",
+      "lines": [
+        {
+          "fragment": "p20 de liquidacion",
+          "item": null
+        }
+      ]
+    },
+    {
+      "sheet": "marzo 26",
+      "rowNumber": 3,
+      "raw": {
+        "0": "2026-03-13",
+        "1": "sandra lizeth calderon",
+        "3": "p68 de liquidacion",
+        "4": 500,
+        "5": "1000 18 marz",
+        "6": "100 26 marz",
+        "10": 1500
+      },
+      "problems": [],
+      "signed_on": "2026-03-13",
+      "nombre": "sandra lizeth calderon",
+      "producto": "p68 de liquidacion",
+      "fragments": [
+        "p68 de liquidacion"
+      ],
+      "anticipo_cents": 50000,
+      "abonos": [
+        {
+          "amount_cents": 100000,
+          "paid_at": "2026-03-18",
+          "raw": "1000 18 marz",
+          "column": 5
+        },
+        {
+          "amount_cents": 10000,
+          "paid_at": "2026-03-26",
+          "raw": "100 26 marz",
+          "column": 6
+        }
+      ],
+      "list_total_cents": 150000,
+      "gift_cents": 0,
+      "total_cents": 150000,
+      "paid_cents": 160000,
+      "balance_cents": -10000,
+      "folio": "MTY-IMP-0008",
+      "lines": [
+        {
+          "fragment": "p68 de liquidacion",
+          "item": null
+        }
+      ]
+    },
+    {
+      "sheet": "marzo 26",
+      "rowNumber": 4,
+      "raw": {
+        "0": "2026-03-13",
+        "1": "adiana hernandez",
+        "3": "p39 de liquidacion",
+        "4": 10100,
+        "10": 10100
+      },
+      "problems": [],
+      "signed_on": "2026-03-13",
+      "nombre": "adiana hernandez",
+      "producto": "p39 de liquidacion",
+      "fragments": [
+        "p39 de liquidacion"
+      ],
+      "anticipo_cents": 1010000,
+      "abonos": [],
+      "list_total_cents": 1010000,
+      "gift_cents": 0,
+      "total_cents": 1010000,
+      "paid_cents": 1010000,
+      "balance_cents": 0,
+      "folio": "MTY-IMP-0009",
+      "lines": [
+        {
+          "fragment": "p39 de liquidacion",
+          "item": null
+        }
+      ]
+    },
+    {
+      "sheet": "marzo 26",
+      "rowNumber": 5,
+      "raw": {
+        "0": "2026-03-18",
+        "1": "andrea dominguez",
+        "3": "p140",
+        "4": 2100,
+        "5": "8800 15 abr",
+        "10": 10800
+      },
+      "problems": [],
+      "signed_on": "2026-03-18",
+      "nombre": "andrea dominguez",
+      "producto": "p140",
+      "fragments": [
+        "p140"
+      ],
+      "anticipo_cents": 210000,
+      "abonos": [
+        {
+          "amount_cents": 880000,
+          "paid_at": "2026-04-15",
+          "raw": "8800 15 abr",
+          "column": 5
+        }
+      ],
+      "list_total_cents": 1080000,
+      "gift_cents": 0,
+      "total_cents": 1080000,
+      "paid_cents": 1090000,
+      "balance_cents": -10000,
+      "folio": "MTY-IMP-0010",
+      "lines": [
+        {
+          "fragment": "p140",
+          "item": null
+        }
+      ]
+    },
+    {
+      "sheet": "marzo 26",
+      "rowNumber": 6,
+      "raw": {
+        "0": "2026-03-21",
+        "1": "blanca aracely reyes",
+        "3": "p139",
+        "4": 3000,
+        "5": "3000  25 abril  ",
+        "6": "3000 23-may",
+        "7": "3000 13-jun",
+        "8": "3300 25-jul",
+        "10": 15000
+      },
+      "problems": [],
+      "signed_on": "2026-03-21",
+      "nombre": "blanca aracely reyes",
+      "producto": "p139",
+      "fragments": [
+        "p139"
+      ],
+      "anticipo_cents": 300000,
+      "abonos": [
+        {
+          "amount_cents": 300000,
+          "paid_at": "2026-04-25",
+          "raw": "3000 25 abril",
+          "column": 5
+        },
+        {
+          "amount_cents": 300000,
+          "paid_at": "2026-05-23",
+          "raw": "3000 23-may",
+          "column": 6
+        },
+        {
+          "amount_cents": 300000,
+          "paid_at": "2026-06-13",
+          "raw": "3000 13-jun",
+          "column": 7
+        },
+        {
+          "amount_cents": 330000,
+          "paid_at": "2026-07-25",
+          "raw": "3300 25-jul",
+          "column": 8
+        }
+      ],
+      "list_total_cents": 1500000,
+      "gift_cents": 0,
+      "total_cents": 1500000,
+      "paid_cents": 1530000,
+      "balance_cents": -30000,
+      "folio": "MTY-IMP-0011",
+      "lines": [
+        {
+          "fragment": "p139",
+          "item": {
+            "id": 1,
+            "code": "p139",
+            "name": "Madelyn",
+            "kind": "dress"
+          }
+        }
+      ]
+    },
+    {
+      "sheet": "marzo 26",
+      "rowNumber": 7,
+      "raw": {
+        "0": "2026-03-27",
+        "1": "nora debany garcia",
+        "3": "p142, mantilla 016, tirantes ",
+        "4": 4960,
+        "5": "3800 28 abril",
+        "6": "3740 5-jun",
+        "10": 12400
+      },
+      "problems": [],
+      "signed_on": "2026-03-27",
+      "nombre": "nora debany garcia",
+      "producto": "p142, mantilla 016, tirantes",
+      "fragments": [
+        "p142",
+        "mantilla 016",
+        "tirantes"
+      ],
+      "anticipo_cents": 496000,
+      "abonos": [
+        {
+          "amount_cents": 380000,
+          "paid_at": "2026-04-28",
+          "raw": "3800 28 abril",
+          "column": 5
+        },
+        {
+          "amount_cents": 374000,
+          "paid_at": "2026-06-05",
+          "raw": "3740 5-jun",
+          "column": 6
+        }
+      ],
+      "list_total_cents": 1240000,
+      "gift_cents": 0,
+      "total_cents": 1240000,
+      "paid_cents": 1250000,
+      "balance_cents": -10000,
+      "folio": "MTY-IMP-0012",
+      "lines": [
+        {
+          "fragment": "p142",
+          "item": {
+            "id": 2,
+            "code": "p142",
+            "name": "Aurora",
+            "kind": "dress"
+          }
+        },
+        {
+          "fragment": "mantilla 016",
+          "item": null
+        },
+        {
+          "fragment": "tirantes",
+          "item": null
+        }
+      ]
+    },
+    {
+      "sheet": "marzo 26",
+      "rowNumber": 8,
+      "raw": {
+        "0": "2026-03-28",
+        "1": "aislin gigdem g",
+        "3": "p136- crinolina 6 aros",
+        "4": 3200,
+        "5": "3200 30 abril",
+        "6": "3200 1-jun",
+        "7": "3200 1-jul",
+        "8": "3200 31-jul",
+        "9": "200 1-ago",
+        "10": 17200
+      },
+      "problems": [],
+      "signed_on": "2026-03-28",
+      "nombre": "aislin gigdem g",
+      "producto": "p136- crinolina 6 aros",
+      "fragments": [
+        "p136- crinolina 6 aros"
+      ],
+      "anticipo_cents": 320000,
+      "abonos": [
+        {
+          "amount_cents": 320000,
+          "paid_at": "2026-04-30",
+          "raw": "3200 30 abril",
+          "column": 5
+        },
+        {
+          "amount_cents": 320000,
+          "paid_at": "2026-06-01",
+          "raw": "3200 1-jun",
+          "column": 6
+        },
+        {
+          "amount_cents": 320000,
+          "paid_at": "2026-07-01",
+          "raw": "3200 1-jul",
+          "column": 7
+        },
+        {
+          "amount_cents": 320000,
+          "paid_at": "2026-07-31",
+          "raw": "3200 31-jul",
+          "column": 8
+        },
+        {
+          "amount_cents": 20000,
+          "paid_at": "2026-08-01",
+          "raw": "200 1-ago",
+          "column": 9
+        }
+      ],
+      "list_total_cents": 1720000,
+      "gift_cents": 0,
+      "total_cents": 1720000,
+      "paid_cents": 1620000,
+      "balance_cents": 100000,
+      "folio": "MTY-IMP-0013",
+      "lines": [
+        {
+          "fragment": "p136- crinolina 6 aros",
+          "item": null
+        }
+      ]
+    },
+    {
+      "sheet": "marzo 26",
+      "rowNumber": 9,
+      "raw": {
+        "0": "2026-03-28",
+        "1": "carolina vaquera gomez",
+        "3": "p53, crinolina 6 aros",
+        "4": 4600,
+        "5": "4150 28 abril",
+        "6": "4150 27-may",
+        "7": "4150 27-jun",
+        "8": "4150 28-jul",
+        "10": 21200
+      },
+      "problems": [],
+      "signed_on": "2026-03-28",
+      "nombre": "carolina vaquera gomez",
+      "producto": "p53, crinolina 6 aros",
+      "fragments": [
+        "p53",
+        "crinolina 6 aros"
+      ],
+      "anticipo_cents": 460000,
+      "abonos": [
+        {
+          "amount_cents": 415000,
+          "paid_at": "2026-04-28",
+          "raw": "4150 28 abril",
+          "column": 5
+        },
+        {
+          "amount_cents": 415000,
+          "paid_at": "2026-05-27",
+          "raw": "4150 27-may",
+          "column": 6
+        },
+        {
+          "amount_cents": 415000,
+          "paid_at": "2026-06-27",
+          "raw": "4150 27-jun",
+          "column": 7
+        },
+        {
+          "amount_cents": 415000,
+          "paid_at": "2026-07-28",
+          "raw": "4150 28-jul",
+          "column": 8
+        }
+      ],
+      "list_total_cents": 2120000,
+      "gift_cents": 0,
+      "total_cents": 2120000,
+      "paid_cents": 2120000,
+      "balance_cents": 0,
+      "folio": "MTY-IMP-0014",
+      "lines": [
+        {
+          "fragment": "p53",
+          "item": null
+        },
+        {
+          "fragment": "crinolina 6 aros",
+          "item": null
+        }
+      ]
+    },
+    {
+      "sheet": "feb 26",
+      "rowNumber": 2,
+      "raw": {
+        "0": "2026-02-04",
+        "1": "guadalupe del angel",
+        "3": "p33 de liquidacion mas ajustes, crinolina 6 aros ",
+        "4": 3000,
+        "5": "4000 4 marz",
+        "6": "900 6 may ",
+        "10": 7800
+      },
+      "problems": [],
+      "signed_on": "2026-02-04",
+      "nombre": "guadalupe del angel",
+      "producto": "p33 de liquidacion mas ajustes, crinolina 6 aros",
+      "fragments": [
+        "p33 de liquidacion mas ajustes",
+        "crinolina 6 aros"
+      ],
+      "anticipo_cents": 300000,
+      "abonos": [
+        {
+          "amount_cents": 400000,
+          "paid_at": "2026-03-04",
+          "raw": "4000 4 marz",
+          "column": 5
+        },
+        {
+          "amount_cents": 90000,
+          "paid_at": "2026-05-06",
+          "raw": "900 6 may",
+          "column": 6
+        }
+      ],
+      "list_total_cents": 780000,
+      "gift_cents": 0,
+      "total_cents": 780000,
+      "paid_cents": 790000,
+      "balance_cents": -10000,
+      "folio": "MTY-IMP-0015",
+      "lines": [
+        {
+          "fragment": "p33 de liquidacion mas ajustes",
+          "item": null
+        },
+        {
+          "fragment": "crinolina 6 aros",
+          "item": null
+        }
+      ]
+    },
+    {
+      "sheet": "feb 26",
+      "rowNumber": 4,
+      "raw": {
+        "0": "2026-02-11",
+        "1": "julieta yahaira rdz",
+        "3": "merry -yana, mantilla 039",
+        "4": 7650,
+        "5": "6650 11 maz",
+        "6": "6650 11 abril",
+        "10": 38250
+      },
+      "problems": [],
+      "signed_on": "2026-02-11",
+      "nombre": "julieta yahaira rdz",
+      "producto": "merry -yana, mantilla 039",
+      "fragments": [
+        "merry -yana",
+        "mantilla 039"
+      ],
+      "anticipo_cents": 765000,
+      "abonos": [
+        {
+          "amount_cents": 665000,
+          "paid_at": "2026-03-11",
+          "raw": "6650 11 maz",
+          "column": 5
+        },
+        {
+          "amount_cents": 665000,
+          "paid_at": "2026-04-11",
+          "raw": "6650 11 abril",
+          "column": 6
+        }
+      ],
+      "list_total_cents": 3825000,
+      "gift_cents": 0,
+      "total_cents": 3825000,
+      "paid_cents": 2095000,
+      "balance_cents": 1730000,
+      "folio": "MTY-IMP-0016",
+      "lines": [
+        {
+          "fragment": "merry -yana",
+          "item": null
+        },
+        {
+          "fragment": "mantilla 039",
+          "item": {
+            "id": 13,
+            "code": "mantilla 039",
+            "name": "Mantilla larga bordada",
+            "kind": "accessory"
+          }
+        }
+      ]
+    },
+    {
+      "sheet": "feb 26",
+      "rowNumber": 6,
+      "raw": {
+        "0": "2026-02-14",
+        "1": "jackeline cepeda",
+        "3": "p47 de liquidacion, crinolina 6 aros",
+        "4": 3000,
+        "5": "9000 14 marz",
+        "6": "480 2 mayo ",
+        "10": 16200
+      },
+      "problems": [],
+      "signed_on": "2026-02-14",
+      "nombre": "jackeline cepeda",
+      "producto": "p47 de liquidacion, crinolina 6 aros",
+      "fragments": [
+        "p47 de liquidacion",
+        "crinolina 6 aros"
+      ],
+      "anticipo_cents": 300000,
+      "abonos": [
+        {
+          "amount_cents": 900000,
+          "paid_at": "2026-03-14",
+          "raw": "9000 14 marz",
+          "column": 5
+        },
+        {
+          "amount_cents": 48000,
+          "paid_at": "2026-05-02",
+          "raw": "480 2 mayo",
+          "column": 6
+        }
+      ],
+      "list_total_cents": 1620000,
+      "gift_cents": 0,
+      "total_cents": 1620000,
+      "paid_cents": 1248000,
+      "balance_cents": 372000,
+      "folio": "MTY-IMP-0017",
+      "lines": [
+        {
+          "fragment": "p47 de liquidacion",
+          "item": null
+        },
+        {
+          "fragment": "crinolina 6 aros",
+          "item": null
+        }
+      ]
+    },
+    {
+      "sheet": "feb 26",
+      "rowNumber": 14,
+      "raw": {
+        "0": "2026-02-07",
+        "1": "laila cristal",
+        "3": "madelyn",
+        "4": 2000,
+        "5": "2000 21 feb",
+        "6": "2000 4-abril",
+        "7": "2000 25-abril   2000 6-jun",
+        "9": "3280 15-jul",
+        "10": "3280 14-ago",
+        "11": 24400
+      },
+      "problems": [],
+      "signed_on": "2026-02-07",
+      "nombre": "laila cristal",
+      "producto": "madelyn",
+      "fragments": [
+        "madelyn"
+      ],
+      "anticipo_cents": 200000,
+      "abonos": [
+        {
+          "amount_cents": 200000,
+          "paid_at": "2026-02-21",
+          "raw": "2000 21 feb",
+          "column": 5
+        },
+        {
+          "amount_cents": 200000,
+          "paid_at": "2026-04-04",
+          "raw": "2000 4-abril",
+          "column": 6
+        },
+        {
+          "amount_cents": 200000,
+          "paid_at": "2026-04-25",
+          "raw": "2000 25-abril",
+          "column": 7
+        },
+        {
+          "amount_cents": 200000,
+          "paid_at": "2026-06-06",
+          "raw": "2000 6-jun",
+          "column": 7
+        },
+        {
+          "amount_cents": 328000,
+          "paid_at": "2026-07-15",
+          "raw": "3280 15-jul",
+          "column": 9
+        },
+        {
+          "amount_cents": 328000,
+          "paid_at": "2026-08-14",
+          "raw": "3280 14-ago",
+          "column": 10
+        }
+      ],
+      "list_total_cents": 2440000,
+      "gift_cents": 0,
+      "total_cents": 2440000,
+      "paid_cents": 1656000,
+      "balance_cents": 784000,
+      "folio": "MTY-IMP-0018",
+      "lines": [
+        {
+          "fragment": "madelyn",
+          "item": {
+            "id": 10,
+            "code": "madelyn",
+            "name": "Madelyn a medida",
+            "kind": "dress"
+          }
+        }
+      ]
+    },
+    {
+      "sheet": "feb 26",
+      "rowNumber": 15,
+      "raw": {
+        "0": "2026-02-11",
+        "1": "juieta yahaira",
+        "3": "merry- yana liquidacion, mantilla 039",
+        "4": 6650,
+        "5": "1000 11 feb",
+        "6": "6650 11-marz",
+        "7": "6650 11 -abril 6650 11-may",
+        "9": "6650 10 -jun",
+        "10": "3500 15 jul",
+        "11": 38250
+      },
+      "problems": [],
+      "signed_on": "2026-02-11",
+      "nombre": "juieta yahaira",
+      "producto": "merry- yana liquidacion, mantilla 039",
+      "fragments": [
+        "merry- yana liquidacion",
+        "mantilla 039"
+      ],
+      "anticipo_cents": 665000,
+      "abonos": [
+        {
+          "amount_cents": 100000,
+          "paid_at": "2026-02-11",
+          "raw": "1000 11 feb",
+          "column": 5
+        },
+        {
+          "amount_cents": 665000,
+          "paid_at": "2026-03-11",
+          "raw": "6650 11-marz",
+          "column": 6
+        },
+        {
+          "amount_cents": 665000,
+          "paid_at": "2026-04-11",
+          "raw": "6650 11 -abril",
+          "column": 7
+        },
+        {
+          "amount_cents": 665000,
+          "paid_at": "2026-05-11",
+          "raw": "6650 11-may",
+          "column": 7
+        },
+        {
+          "amount_cents": 665000,
+          "paid_at": "2026-06-10",
+          "raw": "6650 10 -jun",
+          "column": 9
+        },
+        {
+          "amount_cents": 350000,
+          "paid_at": "2026-07-15",
+          "raw": "3500 15 jul",
+          "column": 10
+        }
+      ],
+      "list_total_cents": 3825000,
+      "gift_cents": 0,
+      "total_cents": 3825000,
+      "paid_cents": 3775000,
+      "balance_cents": 50000,
+      "folio": "MTY-IMP-0019",
+      "lines": [
+        {
+          "fragment": "merry- yana liquidacion",
+          "item": null
+        },
+        {
+          "fragment": "mantilla 039",
+          "item": {
+            "id": 13,
+            "code": "mantilla 039",
+            "name": "Mantilla larga bordada",
+            "kind": "accessory"
+          }
+        }
+      ]
+    },
+    {
+      "sheet": "feb 26",
+      "rowNumber": 16,
+      "raw": {
+        "0": "2026-02-11",
+        "1": "fatima gatica",
+        "3": "melissa , mantilla 039",
+        "4": 2000,
+        "5": "2200 12 feb",
+        "6": "4200 19 marzo 4200 14 abril 4000 14 -may",
+        "9": "4400 16-jun",
+        "10": "250 25-ago",
+        "11": 21000
+      },
+      "problems": [],
+      "signed_on": "2026-02-11",
+      "nombre": "fatima gatica",
+      "producto": "melissa , mantilla 039",
+      "fragments": [
+        "melissa",
+        "mantilla 039"
+      ],
+      "anticipo_cents": 200000,
+      "abonos": [
+        {
+          "amount_cents": 220000,
+          "paid_at": "2026-02-12",
+          "raw": "2200 12 feb",
+          "column": 5
+        },
+        {
+          "amount_cents": 420000,
+          "paid_at": "2026-03-19",
+          "raw": "4200 19 marzo",
+          "column": 6
+        },
+        {
+          "amount_cents": 420000,
+          "paid_at": "2026-04-14",
+          "raw": "4200 14 abril",
+          "column": 6
+        },
+        {
+          "amount_cents": 400000,
+          "paid_at": "2026-05-14",
+          "raw": "4000 14 -may",
+          "column": 6
+        },
+        {
+          "amount_cents": 440000,
+          "paid_at": "2026-06-16",
+          "raw": "4400 16-jun",
+          "column": 9
+        },
+        {
+          "amount_cents": 25000,
+          "paid_at": "2026-08-25",
+          "raw": "250 25-ago",
+          "column": 10
+        }
+      ],
+      "list_total_cents": 2100000,
+      "gift_cents": 0,
+      "total_cents": 2100000,
+      "paid_cents": 2125000,
+      "balance_cents": -25000,
+      "folio": "MTY-IMP-0020",
+      "lines": [
+        {
+          "fragment": "melissa",
+          "item": null
+        },
+        {
+          "fragment": "mantilla 039",
+          "item": {
+            "id": 13,
+            "code": "mantilla 039",
+            "name": "Mantilla larga bordada",
+            "kind": "accessory"
+          }
+        }
+      ]
+    },
+    {
+      "sheet": "feb 26",
+      "rowNumber": 18,
+      "raw": {
+        "0": "2026-02-21",
+        "1": "maria del rosario",
+        "3": "azalia m,crinolina 6a ,liga,mantilla 022",
+        "4": 7300,
+        "5": "7300 20 -marz",
+        "6": " 7300 27-abril",
+        "7": "15550 4-jul",
+        "10": 36900,
+        "11": "regalo 3000 para accesorios"
+      },
+      "problems": [],
+      "signed_on": "2026-02-21",
+      "nombre": "maria del rosario",
+      "producto": "azalia m,crinolina 6a ,liga,mantilla 022",
+      "fragments": [
+        "azalia m",
+        "crinolina 6a",
+        "liga",
+        "mantilla 022"
+      ],
+      "anticipo_cents": 730000,
+      "abonos": [
+        {
+          "amount_cents": 730000,
+          "paid_at": "2026-03-20",
+          "raw": "7300 20 -marz",
+          "column": 5
+        },
+        {
+          "amount_cents": 730000,
+          "paid_at": "2026-04-27",
+          "raw": "7300 27-abril",
+          "column": 6
+        },
+        {
+          "amount_cents": 1555000,
+          "paid_at": "2026-07-04",
+          "raw": "15550 4-jul",
+          "column": 7
+        }
+      ],
+      "list_total_cents": 3990000,
+      "gift_cents": 300000,
+      "total_cents": 3690000,
+      "paid_cents": 3745000,
+      "balance_cents": -55000,
+      "folio": "MTY-IMP-0021",
+      "lines": [
+        {
+          "fragment": "azalia m",
+          "item": null
+        },
+        {
+          "fragment": "crinolina 6a",
+          "item": null
+        },
+        {
+          "fragment": "liga",
+          "item": null
+        },
+        {
+          "fragment": "mantilla 022",
+          "item": null
+        }
+      ]
+    },
+    {
+      "sheet": "feb 26",
+      "rowNumber": 19,
+      "raw": {
+        "0": "2026-02-21",
+        "1": "ivette sarahi cabrera",
+        "3": "melissa",
+        "4": 3500,
+        "5": "2000 20-mar",
+        "6": "2000 21 -abri 4000 19-may",
+        "8": "3000 15-jun",
+        "9": "3050 21-jul",
+        "10": 17500
+      },
+      "problems": [],
+      "signed_on": "2026-02-21",
+      "nombre": "ivette sarahi cabrera",
+      "producto": "melissa",
+      "fragments": [
+        "melissa"
+      ],
+      "anticipo_cents": 350000,
+      "abonos": [
+        {
+          "amount_cents": 200000,
+          "paid_at": "2026-03-20",
+          "raw": "2000 20-mar",
+          "column": 5
+        },
+        {
+          "amount_cents": 200000,
+          "paid_at": "2026-04-21",
+          "raw": "2000 21 -abri",
+          "column": 6
+        },
+        {
+          "amount_cents": 400000,
+          "paid_at": "2026-05-19",
+          "raw": "4000 19-may",
+          "column": 6
+        },
+        {
+          "amount_cents": 300000,
+          "paid_at": "2026-06-15",
+          "raw": "3000 15-jun",
+          "column": 8
+        },
+        {
+          "amount_cents": 305000,
+          "paid_at": "2026-07-21",
+          "raw": "3050 21-jul",
+          "column": 9
+        }
+      ],
+      "list_total_cents": 1750000,
+      "gift_cents": 0,
+      "total_cents": 1750000,
+      "paid_cents": 1755000,
+      "balance_cents": -5000,
+      "folio": "MTY-IMP-0022",
+      "lines": [
+        {
+          "fragment": "melissa",
+          "item": null
+        }
+      ]
+    },
+    {
+      "sheet": "feb 26",
+      "rowNumber": 20,
+      "raw": {
+        "0": "2026-02-21",
+        "1": "rocio giselle roque",
+        "3": "noeline , mantilla 041",
+        "4": 2800,
+        "5": "2800 28-2",
+        "6": "5775 31-marz",
+        "7": "11550 6-jun",
+        "8": "5775 25-jul",
+        "9": "100 1-ago",
+        "10": 28700
+      },
+      "problems": [],
+      "signed_on": "2026-02-21",
+      "nombre": "rocio giselle roque",
+      "producto": "noeline , mantilla 041",
+      "fragments": [
+        "noeline",
+        "mantilla 041"
+      ],
+      "anticipo_cents": 280000,
+      "abonos": [
+        {
+          "amount_cents": 280000,
+          "paid_at": null,
+          "raw": "2800",
+          "column": 5
+        },
+        {
+          "amount_cents": 577500,
+          "paid_at": "2026-03-31",
+          "raw": "5775 31-marz",
+          "column": 6
+        },
+        {
+          "amount_cents": 1155000,
+          "paid_at": "2026-06-06",
+          "raw": "11550 6-jun",
+          "column": 7
+        },
+        {
+          "amount_cents": 577500,
+          "paid_at": "2026-07-25",
+          "raw": "5775 25-jul",
+          "column": 8
+        },
+        {
+          "amount_cents": 10000,
+          "paid_at": "2026-08-01",
+          "raw": "100 1-ago",
+          "column": 9
+        }
+      ],
+      "list_total_cents": 2870000,
+      "gift_cents": 0,
+      "total_cents": 2870000,
+      "paid_cents": 2880000,
+      "balance_cents": -10000,
+      "folio": "MTY-IMP-0023",
+      "lines": [
+        {
+          "fragment": "noeline",
+          "item": null
+        },
+        {
+          "fragment": "mantilla 041",
+          "item": {
+            "id": 14,
+            "code": "mantilla 041",
+            "name": "Mantilla corta",
+            "kind": "accessory"
+          }
+        }
+      ]
+    },
+    {
+      "sheet": "feb 26",
+      "rowNumber": 21,
+      "raw": {
+        "0": "2026-02-23",
+        "1": "ana valeria valerio",
+        "3": "p107, t6cad0 66 , mantilla 41",
+        "4": 2800,
+        "5": " 2700 25-mar",
+        "6": "4750 22 -abr",
+        "7": "5850 16-may",
+        "10": 16100
+      },
+      "problems": [],
+      "signed_on": "2026-02-23",
+      "nombre": "ana valeria valerio",
+      "producto": "p107, t6cad0 66 , mantilla 41",
+      "fragments": [
+        "p107",
+        "t6cad0 66",
+        "mantilla 41"
+      ],
+      "anticipo_cents": 280000,
+      "abonos": [
+        {
+          "amount_cents": 270000,
+          "paid_at": "2026-03-25",
+          "raw": "2700 25-mar",
+          "column": 5
+        },
+        {
+          "amount_cents": 475000,
+          "paid_at": "2026-04-22",
+          "raw": "4750 22 -abr",
+          "column": 6
+        },
+        {
+          "amount_cents": 585000,
+          "paid_at": "2026-05-16",
+          "raw": "5850 16-may",
+          "column": 7
+        }
+      ],
+      "list_total_cents": 1610000,
+      "gift_cents": 0,
+      "total_cents": 1610000,
+      "paid_cents": 1610000,
+      "balance_cents": 0,
+      "folio": "MTY-IMP-0024",
+      "lines": [
+        {
+          "fragment": "p107",
+          "item": null
+        },
+        {
+          "fragment": "t6cad0 66",
+          "item": null
+        },
+        {
+          "fragment": "mantilla 41",
+          "item": null
+        }
+      ]
+    },
+    {
+      "sheet": "feb 26",
+      "rowNumber": 22,
+      "raw": {
+        "0": "2026-02-24",
+        "1": "ma lourdes diaz",
+        "3": "P39, mantilla 45",
+        "4": 4000,
+        "5": "4500 24 -mar  4500 23-abril  4500 22-may",
+        "8": "4500 22-jun",
+        "10": 23400,
+        "11": "regalo 1500 para accesorios"
+      },
+      "problems": [],
+      "signed_on": "2026-02-24",
+      "nombre": "ma lourdes diaz",
+      "producto": "P39, mantilla 45",
+      "fragments": [
+        "P39",
+        "mantilla 45"
+      ],
+      "anticipo_cents": 400000,
+      "abonos": [
+        {
+          "amount_cents": 450000,
+          "paid_at": "2026-03-24",
+          "raw": "4500 24 -mar",
+          "column": 5
+        },
+        {
+          "amount_cents": 450000,
+          "paid_at": "2026-04-23",
+          "raw": "4500 23-abril",
+          "column": 5
+        },
+        {
+          "amount_cents": 450000,
+          "paid_at": "2026-05-22",
+          "raw": "4500 22-may",
+          "column": 5
+        },
+        {
+          "amount_cents": 450000,
+          "paid_at": "2026-06-22",
+          "raw": "4500 22-jun",
+          "column": 8
+        }
+      ],
+      "list_total_cents": 2490000,
+      "gift_cents": 150000,
+      "total_cents": 2340000,
+      "paid_cents": 2200000,
+      "balance_cents": 140000,
+      "folio": "MTY-IMP-0025",
+      "lines": [
+        {
+          "fragment": "P39",
+          "item": null
+        },
+        {
+          "fragment": "mantilla 45",
+          "item": null
+        }
+      ]
+    },
+    {
+      "sheet": "feb 26",
+      "rowNumber": 23,
+      "raw": {
+        "0": "2026-02-28",
+        "1": "mariana hernandez",
+        "3": "ella",
+        "4": 3200,
+        "5": " 3200 28-mar  3200 30-abril",
+        "7": " 3200 29-may",
+        "8": "3200 30 jun",
+        "10": 16000,
+        "11": "regalo 1500 para accesorios"
+      },
+      "problems": [],
+      "signed_on": "2026-02-28",
+      "nombre": "mariana hernandez",
+      "producto": "ella",
+      "fragments": [
+        "ella"
+      ],
+      "anticipo_cents": 320000,
+      "abonos": [
+        {
+          "amount_cents": 320000,
+          "paid_at": "2026-03-28",
+          "raw": "3200 28-mar",
+          "column": 5
+        },
+        {
+          "amount_cents": 320000,
+          "paid_at": "2026-04-30",
+          "raw": "3200 30-abril",
+          "column": 5
+        },
+        {
+          "amount_cents": 320000,
+          "paid_at": "2026-05-29",
+          "raw": "3200 29-may",
+          "column": 7
+        },
+        {
+          "amount_cents": 320000,
+          "paid_at": "2026-06-30",
+          "raw": "3200 30 jun",
+          "column": 8
+        }
+      ],
+      "list_total_cents": 1750000,
+      "gift_cents": 150000,
+      "total_cents": 1600000,
+      "paid_cents": 1600000,
+      "balance_cents": 0,
+      "folio": "MTY-IMP-0026",
+      "lines": [
+        {
+          "fragment": "ella",
+          "item": null
+        }
+      ]
+    },
+    {
+      "sheet": "feb 26",
+      "rowNumber": 24,
+      "raw": {
+        "0": "2026-02-28",
+        "1": "nereyda concepcion",
+        "3": "adelina , tiara 58, cinto 17",
+        "4": 5000,
+        "5": "10000 17 marzo  ",
+        "6": "5000 23 abril",
+        "7": "6150 23 may",
+        "10": 25000,
+        "11": "regalo 3000 para accesorios"
+      },
+      "problems": [],
+      "signed_on": "2026-02-28",
+      "nombre": "nereyda concepcion",
+      "producto": "adelina , tiara 58, cinto 17",
+      "fragments": [
+        "adelina",
+        "tiara 58",
+        "cinto 17"
+      ],
+      "anticipo_cents": 500000,
+      "abonos": [
+        {
+          "amount_cents": 1000000,
+          "paid_at": "2026-03-17",
+          "raw": "10000 17 marzo",
+          "column": 5
+        },
+        {
+          "amount_cents": 500000,
+          "paid_at": "2026-04-23",
+          "raw": "5000 23 abril",
+          "column": 6
+        },
+        {
+          "amount_cents": 615000,
+          "paid_at": "2026-05-23",
+          "raw": "6150 23 may",
+          "column": 7
+        }
+      ],
+      "list_total_cents": 2800000,
+      "gift_cents": 300000,
+      "total_cents": 2500000,
+      "paid_cents": 2615000,
+      "balance_cents": -115000,
+      "folio": "MTY-IMP-0027",
+      "lines": [
+        {
+          "fragment": "adelina",
+          "item": null
+        },
+        {
+          "fragment": "tiara 58",
+          "item": null
+        },
+        {
+          "fragment": "cinto 17",
+          "item": null
+        }
+      ]
+    },
+    {
+      "sheet": "6 mayo 26",
+      "rowNumber": 2,
+      "raw": {
+        "0": "2026-05-06",
+        "1": "mariana martinez mata",
+        "3": "p46 liquidacion, crinolina 3 aros ",
+        "4": 2200,
+        "5": "2200 3-jun",
+        "6": "2200 6-jul",
+        "7": "2200  5-ago",
+        "10": 11000
+      },
+      "problems": [],
+      "signed_on": "2026-05-06",
+      "nombre": "mariana martinez mata",
+      "producto": "p46 liquidacion, crinolina 3 aros",
+      "fragments": [
+        "p46 liquidacion",
+        "crinolina 3 aros"
+      ],
+      "anticipo_cents": 220000,
+      "abonos": [
+        {
+          "amount_cents": 220000,
+          "paid_at": "2026-06-03",
+          "raw": "2200 3-jun",
+          "column": 5
+        },
+        {
+          "amount_cents": 220000,
+          "paid_at": "2026-07-06",
+          "raw": "2200 6-jul",
+          "column": 6
+        },
+        {
+          "amount_cents": 220000,
+          "paid_at": "2026-08-05",
+          "raw": "2200 5-ago",
+          "column": 7
+        }
+      ],
+      "list_total_cents": 1100000,
+      "gift_cents": 0,
+      "total_cents": 1100000,
+      "paid_cents": 880000,
+      "balance_cents": 220000,
+      "folio": "MTY-IMP-0028",
+      "lines": [
+        {
+          "fragment": "p46 liquidacion",
+          "item": null
+        },
+        {
+          "fragment": "crinolina 3 aros",
+          "item": null
+        }
+      ]
+    },
+    {
+      "sheet": "6 mayo 26",
+      "rowNumber": 3,
+      "raw": {
+        "0": "2026-05-07",
+        "1": "martha ivonne bazaldua",
+        "3": "jazmin",
+        "4": 7300,
+        "5": "3000 20-jul",
+        "10": 36500,
+        "11": "regalo 3000 para accesorios "
+      },
+      "problems": [],
+      "signed_on": "2026-05-07",
+      "nombre": "martha ivonne bazaldua",
+      "producto": "jazmin",
+      "fragments": [
+        "jazmin"
+      ],
+      "anticipo_cents": 730000,
+      "abonos": [
+        {
+          "amount_cents": 300000,
+          "paid_at": "2026-07-20",
+          "raw": "3000 20-jul",
+          "column": 5
+        }
+      ],
+      "list_total_cents": 3950000,
+      "gift_cents": 300000,
+      "total_cents": 3650000,
+      "paid_cents": 1030000,
+      "balance_cents": 2620000,
+      "folio": "MTY-IMP-0029",
+      "lines": [
+        {
+          "fragment": "jazmin",
+          "item": null
+        }
+      ]
+    },
+    {
+      "sheet": "6 mayo 26",
+      "rowNumber": 4,
+      "raw": {
+        "0": "2026-05-16",
+        "1": "blanca cantu",
+        "3": "p24 liquidacion capa",
+        "4": 500,
+        "5": "1600 30-may",
+        "7": "falta liquidar capa",
+        "10": 5000
+      },
+      "problems": [],
+      "signed_on": "2026-05-16",
+      "nombre": "blanca cantu",
+      "producto": "p24 liquidacion capa",
+      "fragments": [
+        "p24 liquidacion capa"
+      ],
+      "anticipo_cents": 50000,
+      "abonos": [
+        {
+          "amount_cents": 160000,
+          "paid_at": "2026-05-30",
+          "raw": "1600 30-may",
+          "column": 5
+        }
+      ],
+      "list_total_cents": 500000,
+      "gift_cents": 0,
+      "total_cents": 500000,
+      "paid_cents": 210000,
+      "balance_cents": 290000,
+      "folio": "MTY-IMP-0030",
+      "lines": [
+        {
+          "fragment": "p24 liquidacion capa",
+          "item": null
+        }
+      ]
+    },
+    {
+      "sheet": "6 mayo 26",
+      "rowNumber": 5,
+      "raw": {
+        "0": "2026-05-23",
+        "1": "haidee assi hagmaier",
+        "3": "intima",
+        "4": 7200,
+        "5": "7200 23-jun",
+        "6": "10200 21-jul",
+        "7": "7200 24-ago",
+        "10": 39000,
+        "11": "regalo 3000 para accesorios "
+      },
+      "problems": [],
+      "signed_on": "2026-05-23",
+      "nombre": "haidee assi hagmaier",
+      "producto": "intima",
+      "fragments": [
+        "intima"
+      ],
+      "anticipo_cents": 720000,
+      "abonos": [
+        {
+          "amount_cents": 720000,
+          "paid_at": "2026-06-23",
+          "raw": "7200 23-jun",
+          "column": 5
+        },
+        {
+          "amount_cents": 1020000,
+          "paid_at": "2026-07-21",
+          "raw": "10200 21-jul",
+          "column": 6
+        },
+        {
+          "amount_cents": 720000,
+          "paid_at": "2026-08-24",
+          "raw": "7200 24-ago",
+          "column": 7
+        }
+      ],
+      "list_total_cents": 4200000,
+      "gift_cents": 300000,
+      "total_cents": 3900000,
+      "paid_cents": 3180000,
+      "balance_cents": 720000,
+      "folio": "MTY-IMP-0031",
+      "lines": [
+        {
+          "fragment": "intima",
+          "item": null
+        }
+      ]
+    },
+    {
+      "sheet": "6 mayo 26",
+      "rowNumber": 6,
+      "raw": {
+        "0": "2026-05-30",
+        "1": "maria fernanda rosalino",
+        "3": "p57 mantilla 49",
+        "4": 12000,
+        "5": "5600 11-jul",
+        "10": 17500,
+        "11": "regalo 1500 para accesorios "
+      },
+      "problems": [],
+      "signed_on": "2026-05-30",
+      "nombre": "maria fernanda rosalino",
+      "producto": "p57 mantilla 49",
+      "fragments": [
+        "p57 mantilla 49"
+      ],
+      "anticipo_cents": 1200000,
+      "abonos": [
+        {
+          "amount_cents": 560000,
+          "paid_at": "2026-07-11",
+          "raw": "5600 11-jul",
+          "column": 5
+        }
+      ],
+      "list_total_cents": 1900000,
+      "gift_cents": 150000,
+      "total_cents": 1750000,
+      "paid_cents": 1760000,
+      "balance_cents": -10000,
+      "folio": "MTY-IMP-0032",
+      "lines": [
+        {
+          "fragment": "p57 mantilla 49",
+          "item": null
+        }
+      ]
+    },
+    {
+      "sheet": "6 mayo 26",
+      "rowNumber": 7,
+      "raw": {
+        "0": "2026-05-30",
+        "1": "karina guerra gzz",
+        "3": "j1191",
+        "4": 5800,
+        "5": "5800 7-jul",
+        "6": "11600 31-jul",
+        "10": 29000,
+        "11": "2500 de regalo para accesorios"
+      },
+      "problems": [],
+      "signed_on": "2026-05-30",
+      "nombre": "karina guerra gzz",
+      "producto": "j1191",
+      "fragments": [
+        "j1191"
+      ],
+      "anticipo_cents": 580000,
+      "abonos": [
+        {
+          "amount_cents": 580000,
+          "paid_at": "2026-07-07",
+          "raw": "5800 7-jul",
+          "column": 5
+        },
+        {
+          "amount_cents": 1160000,
+          "paid_at": "2026-07-31",
+          "raw": "11600 31-jul",
+          "column": 6
+        }
+      ],
+      "list_total_cents": 3150000,
+      "gift_cents": 250000,
+      "total_cents": 2900000,
+      "paid_cents": 2320000,
+      "balance_cents": 580000,
+      "folio": "MTY-IMP-0033",
+      "lines": [
+        {
+          "fragment": "j1191",
+          "item": null
+        }
+      ]
+    },
+    {
+      "sheet": "6 mayo 26",
+      "rowNumber": 8,
+      "raw": {
+        "0": "2026-05-30",
+        "1": "valeria yazmin medina",
+        "3": "p56",
+        "4": 3500,
+        "5": "4000 30-jun",
+        "6": "4000 31-jul",
+        "7": "4000 31-ago",
+        "10": 20000,
+        "11": "1500 de regalo para accesorios"
+      },
+      "problems": [],
+      "signed_on": "2026-05-30",
+      "nombre": "valeria yazmin medina",
+      "producto": "p56",
+      "fragments": [
+        "p56"
+      ],
+      "anticipo_cents": 350000,
+      "abonos": [
+        {
+          "amount_cents": 400000,
+          "paid_at": "2026-06-30",
+          "raw": "4000 30-jun",
+          "column": 5
+        },
+        {
+          "amount_cents": 400000,
+          "paid_at": "2026-07-31",
+          "raw": "4000 31-jul",
+          "column": 6
+        },
+        {
+          "amount_cents": 400000,
+          "paid_at": "2026-08-31",
+          "raw": "4000 31-ago",
+          "column": 7
+        }
+      ],
+      "list_total_cents": 2150000,
+      "gift_cents": 150000,
+      "total_cents": 2000000,
+      "paid_cents": 1550000,
+      "balance_cents": 450000,
+      "folio": "MTY-IMP-0034",
+      "lines": [
+        {
+          "fragment": "p56",
+          "item": null
+        }
+      ]
+    },
+    {
+      "sheet": "6 mayo 26",
+      "rowNumber": 9,
+      "raw": {
+        "0": "2026-05-30",
+        "1": " katia rubi  jauregui",
+        "3": "p139 mantilla 039",
+        "4": 3000,
+        "5": "2215 30-jun",
+        "6": "2215 30-jul",
+        "7": "2215  31-ago",
+        "10": 18500,
+        "11": "1500 de ragalo en accesorios"
+      },
+      "problems": [],
+      "signed_on": "2026-05-30",
+      "nombre": "katia rubi jauregui",
+      "producto": "p139 mantilla 039",
+      "fragments": [
+        "p139 mantilla 039"
+      ],
+      "anticipo_cents": 300000,
+      "abonos": [
+        {
+          "amount_cents": 221500,
+          "paid_at": "2026-06-30",
+          "raw": "2215 30-jun",
+          "column": 5
+        },
+        {
+          "amount_cents": 221500,
+          "paid_at": "2026-07-30",
+          "raw": "2215 30-jul",
+          "column": 6
+        },
+        {
+          "amount_cents": 221500,
+          "paid_at": "2026-08-31",
+          "raw": "2215 31-ago",
+          "column": 7
+        }
+      ],
+      "list_total_cents": 2000000,
+      "gift_cents": 150000,
+      "total_cents": 1850000,
+      "paid_cents": 964500,
+      "balance_cents": 885500,
+      "folio": "MTY-IMP-0035",
+      "lines": [
+        {
+          "fragment": "p139 mantilla 039",
+          "item": {
+            "id": 1,
+            "code": "p139",
+            "name": "Madelyn",
+            "kind": "dress"
+          }
+        }
+      ]
+    },
+    {
+      "sheet": "abril 26",
+      "rowNumber": 2,
+      "raw": {
+        "0": "2026-04-06",
+        "1": "stephani rodriguez",
+        "3": "j1170 muetra tIrantes ",
+        "4": 5000,
+        "5": "10000 12-jun",
+        "6": "10900 23-jul",
+        "10": 25800
+      },
+      "problems": [],
+      "signed_on": "2026-04-06",
+      "nombre": "stephani rodriguez",
+      "producto": "j1170 muetra tIrantes",
+      "fragments": [
+        "j1170 muetra tIrantes"
+      ],
+      "anticipo_cents": 500000,
+      "abonos": [
+        {
+          "amount_cents": 1000000,
+          "paid_at": "2026-06-12",
+          "raw": "10000 12-jun",
+          "column": 5
+        },
+        {
+          "amount_cents": 1090000,
+          "paid_at": "2026-07-23",
+          "raw": "10900 23-jul",
+          "column": 6
+        }
+      ],
+      "list_total_cents": 2580000,
+      "gift_cents": 0,
+      "total_cents": 2580000,
+      "paid_cents": 2590000,
+      "balance_cents": -10000,
+      "folio": "MTY-IMP-0036",
+      "lines": [
+        {
+          "fragment": "j1170 muetra tIrantes",
+          "item": null
+        }
+      ]
+    },
+    {
+      "sheet": "abril 26",
+      "rowNumber": 3,
+      "raw": {
+        "0": "2026-04-16",
+        "1": "leslie sofia rodriguez",
+        "3": "melissa, mantilla 039,mantilla 48, tiara 63",
+        "4": 5100,
+        "5": "10000 21-jun",
+        "6": "5100 25-jul",
+        "10": 25500
+      },
+      "problems": [],
+      "signed_on": "2026-04-16",
+      "nombre": "leslie sofia rodriguez",
+      "producto": "melissa, mantilla 039,mantilla 48, tiara 63",
+      "fragments": [
+        "melissa",
+        "mantilla 039",
+        "mantilla 48",
+        "tiara 63"
+      ],
+      "anticipo_cents": 510000,
+      "abonos": [
+        {
+          "amount_cents": 1000000,
+          "paid_at": "2026-06-21",
+          "raw": "10000 21-jun",
+          "column": 5
+        },
+        {
+          "amount_cents": 510000,
+          "paid_at": "2026-07-25",
+          "raw": "5100 25-jul",
+          "column": 6
+        }
+      ],
+      "list_total_cents": 2550000,
+      "gift_cents": 0,
+      "total_cents": 2550000,
+      "paid_cents": 2020000,
+      "balance_cents": 530000,
+      "folio": "MTY-IMP-0037",
+      "lines": [
+        {
+          "fragment": "melissa",
+          "item": null
+        },
+        {
+          "fragment": "mantilla 039",
+          "item": {
+            "id": 13,
+            "code": "mantilla 039",
+            "name": "Mantilla larga bordada",
+            "kind": "accessory"
+          }
+        },
+        {
+          "fragment": "mantilla 48",
+          "item": null
+        },
+        {
+          "fragment": "tiara 63",
+          "item": null
+        }
+      ]
+    },
+    {
+      "sheet": "abril 26",
+      "rowNumber": 4,
+      "raw": {
+        "0": "2026-04-18",
+        "1": "gloria cecelia gamboa",
+        "3": "p59",
+        "4": 4000,
+        "5": "4000 18-may",
+        "6": "4000 19-jun",
+        "7": "4000 23-jul",
+        "8": "5400 18-ago",
+        "10": 21400
+      },
+      "problems": [],
+      "signed_on": "2026-04-18",
+      "nombre": "gloria cecelia gamboa",
+      "producto": "p59",
+      "fragments": [
+        "p59"
+      ],
+      "anticipo_cents": 400000,
+      "abonos": [
+        {
+          "amount_cents": 400000,
+          "paid_at": "2026-05-18",
+          "raw": "4000 18-may",
+          "column": 5
+        },
+        {
+          "amount_cents": 400000,
+          "paid_at": "2026-06-19",
+          "raw": "4000 19-jun",
+          "column": 6
+        },
+        {
+          "amount_cents": 400000,
+          "paid_at": "2026-07-23",
+          "raw": "4000 23-jul",
+          "column": 7
+        },
+        {
+          "amount_cents": 540000,
+          "paid_at": "2026-08-18",
+          "raw": "5400 18-ago",
+          "column": 8
+        }
+      ],
+      "list_total_cents": 2140000,
+      "gift_cents": 0,
+      "total_cents": 2140000,
+      "paid_cents": 2140000,
+      "balance_cents": 0,
+      "folio": "MTY-IMP-0038",
+      "lines": [
+        {
+          "fragment": "p59",
+          "item": null
+        }
+      ]
+    },
+    {
+      "sheet": "abril 26",
+      "rowNumber": 5,
+      "raw": {
+        "0": "2026-04-25",
+        "1": "alondra yahaira salazar",
+        "3": "p139, crinolina 6 aros",
+        "4": 5000,
+        "5": "5000 28 abril ",
+        "6": "5000 27-jun",
+        "10": 15000
+      },
+      "problems": [],
+      "signed_on": "2026-04-25",
+      "nombre": "alondra yahaira salazar",
+      "producto": "p139, crinolina 6 aros",
+      "fragments": [
+        "p139",
+        "crinolina 6 aros"
+      ],
+      "anticipo_cents": 500000,
+      "abonos": [
+        {
+          "amount_cents": 500000,
+          "paid_at": "2026-04-28",
+          "raw": "5000 28 abril",
+          "column": 5
+        },
+        {
+          "amount_cents": 500000,
+          "paid_at": "2026-06-27",
+          "raw": "5000 27-jun",
+          "column": 6
+        }
+      ],
+      "list_total_cents": 1500000,
+      "gift_cents": 0,
+      "total_cents": 1500000,
+      "paid_cents": 1500000,
+      "balance_cents": 0,
+      "folio": "MTY-IMP-0039",
+      "lines": [
+        {
+          "fragment": "p139",
+          "item": {
+            "id": 1,
+            "code": "p139",
+            "name": "Madelyn",
+            "kind": "dress"
+          }
+        },
+        {
+          "fragment": "crinolina 6 aros",
+          "item": null
+        }
+      ]
+    },
+    {
+      "sheet": "abril 26",
+      "rowNumber": 6,
+      "raw": {
+        "0": "2026-04-25",
+        "1": "zuralba aguilar ",
+        "3": "p139, crinolina 6 aros",
+        "4": 6000,
+        "5": "9000 23-may",
+        "6": "350 20-jun",
+        "10": 15250,
+        "11": "regalo 1500 para accesorios "
+      },
+      "problems": [],
+      "signed_on": "2026-04-25",
+      "nombre": "zuralba aguilar",
+      "producto": "p139, crinolina 6 aros",
+      "fragments": [
+        "p139",
+        "crinolina 6 aros"
+      ],
+      "anticipo_cents": 600000,
+      "abonos": [
+        {
+          "amount_cents": 900000,
+          "paid_at": "2026-05-23",
+          "raw": "9000 23-may",
+          "column": 5
+        },
+        {
+          "amount_cents": 35000,
+          "paid_at": "2026-06-20",
+          "raw": "350 20-jun",
+          "column": 6
+        }
+      ],
+      "list_total_cents": 1675000,
+      "gift_cents": 150000,
+      "total_cents": 1525000,
+      "paid_cents": 1535000,
+      "balance_cents": -10000,
+      "folio": "MTY-IMP-0040",
+      "lines": [
+        {
+          "fragment": "p139",
+          "item": {
+            "id": 1,
+            "code": "p139",
+            "name": "Madelyn",
+            "kind": "dress"
+          }
+        },
+        {
+          "fragment": "crinolina 6 aros",
+          "item": null
+        }
+      ]
+    },
+    {
+      "sheet": "junio 26",
+      "rowNumber": 3,
+      "raw": {
+        "0": "2026-06-06",
+        "1": "lourdes yesenia",
+        "4": "mikado moño velo largo de perlas velo corto de perlas",
+        "9": 5640,
+        "10": "3400 6-jul",
+        "11": "g",
+        "16": 29100,
+        "17": "2500 de regalo"
+      },
+      "problems": [],
+      "signed_on": "2026-06-06",
+      "nombre": "lourdes yesenia",
+      "producto": "mikado moño velo largo de perlas velo corto de perlas",
+      "fragments": [
+        "mikado moño velo largo de perlas velo corto de perlas"
+      ],
+      "anticipo_cents": 564000,
+      "abonos": [
+        {
+          "amount_cents": 340000,
+          "paid_at": "2026-07-06",
+          "raw": "3400 6-jul",
+          "column": 10
+        }
+      ],
+      "list_total_cents": 3160000,
+      "gift_cents": 250000,
+      "total_cents": 2910000,
+      "paid_cents": 904000,
+      "balance_cents": 2006000,
+      "folio": "MTY-IMP-0041",
+      "lines": [
+        {
+          "fragment": "mikado moño velo largo de perlas velo corto de perlas",
+          "item": null
+        }
+      ]
+    },
+    {
+      "sheet": "junio 26",
+      "rowNumber": 4,
+      "raw": {
+        "0": "2026-06-06",
+        "1": "mixi barron lopez",
+        "4": "     p139  velo largo liso",
+        "9": 3600,
+        "10": "5000  13 -jun",
+        "11": "3375 7-jul",
+        "12": "2500 11-ago",
+        "16": 17100,
+        "17": "1500 de regalo"
+      },
+      "problems": [],
+      "signed_on": "2026-06-06",
+      "nombre": "mixi barron lopez",
+      "producto": "p139 velo largo liso",
+      "fragments": [
+        "p139 velo largo liso"
+      ],
+      "anticipo_cents": 360000,
+      "abonos": [
+        {
+          "amount_cents": 500000,
+          "paid_at": "2026-06-13",
+          "raw": "5000 13 -jun",
+          "column": 10
+        },
+        {
+          "amount_cents": 337500,
+          "paid_at": "2026-07-07",
+          "raw": "3375 7-jul",
+          "column": 11
+        },
+        {
+          "amount_cents": 250000,
+          "paid_at": "2026-08-11",
+          "raw": "2500 11-ago",
+          "column": 12
+        }
+      ],
+      "list_total_cents": 1860000,
+      "gift_cents": 150000,
+      "total_cents": 1710000,
+      "paid_cents": 1447500,
+      "balance_cents": 262500,
+      "folio": "MTY-IMP-0042",
+      "lines": [
+        {
+          "fragment": "p139 velo largo liso",
+          "item": {
+            "id": 1,
+            "code": "p139",
+            "name": "Madelyn",
+            "kind": "dress"
+          }
+        }
+      ]
+    },
+    {
+      "sheet": "junio 26",
+      "rowNumber": 6,
+      "raw": {
+        "0": "2026-06-13",
+        "1": "adriana lopez",
+        "4": "p139",
+        "9": 3000,
+        "10": "3000 13-jul",
+        "11": "3000 14-ago",
+        "16": 15000,
+        "17": "1500 de regalo"
+      },
+      "problems": [],
+      "signed_on": "2026-06-13",
+      "nombre": "adriana lopez",
+      "producto": "p139",
+      "fragments": [
+        "p139"
+      ],
+      "anticipo_cents": 300000,
+      "abonos": [
+        {
+          "amount_cents": 300000,
+          "paid_at": "2026-07-13",
+          "raw": "3000 13-jul",
+          "column": 10
+        },
+        {
+          "amount_cents": 300000,
+          "paid_at": "2026-08-14",
+          "raw": "3000 14-ago",
+          "column": 11
+        }
+      ],
+      "list_total_cents": 1650000,
+      "gift_cents": 150000,
+      "total_cents": 1500000,
+      "paid_cents": 900000,
+      "balance_cents": 600000,
+      "folio": "MTY-IMP-0043",
+      "lines": [
+        {
+          "fragment": "p139",
+          "item": {
+            "id": 1,
+            "code": "p139",
+            "name": "Madelyn",
+            "kind": "dress"
+          }
+        }
+      ]
+    },
+    {
+      "sheet": "junio 26",
+      "rowNumber": 7,
+      "raw": {
+        "0": "2026-06-20",
+        "1": "karla peña",
+        "4": "s14 m ,tirantes, crinolina 1 aro",
+        "9": 1780,
+        "10": "1600 20-jul",
+        "11": "1830 20-ago",
+        "16": 8150
+      },
+      "problems": [],
+      "signed_on": "2026-06-20",
+      "nombre": "karla peña",
+      "producto": "s14 m ,tirantes, crinolina 1 aro",
+      "fragments": [
+        "s14 m",
+        "tirantes",
+        "crinolina 1 aro"
+      ],
+      "anticipo_cents": 178000,
+      "abonos": [
+        {
+          "amount_cents": 160000,
+          "paid_at": "2026-07-20",
+          "raw": "1600 20-jul",
+          "column": 10
+        },
+        {
+          "amount_cents": 183000,
+          "paid_at": "2026-08-20",
+          "raw": "1830 20-ago",
+          "column": 11
+        }
+      ],
+      "list_total_cents": 815000,
+      "gift_cents": 0,
+      "total_cents": 815000,
+      "paid_cents": 521000,
+      "balance_cents": 294000,
+      "folio": "MTY-IMP-0044",
+      "lines": [
+        {
+          "fragment": "s14 m",
+          "item": {
+            "id": 4,
+            "code": "s14",
+            "name": "Renata",
+            "kind": "dress"
+          }
+        },
+        {
+          "fragment": "tirantes",
+          "item": null
+        },
+        {
+          "fragment": "crinolina 1 aro",
+          "item": null
+        }
+      ]
+    },
+    {
+      "sheet": "jul26",
+      "rowNumber": 2,
+      "raw": {
+        "0": "2026-07-18",
+        "1": "martha guadalupe",
+        "3": "crinolina 3 aros tiara 66",
+        "4": "       melissa",
+        "5": 7800,
+        "6": "5500 18-ago",
+        "7": "5100 4-sept",
+        "12": 18300
+      },
+      "problems": [],
+      "signed_on": "2026-07-18",
+      "nombre": "martha guadalupe",
+      "producto": "crinolina 3 aros tiara 66, melissa",
+      "fragments": [
+        "crinolina 3 aros tiara 66",
+        "melissa"
+      ],
+      "anticipo_cents": 780000,
+      "abonos": [
+        {
+          "amount_cents": 550000,
+          "paid_at": "2026-08-18",
+          "raw": "5500 18-ago",
+          "column": 6
+        },
+        {
+          "amount_cents": 510000,
+          "paid_at": "2026-09-04",
+          "raw": "5100 4-sept",
+          "column": 7
+        }
+      ],
+      "list_total_cents": 1830000,
+      "gift_cents": 0,
+      "total_cents": 1830000,
+      "paid_cents": 1840000,
+      "balance_cents": -10000,
+      "folio": "MTY-IMP-0045",
+      "lines": [
+        {
+          "fragment": "crinolina 3 aros tiara 66",
+          "item": null
+        },
+        {
+          "fragment": "melissa",
+          "item": null
+        }
+      ]
+    },
+    {
+      "sheet": "jul26",
+      "rowNumber": 4,
+      "raw": {
+        "0": "2026-07-24",
+        "1": "maria isabel",
+        "3": "mantilla 45",
+        "4": "      j1194",
+        "5": 3500,
+        "12": 33500,
+        "14": "3000 de regalo en accesorios"
+      },
+      "problems": [],
+      "signed_on": "2026-07-24",
+      "nombre": "maria isabel",
+      "producto": "mantilla 45, j1194",
+      "fragments": [
+        "mantilla 45",
+        "j1194"
+      ],
+      "anticipo_cents": 350000,
+      "abonos": [],
+      "list_total_cents": 3650000,
+      "gift_cents": 300000,
+      "total_cents": 3350000,
+      "paid_cents": 350000,
+      "balance_cents": 3000000,
+      "folio": "MTY-IMP-0046",
+      "lines": [
+        {
+          "fragment": "mantilla 45",
+          "item": null
+        },
+        {
+          "fragment": "j1194",
+          "item": null
+        }
+      ]
+    },
+    {
+      "sheet": "jul26",
+      "rowNumber": 5,
+      "raw": {
+        "0": "2026-07-28",
+        "1": "daniela mata",
+        "3": "crinolina 6 a",
+        "4": "     cherry",
+        "5": 4000,
+        "6": "3200 4-sep",
+        "12": 20000,
+        "14": "1500 de regalo en accesorios"
+      },
+      "problems": [],
+      "signed_on": "2026-07-28",
+      "nombre": "daniela mata",
+      "producto": "crinolina 6 a, cherry",
+      "fragments": [
+        "crinolina 6 a",
+        "cherry"
+      ],
+      "anticipo_cents": 400000,
+      "abonos": [
+        {
+          "amount_cents": 320000,
+          "paid_at": "2026-09-04",
+          "raw": "3200 4-sep",
+          "column": 6
+        }
+      ],
+      "list_total_cents": 2150000,
+      "gift_cents": 150000,
+      "total_cents": 2000000,
+      "paid_cents": 720000,
+      "balance_cents": 1280000,
+      "folio": "MTY-IMP-0047",
+      "lines": [
+        {
+          "fragment": "crinolina 6 a",
+          "item": null
+        },
+        {
+          "fragment": "cherry",
+          "item": null
+        }
+      ]
+    },
+    {
+      "sheet": "jul26",
+      "rowNumber": 6,
+      "raw": {
+        "0": "2026-07-29",
+        "1": "damaris uribe",
+        "3": "crinolina 3 a",
+        "4": "       ella",
+        "5": 6400,
+        "6": "1920 29-ago",
+        "12": 16000,
+        "14": "1000 de regalo en accesorios"
+      },
+      "problems": [],
+      "signed_on": "2026-07-29",
+      "nombre": "damaris uribe",
+      "producto": "crinolina 3 a, ella",
+      "fragments": [
+        "crinolina 3 a",
+        "ella"
+      ],
+      "anticipo_cents": 640000,
+      "abonos": [
+        {
+          "amount_cents": 192000,
+          "paid_at": "2026-08-29",
+          "raw": "1920 29-ago",
+          "column": 6
+        }
+      ],
+      "list_total_cents": 1700000,
+      "gift_cents": 100000,
+      "total_cents": 1600000,
+      "paid_cents": 832000,
+      "balance_cents": 768000,
+      "folio": "MTY-IMP-0048",
+      "lines": [
+        {
+          "fragment": "crinolina 3 a",
+          "item": null
+        },
+        {
+          "fragment": "ella",
+          "item": null
+        }
+      ]
+    },
+    {
+      "sheet": "ago 26",
+      "rowNumber": 2,
+      "raw": {
+        "0": "2026-08-01",
+        "1": "alejandra sanchez",
+        "5": "titiara63",
+        "9": 2400,
+        "16": 2400
+      },
+      "problems": [],
+      "signed_on": "2026-08-01",
+      "nombre": "alejandra sanchez",
+      "producto": "titiara63",
+      "fragments": [
+        "titiara63"
+      ],
+      "anticipo_cents": 240000,
+      "abonos": [],
+      "list_total_cents": 240000,
+      "gift_cents": 0,
+      "total_cents": 240000,
+      "paid_cents": 240000,
+      "balance_cents": 0,
+      "folio": "MTY-IMP-0049",
+      "lines": [
+        {
+          "fragment": "titiara63",
+          "item": null
+        }
+      ]
+    },
+    {
+      "sheet": "ago 26",
+      "rowNumber": 3,
+      "raw": {
+        "0": "2026-08-01",
+        "1": "himelda rivera",
+        "3": "mantilla o39",
+        "5": "madelyn",
+        "9": 9000,
+        "10": "4375 29-ago",
+        "16": 26500,
+        "17": "1500 de regalo"
+      },
+      "problems": [],
+      "signed_on": "2026-08-01",
+      "nombre": "himelda rivera",
+      "producto": "mantilla o39, madelyn",
+      "fragments": [
+        "mantilla o39",
+        "madelyn"
+      ],
+      "anticipo_cents": 900000,
+      "abonos": [
+        {
+          "amount_cents": 437500,
+          "paid_at": "2026-08-29",
+          "raw": "4375 29-ago",
+          "column": 10
+        }
+      ],
+      "list_total_cents": 2800000,
+      "gift_cents": 150000,
+      "total_cents": 2650000,
+      "paid_cents": 1337500,
+      "balance_cents": 1312500,
+      "folio": "MTY-IMP-0050",
+      "lines": [
+        {
+          "fragment": "mantilla o39",
+          "item": null
+        },
+        {
+          "fragment": "madelyn",
+          "item": {
+            "id": 10,
+            "code": "madelyn",
+            "name": "Madelyn a medida",
+            "kind": "dress"
+          }
+        }
+      ]
+    },
+    {
+      "sheet": "ago 26",
+      "rowNumber": 6,
+      "raw": {
+        "0": "2026-08-29",
+        "1": "johanna jaquelin",
+        "5": "amaranta",
+        "9": 5000,
+        "16": 30000
+      },
+      "problems": [],
+      "signed_on": "2026-08-29",
+      "nombre": "johanna jaquelin",
+      "producto": "amaranta",
+      "fragments": [
+        "amaranta"
+      ],
+      "anticipo_cents": 500000,
+      "abonos": [],
+      "list_total_cents": 3000000,
+      "gift_cents": 0,
+      "total_cents": 3000000,
+      "paid_cents": 500000,
+      "balance_cents": 2500000,
+      "folio": "MTY-IMP-0051",
+      "lines": [
+        {
+          "fragment": "amaranta",
+          "item": null
+        }
+      ]
+    },
+    {
+      "sheet": "Hoja7",
+      "rowNumber": 2,
+      "raw": {
+        "0": "2026-09-02",
+        "1": "maria fernanda",
+        "3": " cherry mantilla 039",
+        "4": 3000,
+        "10": 23500
+      },
+      "problems": [],
+      "signed_on": "2026-09-02",
+      "nombre": "maria fernanda",
+      "producto": "cherry mantilla 039",
+      "fragments": [
+        "cherry mantilla 039"
+      ],
+      "anticipo_cents": 300000,
+      "abonos": [],
+      "list_total_cents": 2350000,
+      "gift_cents": 0,
+      "total_cents": 2350000,
+      "paid_cents": 300000,
+      "balance_cents": 2050000,
+      "folio": "MTY-IMP-0052",
+      "lines": [
+        {
+          "fragment": "cherry mantilla 039",
+          "item": null
+        }
+      ]
+    }
+  ],
+  "rejected": [
+    {
+      "sheet": "junio 26",
+      "rowNumber": 5,
+      "raw": {
+        "0": "2026-06-06",
+        "1": "paola chapa",
+        "4": "madelyn ,mantilla045,crinolina 6 aros",
+        "7": "ctiara66",
+        "10": "2500 17-jun",
+        "11": "5100 9-jul",
+        "12": "4200 11-ago",
+        "17": "2500 de regalo"
+      },
+      "nombre": "paola chapa",
+      "problems": [
+        "no trae ni anticipo ni total"
+      ]
+    },
+    {
+      "sheet": "jul26",
+      "rowNumber": 1,
+      "raw": {
+        "0": "2026-07-08",
+        "1": "belem orea",
+        "3": " mantilla 039",
+        "5": 1200,
+        "6": "3800 31-jul",
+        "12": 5000,
+        "16": 29100,
+        "17": "2500 de regalo"
+      },
+      "problems": [
+        "números sueltos entre el anticipo y el total, en las columnas 12: 5000"
+      ],
+      "signed_on": "2026-07-08",
+      "nombre": "belem orea",
+      "producto": "mantilla 039",
+      "fragments": [
+        "mantilla 039"
+      ],
+      "anticipo_cents": 120000,
+      "abonos": [
+        {
+          "amount_cents": 380000,
+          "paid_at": "2026-07-31",
+          "raw": "3800 31-jul",
+          "column": 6
+        }
+      ],
+      "list_total_cents": 3160000,
+      "gift_cents": 250000,
+      "total_cents": 2910000,
+      "paid_cents": 500000,
+      "balance_cents": 2410000
+    },
+    {
+      "sheet": "jul26",
+      "rowNumber": 3,
+      "raw": {
+        "0": "2026-07-23",
+        "1": "anna olivares",
+        "3": "mantilla 039",
+        "4": "      amalia m",
+        "5": 11000,
+        "6": "7000 22-ago",
+        "12": 41000,
+        "14": "3000 de regalo accesorios",
+        "16": 15000,
+        "17": "1500 de regalo"
+      },
+      "problems": [
+        "números sueltos entre el anticipo y el total, en las columnas 12: 41000"
+      ],
+      "signed_on": "2026-07-23",
+      "nombre": "anna olivares",
+      "producto": "mantilla 039, amalia m",
+      "fragments": [
+        "mantilla 039",
+        "amalia m"
+      ],
+      "anticipo_cents": 1100000,
+      "abonos": [
+        {
+          "amount_cents": 700000,
+          "paid_at": "2026-08-22",
+          "raw": "7000 22-ago",
+          "column": 6
+        },
+        {
+          "amount_cents": 300000,
+          "paid_at": null,
+          "raw": "3000",
+          "column": 14
+        }
+      ],
+      "list_total_cents": 1650000,
+      "gift_cents": 150000,
+      "total_cents": 1500000,
+      "paid_cents": 2100000,
+      "balance_cents": -600000
+    },
+    {
+      "sheet": "ago 26",
+      "rowNumber": 4,
+      "raw": {
+        "0": "2026-08-17",
+        "1": "abigail mancilla",
+        "5": "cherry",
+        "9": 8000,
+        "10": "120000 4-sept",
+        "16": 20000
+      },
+      "problems": [
+        "el abono «120000 4-sept» es mayor que el total (20000)"
+      ],
+      "signed_on": "2026-08-17",
+      "nombre": "abigail mancilla",
+      "producto": "cherry",
+      "fragments": [
+        "cherry"
+      ],
+      "anticipo_cents": 800000,
+      "abonos": [
+        {
+          "amount_cents": 12000000,
+          "paid_at": "2026-09-04",
+          "raw": "120000 4-sept",
+          "column": 10
+        }
+      ],
+      "list_total_cents": 2000000,
+      "gift_cents": 0,
+      "total_cents": 2000000,
+      "paid_cents": 12800000,
+      "balance_cents": -10800000
+    },
+    {
+      "sheet": "ago 26",
+      "rowNumber": 5,
+      "raw": {
+        "0": "2026-08-29",
+        "1": "doris encinia",
+        "3": "crinolina 3 aros",
+        "5": "p139",
+        "9": 2750
+      },
+      "nombre": "doris encinia",
+      "problems": [
+        "sólo trae un número (2750): no se sabe si es anticipo o total"
+      ]
+    }
+  ],
+  "duplicates": [
+    {
+      "sheet": "feb 26",
+      "rowNumber": 3,
+      "raw": {
+        "0": "2026-02-07",
+        "1": "laila cristal",
+        "3": "p40 de liquidacion",
+        "4": 2000,
+        "5": "2000 21 feb",
+        "6": "2000 4 abril",
+        "7": "2000 25 abril ",
+        "10": 10000
+      },
+      "problems": [],
+      "signed_on": "2026-02-07",
+      "nombre": "laila cristal",
+      "producto": "p40 de liquidacion",
+      "fragments": [
+        "p40 de liquidacion"
+      ],
+      "anticipo_cents": 200000,
+      "abonos": [
+        {
+          "amount_cents": 200000,
+          "paid_at": "2026-02-21",
+          "raw": "2000 21 feb",
+          "column": 5
+        },
+        {
+          "amount_cents": 200000,
+          "paid_at": "2026-04-04",
+          "raw": "2000 4 abril",
+          "column": 6
+        },
+        {
+          "amount_cents": 200000,
+          "paid_at": "2026-04-25",
+          "raw": "2000 25 abril",
+          "column": 7
+        }
+      ],
+      "list_total_cents": 1000000,
+      "gift_cents": 0,
+      "total_cents": 1000000,
+      "paid_cents": 800000,
+      "balance_cents": 200000,
+      "superseded_by": {
+        "sheet": "feb 26",
+        "rowNumber": 14,
+        "raw": {
+          "0": "2026-02-07",
+          "1": "laila cristal",
+          "3": "madelyn",
+          "4": 2000,
+          "5": "2000 21 feb",
+          "6": "2000 4-abril",
+          "7": "2000 25-abril   2000 6-jun",
+          "9": "3280 15-jul",
+          "10": "3280 14-ago",
+          "11": 24400
+        },
+        "problems": [],
+        "signed_on": "2026-02-07",
+        "nombre": "laila cristal",
+        "producto": "madelyn",
+        "fragments": [
+          "madelyn"
+        ],
+        "anticipo_cents": 200000,
+        "abonos": [
+          {
+            "amount_cents": 200000,
+            "paid_at": "2026-02-21",
+            "raw": "2000 21 feb",
+            "column": 5
+          },
+          {
+            "amount_cents": 200000,
+            "paid_at": "2026-04-04",
+            "raw": "2000 4-abril",
+            "column": 6
+          },
+          {
+            "amount_cents": 200000,
+            "paid_at": "2026-04-25",
+            "raw": "2000 25-abril",
+            "column": 7
+          },
+          {
+            "amount_cents": 200000,
+            "paid_at": "2026-06-06",
+            "raw": "2000 6-jun",
+            "column": 7
+          },
+          {
+            "amount_cents": 328000,
+            "paid_at": "2026-07-15",
+            "raw": "3280 15-jul",
+            "column": 9
+          },
+          {
+            "amount_cents": 328000,
+            "paid_at": "2026-08-14",
+            "raw": "3280 14-ago",
+            "column": 10
+          }
+        ],
+        "list_total_cents": 2440000,
+        "gift_cents": 0,
+        "total_cents": 2440000,
+        "paid_cents": 1656000,
+        "balance_cents": 784000,
+        "folio": "MTY-IMP-0018",
+        "lines": [
+          {
+            "fragment": "madelyn",
+            "item": {
+              "id": 10,
+              "code": "madelyn",
+              "name": "Madelyn a medida",
+              "kind": "dress"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "sheet": "feb 26",
+      "rowNumber": 5,
+      "raw": {
+        "0": "2026-02-11",
+        "1": "fatima gatica",
+        "3": "melissa, mantilla 039",
+        "4": 2000,
+        "5": "4200 19 marz",
+        "6": "4200 14 abril ",
+        "10": 21000,
+        "11": "regalo 1500 para accesorios"
+      },
+      "problems": [],
+      "signed_on": "2026-02-11",
+      "nombre": "fatima gatica",
+      "producto": "melissa, mantilla 039",
+      "fragments": [
+        "melissa",
+        "mantilla 039"
+      ],
+      "anticipo_cents": 200000,
+      "abonos": [
+        {
+          "amount_cents": 420000,
+          "paid_at": "2026-03-19",
+          "raw": "4200 19 marz",
+          "column": 5
+        },
+        {
+          "amount_cents": 420000,
+          "paid_at": "2026-04-14",
+          "raw": "4200 14 abril",
+          "column": 6
+        }
+      ],
+      "list_total_cents": 2250000,
+      "gift_cents": 150000,
+      "total_cents": 2100000,
+      "paid_cents": 1040000,
+      "balance_cents": 1060000,
+      "superseded_by": {
+        "sheet": "feb 26",
+        "rowNumber": 16,
+        "raw": {
+          "0": "2026-02-11",
+          "1": "fatima gatica",
+          "3": "melissa , mantilla 039",
+          "4": 2000,
+          "5": "2200 12 feb",
+          "6": "4200 19 marzo 4200 14 abril 4000 14 -may",
+          "9": "4400 16-jun",
+          "10": "250 25-ago",
+          "11": 21000
+        },
+        "problems": [],
+        "signed_on": "2026-02-11",
+        "nombre": "fatima gatica",
+        "producto": "melissa , mantilla 039",
+        "fragments": [
+          "melissa",
+          "mantilla 039"
+        ],
+        "anticipo_cents": 200000,
+        "abonos": [
+          {
+            "amount_cents": 220000,
+            "paid_at": "2026-02-12",
+            "raw": "2200 12 feb",
+            "column": 5
+          },
+          {
+            "amount_cents": 420000,
+            "paid_at": "2026-03-19",
+            "raw": "4200 19 marzo",
+            "column": 6
+          },
+          {
+            "amount_cents": 420000,
+            "paid_at": "2026-04-14",
+            "raw": "4200 14 abril",
+            "column": 6
+          },
+          {
+            "amount_cents": 400000,
+            "paid_at": "2026-05-14",
+            "raw": "4000 14 -may",
+            "column": 6
+          },
+          {
+            "amount_cents": 440000,
+            "paid_at": "2026-06-16",
+            "raw": "4400 16-jun",
+            "column": 9
+          },
+          {
+            "amount_cents": 25000,
+            "paid_at": "2026-08-25",
+            "raw": "250 25-ago",
+            "column": 10
+          }
+        ],
+        "list_total_cents": 2100000,
+        "gift_cents": 0,
+        "total_cents": 2100000,
+        "paid_cents": 2125000,
+        "balance_cents": -25000,
+        "folio": "MTY-IMP-0020",
+        "lines": [
+          {
+            "fragment": "melissa",
+            "item": null
+          },
+          {
+            "fragment": "mantilla 039",
+            "item": {
+              "id": 13,
+              "code": "mantilla 039",
+              "name": "Mantilla larga bordada",
+              "kind": "accessory"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "sheet": "feb 26",
+      "rowNumber": 7,
+      "raw": {
+        "0": "2026-02-21",
+        "1": "maria del rosario",
+        "3": "azalia",
+        "4": 7300,
+        "5": "7300 20 marz",
+        "6": "7300 27 abril",
+        "10": 36500,
+        "11": "regalo 3000 para accesorios"
+      },
+      "problems": [],
+      "signed_on": "2026-02-21",
+      "nombre": "maria del rosario",
+      "producto": "azalia",
+      "fragments": [
+        "azalia"
+      ],
+      "anticipo_cents": 730000,
+      "abonos": [
+        {
+          "amount_cents": 730000,
+          "paid_at": "2026-03-20",
+          "raw": "7300 20 marz",
+          "column": 5
+        },
+        {
+          "amount_cents": 730000,
+          "paid_at": "2026-04-27",
+          "raw": "7300 27 abril",
+          "column": 6
+        }
+      ],
+      "list_total_cents": 3950000,
+      "gift_cents": 300000,
+      "total_cents": 3650000,
+      "paid_cents": 2190000,
+      "balance_cents": 1460000,
+      "superseded_by": {
+        "sheet": "feb 26",
+        "rowNumber": 18,
+        "raw": {
+          "0": "2026-02-21",
+          "1": "maria del rosario",
+          "3": "azalia m,crinolina 6a ,liga,mantilla 022",
+          "4": 7300,
+          "5": "7300 20 -marz",
+          "6": " 7300 27-abril",
+          "7": "15550 4-jul",
+          "10": 36900,
+          "11": "regalo 3000 para accesorios"
+        },
+        "problems": [],
+        "signed_on": "2026-02-21",
+        "nombre": "maria del rosario",
+        "producto": "azalia m,crinolina 6a ,liga,mantilla 022",
+        "fragments": [
+          "azalia m",
+          "crinolina 6a",
+          "liga",
+          "mantilla 022"
+        ],
+        "anticipo_cents": 730000,
+        "abonos": [
+          {
+            "amount_cents": 730000,
+            "paid_at": "2026-03-20",
+            "raw": "7300 20 -marz",
+            "column": 5
+          },
+          {
+            "amount_cents": 730000,
+            "paid_at": "2026-04-27",
+            "raw": "7300 27-abril",
+            "column": 6
+          },
+          {
+            "amount_cents": 1555000,
+            "paid_at": "2026-07-04",
+            "raw": "15550 4-jul",
+            "column": 7
+          }
+        ],
+        "list_total_cents": 3990000,
+        "gift_cents": 300000,
+        "total_cents": 3690000,
+        "paid_cents": 3745000,
+        "balance_cents": -55000,
+        "folio": "MTY-IMP-0021",
+        "lines": [
+          {
+            "fragment": "azalia m",
+            "item": null
+          },
+          {
+            "fragment": "crinolina 6a",
+            "item": null
+          },
+          {
+            "fragment": "liga",
+            "item": null
+          },
+          {
+            "fragment": "mantilla 022",
+            "item": null
+          }
+        ]
+      }
+    },
+    {
+      "sheet": "feb 26",
+      "rowNumber": 8,
+      "raw": {
+        "0": "2026-02-21",
+        "1": "ivette sarahi cabrera",
+        "3": "melissa ",
+        "4": 3500,
+        "5": "2000 20 marz",
+        "6": "2000 21 abril ",
+        "10": 17500,
+        "11": "regalo 1500 para accesorios"
+      },
+      "problems": [],
+      "signed_on": "2026-02-21",
+      "nombre": "ivette sarahi cabrera",
+      "producto": "melissa",
+      "fragments": [
+        "melissa"
+      ],
+      "anticipo_cents": 350000,
+      "abonos": [
+        {
+          "amount_cents": 200000,
+          "paid_at": "2026-03-20",
+          "raw": "2000 20 marz",
+          "column": 5
+        },
+        {
+          "amount_cents": 200000,
+          "paid_at": "2026-04-21",
+          "raw": "2000 21 abril",
+          "column": 6
+        }
+      ],
+      "list_total_cents": 1900000,
+      "gift_cents": 150000,
+      "total_cents": 1750000,
+      "paid_cents": 750000,
+      "balance_cents": 1000000,
+      "superseded_by": {
+        "sheet": "feb 26",
+        "rowNumber": 19,
+        "raw": {
+          "0": "2026-02-21",
+          "1": "ivette sarahi cabrera",
+          "3": "melissa",
+          "4": 3500,
+          "5": "2000 20-mar",
+          "6": "2000 21 -abri 4000 19-may",
+          "8": "3000 15-jun",
+          "9": "3050 21-jul",
+          "10": 17500
+        },
+        "problems": [],
+        "signed_on": "2026-02-21",
+        "nombre": "ivette sarahi cabrera",
+        "producto": "melissa",
+        "fragments": [
+          "melissa"
+        ],
+        "anticipo_cents": 350000,
+        "abonos": [
+          {
+            "amount_cents": 200000,
+            "paid_at": "2026-03-20",
+            "raw": "2000 20-mar",
+            "column": 5
+          },
+          {
+            "amount_cents": 200000,
+            "paid_at": "2026-04-21",
+            "raw": "2000 21 -abri",
+            "column": 6
+          },
+          {
+            "amount_cents": 400000,
+            "paid_at": "2026-05-19",
+            "raw": "4000 19-may",
+            "column": 6
+          },
+          {
+            "amount_cents": 300000,
+            "paid_at": "2026-06-15",
+            "raw": "3000 15-jun",
+            "column": 8
+          },
+          {
+            "amount_cents": 305000,
+            "paid_at": "2026-07-21",
+            "raw": "3050 21-jul",
+            "column": 9
+          }
+        ],
+        "list_total_cents": 1750000,
+        "gift_cents": 0,
+        "total_cents": 1750000,
+        "paid_cents": 1755000,
+        "balance_cents": -5000,
+        "folio": "MTY-IMP-0022",
+        "lines": [
+          {
+            "fragment": "melissa",
+            "item": null
+          }
+        ]
+      }
+    },
+    {
+      "sheet": "feb 26",
+      "rowNumber": 9,
+      "raw": {
+        "0": "2026-02-21",
+        "1": "rocio giselle roque",
+        "3": "noeline, mantilla 41",
+        "4": 2800,
+        "5": "2800 28 feb",
+        "6": "5775 31 marz",
+        "10": 28700,
+        "11": "regalo 2500 para accesorios"
+      },
+      "problems": [],
+      "signed_on": "2026-02-21",
+      "nombre": "rocio giselle roque",
+      "producto": "noeline, mantilla 41",
+      "fragments": [
+        "noeline",
+        "mantilla 41"
+      ],
+      "anticipo_cents": 280000,
+      "abonos": [
+        {
+          "amount_cents": 280000,
+          "paid_at": "2026-02-28",
+          "raw": "2800 28 feb",
+          "column": 5
+        },
+        {
+          "amount_cents": 577500,
+          "paid_at": "2026-03-31",
+          "raw": "5775 31 marz",
+          "column": 6
+        }
+      ],
+      "list_total_cents": 3120000,
+      "gift_cents": 250000,
+      "total_cents": 2870000,
+      "paid_cents": 1137500,
+      "balance_cents": 1732500,
+      "superseded_by": {
+        "sheet": "feb 26",
+        "rowNumber": 20,
+        "raw": {
+          "0": "2026-02-21",
+          "1": "rocio giselle roque",
+          "3": "noeline , mantilla 041",
+          "4": 2800,
+          "5": "2800 28-2",
+          "6": "5775 31-marz",
+          "7": "11550 6-jun",
+          "8": "5775 25-jul",
+          "9": "100 1-ago",
+          "10": 28700
+        },
+        "problems": [],
+        "signed_on": "2026-02-21",
+        "nombre": "rocio giselle roque",
+        "producto": "noeline , mantilla 041",
+        "fragments": [
+          "noeline",
+          "mantilla 041"
+        ],
+        "anticipo_cents": 280000,
+        "abonos": [
+          {
+            "amount_cents": 280000,
+            "paid_at": null,
+            "raw": "2800",
+            "column": 5
+          },
+          {
+            "amount_cents": 577500,
+            "paid_at": "2026-03-31",
+            "raw": "5775 31-marz",
+            "column": 6
+          },
+          {
+            "amount_cents": 1155000,
+            "paid_at": "2026-06-06",
+            "raw": "11550 6-jun",
+            "column": 7
+          },
+          {
+            "amount_cents": 577500,
+            "paid_at": "2026-07-25",
+            "raw": "5775 25-jul",
+            "column": 8
+          },
+          {
+            "amount_cents": 10000,
+            "paid_at": "2026-08-01",
+            "raw": "100 1-ago",
+            "column": 9
+          }
+        ],
+        "list_total_cents": 2870000,
+        "gift_cents": 0,
+        "total_cents": 2870000,
+        "paid_cents": 2880000,
+        "balance_cents": -10000,
+        "folio": "MTY-IMP-0023",
+        "lines": [
+          {
+            "fragment": "noeline",
+            "item": null
+          },
+          {
+            "fragment": "mantilla 041",
+            "item": {
+              "id": 14,
+              "code": "mantilla 041",
+              "name": "Mantilla corta",
+              "kind": "accessory"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "sheet": "feb 26",
+      "rowNumber": 10,
+      "raw": {
+        "0": "2026-02-23",
+        "1": "ana valeria valerio",
+        "3": "p107, t6cad0 66 , mantilla 41",
+        "4": 2800,
+        "5": "2700 25 marz",
+        "6": "4750 22 abril ",
+        "10": 16100
+      },
+      "problems": [],
+      "signed_on": "2026-02-23",
+      "nombre": "ana valeria valerio",
+      "producto": "p107, t6cad0 66 , mantilla 41",
+      "fragments": [
+        "p107",
+        "t6cad0 66",
+        "mantilla 41"
+      ],
+      "anticipo_cents": 280000,
+      "abonos": [
+        {
+          "amount_cents": 270000,
+          "paid_at": "2026-03-25",
+          "raw": "2700 25 marz",
+          "column": 5
+        },
+        {
+          "amount_cents": 475000,
+          "paid_at": "2026-04-22",
+          "raw": "4750 22 abril",
+          "column": 6
+        }
+      ],
+      "list_total_cents": 1610000,
+      "gift_cents": 0,
+      "total_cents": 1610000,
+      "paid_cents": 1025000,
+      "balance_cents": 585000,
+      "superseded_by": {
+        "sheet": "feb 26",
+        "rowNumber": 21,
+        "raw": {
+          "0": "2026-02-23",
+          "1": "ana valeria valerio",
+          "3": "p107, t6cad0 66 , mantilla 41",
+          "4": 2800,
+          "5": " 2700 25-mar",
+          "6": "4750 22 -abr",
+          "7": "5850 16-may",
+          "10": 16100
+        },
+        "problems": [],
+        "signed_on": "2026-02-23",
+        "nombre": "ana valeria valerio",
+        "producto": "p107, t6cad0 66 , mantilla 41",
+        "fragments": [
+          "p107",
+          "t6cad0 66",
+          "mantilla 41"
+        ],
+        "anticipo_cents": 280000,
+        "abonos": [
+          {
+            "amount_cents": 270000,
+            "paid_at": "2026-03-25",
+            "raw": "2700 25-mar",
+            "column": 5
+          },
+          {
+            "amount_cents": 475000,
+            "paid_at": "2026-04-22",
+            "raw": "4750 22 -abr",
+            "column": 6
+          },
+          {
+            "amount_cents": 585000,
+            "paid_at": "2026-05-16",
+            "raw": "5850 16-may",
+            "column": 7
+          }
+        ],
+        "list_total_cents": 1610000,
+        "gift_cents": 0,
+        "total_cents": 1610000,
+        "paid_cents": 1610000,
+        "balance_cents": 0,
+        "folio": "MTY-IMP-0024",
+        "lines": [
+          {
+            "fragment": "p107",
+            "item": null
+          },
+          {
+            "fragment": "t6cad0 66",
+            "item": null
+          },
+          {
+            "fragment": "mantilla 41",
+            "item": null
+          }
+        ]
+      }
+    },
+    {
+      "sheet": "feb 26",
+      "rowNumber": 11,
+      "raw": {
+        "0": "2026-02-24",
+        "1": "Ma lourdes diaz",
+        "3": "P39, mantilla 45",
+        "4": 4000,
+        "5": "4500 24 marz",
+        "6": "4500 24 abril ",
+        "10": 22000,
+        "11": "regalo 1500 para accesorios"
+      },
+      "problems": [],
+      "signed_on": "2026-02-24",
+      "nombre": "Ma lourdes diaz",
+      "producto": "P39, mantilla 45",
+      "fragments": [
+        "P39",
+        "mantilla 45"
+      ],
+      "anticipo_cents": 400000,
+      "abonos": [
+        {
+          "amount_cents": 450000,
+          "paid_at": "2026-03-24",
+          "raw": "4500 24 marz",
+          "column": 5
+        },
+        {
+          "amount_cents": 450000,
+          "paid_at": "2026-04-24",
+          "raw": "4500 24 abril",
+          "column": 6
+        }
+      ],
+      "list_total_cents": 2350000,
+      "gift_cents": 150000,
+      "total_cents": 2200000,
+      "paid_cents": 1300000,
+      "balance_cents": 900000,
+      "superseded_by": {
+        "sheet": "feb 26",
+        "rowNumber": 22,
+        "raw": {
+          "0": "2026-02-24",
+          "1": "ma lourdes diaz",
+          "3": "P39, mantilla 45",
+          "4": 4000,
+          "5": "4500 24 -mar  4500 23-abril  4500 22-may",
+          "8": "4500 22-jun",
+          "10": 23400,
+          "11": "regalo 1500 para accesorios"
+        },
+        "problems": [],
+        "signed_on": "2026-02-24",
+        "nombre": "ma lourdes diaz",
+        "producto": "P39, mantilla 45",
+        "fragments": [
+          "P39",
+          "mantilla 45"
+        ],
+        "anticipo_cents": 400000,
+        "abonos": [
+          {
+            "amount_cents": 450000,
+            "paid_at": "2026-03-24",
+            "raw": "4500 24 -mar",
+            "column": 5
+          },
+          {
+            "amount_cents": 450000,
+            "paid_at": "2026-04-23",
+            "raw": "4500 23-abril",
+            "column": 5
+          },
+          {
+            "amount_cents": 450000,
+            "paid_at": "2026-05-22",
+            "raw": "4500 22-may",
+            "column": 5
+          },
+          {
+            "amount_cents": 450000,
+            "paid_at": "2026-06-22",
+            "raw": "4500 22-jun",
+            "column": 8
+          }
+        ],
+        "list_total_cents": 2490000,
+        "gift_cents": 150000,
+        "total_cents": 2340000,
+        "paid_cents": 2200000,
+        "balance_cents": 140000,
+        "folio": "MTY-IMP-0025",
+        "lines": [
+          {
+            "fragment": "P39",
+            "item": null
+          },
+          {
+            "fragment": "mantilla 45",
+            "item": null
+          }
+        ]
+      }
+    },
+    {
+      "sheet": "feb 26",
+      "rowNumber": 12,
+      "raw": {
+        "0": "2026-02-28",
+        "1": "mariana hernandez",
+        "3": "ella",
+        "4": 3200,
+        "5": "3200 28 marz",
+        "6": "3200 30 abril",
+        "10": 16000,
+        "11": "regalo 1500 para accesorios"
+      },
+      "problems": [],
+      "signed_on": "2026-02-28",
+      "nombre": "mariana hernandez",
+      "producto": "ella",
+      "fragments": [
+        "ella"
+      ],
+      "anticipo_cents": 320000,
+      "abonos": [
+        {
+          "amount_cents": 320000,
+          "paid_at": "2026-03-28",
+          "raw": "3200 28 marz",
+          "column": 5
+        },
+        {
+          "amount_cents": 320000,
+          "paid_at": "2026-04-30",
+          "raw": "3200 30 abril",
+          "column": 6
+        }
+      ],
+      "list_total_cents": 1750000,
+      "gift_cents": 150000,
+      "total_cents": 1600000,
+      "paid_cents": 960000,
+      "balance_cents": 640000,
+      "superseded_by": {
+        "sheet": "feb 26",
+        "rowNumber": 23,
+        "raw": {
+          "0": "2026-02-28",
+          "1": "mariana hernandez",
+          "3": "ella",
+          "4": 3200,
+          "5": " 3200 28-mar  3200 30-abril",
+          "7": " 3200 29-may",
+          "8": "3200 30 jun",
+          "10": 16000,
+          "11": "regalo 1500 para accesorios"
+        },
+        "problems": [],
+        "signed_on": "2026-02-28",
+        "nombre": "mariana hernandez",
+        "producto": "ella",
+        "fragments": [
+          "ella"
+        ],
+        "anticipo_cents": 320000,
+        "abonos": [
+          {
+            "amount_cents": 320000,
+            "paid_at": "2026-03-28",
+            "raw": "3200 28-mar",
+            "column": 5
+          },
+          {
+            "amount_cents": 320000,
+            "paid_at": "2026-04-30",
+            "raw": "3200 30-abril",
+            "column": 5
+          },
+          {
+            "amount_cents": 320000,
+            "paid_at": "2026-05-29",
+            "raw": "3200 29-may",
+            "column": 7
+          },
+          {
+            "amount_cents": 320000,
+            "paid_at": "2026-06-30",
+            "raw": "3200 30 jun",
+            "column": 8
+          }
+        ],
+        "list_total_cents": 1750000,
+        "gift_cents": 150000,
+        "total_cents": 1600000,
+        "paid_cents": 1600000,
+        "balance_cents": 0,
+        "folio": "MTY-IMP-0026",
+        "lines": [
+          {
+            "fragment": "ella",
+            "item": null
+          }
+        ]
+      }
+    },
+    {
+      "sheet": "feb 26",
+      "rowNumber": 13,
+      "raw": {
+        "0": "2026-02-28",
+        "1": "nereyda concocoan",
+        "2": "tatiana",
+        "3": "adelina , tiara 58, cinto 17",
+        "4": 5000,
+        "5": "10000 17 marzo",
+        "6": "5000 23 abril",
+        "10": 25000,
+        "11": "regalo 3000 para accesorios"
+      },
+      "problems": [],
+      "signed_on": "2026-02-28",
+      "nombre": "nereyda concocoan",
+      "producto": "tatiana, adelina , tiara 58, cinto 17",
+      "fragments": [
+        "tatiana",
+        "adelina",
+        "tiara 58",
+        "cinto 17"
+      ],
+      "anticipo_cents": 500000,
+      "abonos": [
+        {
+          "amount_cents": 1000000,
+          "paid_at": "2026-03-17",
+          "raw": "10000 17 marzo",
+          "column": 5
+        },
+        {
+          "amount_cents": 500000,
+          "paid_at": "2026-04-23",
+          "raw": "5000 23 abril",
+          "column": 6
+        }
+      ],
+      "list_total_cents": 2800000,
+      "gift_cents": 300000,
+      "total_cents": 2500000,
+      "paid_cents": 2000000,
+      "balance_cents": 500000,
+      "superseded_by": {
+        "sheet": "feb 26",
+        "rowNumber": 24,
+        "raw": {
+          "0": "2026-02-28",
+          "1": "nereyda concepcion",
+          "3": "adelina , tiara 58, cinto 17",
+          "4": 5000,
+          "5": "10000 17 marzo  ",
+          "6": "5000 23 abril",
+          "7": "6150 23 may",
+          "10": 25000,
+          "11": "regalo 3000 para accesorios"
+        },
+        "problems": [],
+        "signed_on": "2026-02-28",
+        "nombre": "nereyda concepcion",
+        "producto": "adelina , tiara 58, cinto 17",
+        "fragments": [
+          "adelina",
+          "tiara 58",
+          "cinto 17"
+        ],
+        "anticipo_cents": 500000,
+        "abonos": [
+          {
+            "amount_cents": 1000000,
+            "paid_at": "2026-03-17",
+            "raw": "10000 17 marzo",
+            "column": 5
+          },
+          {
+            "amount_cents": 500000,
+            "paid_at": "2026-04-23",
+            "raw": "5000 23 abril",
+            "column": 6
+          },
+          {
+            "amount_cents": 615000,
+            "paid_at": "2026-05-23",
+            "raw": "6150 23 may",
+            "column": 7
+          }
+        ],
+        "list_total_cents": 2800000,
+        "gift_cents": 300000,
+        "total_cents": 2500000,
+        "paid_cents": 2615000,
+        "balance_cents": -115000,
+        "folio": "MTY-IMP-0027",
+        "lines": [
+          {
+            "fragment": "adelina",
+            "item": null
+          },
+          {
+            "fragment": "tiara 58",
+            "item": null
+          },
+          {
+            "fragment": "cinto 17",
+            "item": null
+          }
+        ]
+      }
+    },
+    {
+      "sheet": "feb 26",
+      "rowNumber": 17,
+      "raw": {
+        "0": "2026-02-14",
+        "1": "jackeline cepeda",
+        "3": "p47 de liquidacion, crinolina 6 aros",
+        "4": 3000,
+        "5": "9000 14-mar",
+        "6": "480 2-may",
+        "7": "3830 13-jun",
+        "10": 3830
+      },
+      "problems": [
+        "el abono «9000 14-mar» es mayor que el total (3830)"
+      ],
+      "signed_on": "2026-02-14",
+      "nombre": "jackeline cepeda",
+      "producto": "p47 de liquidacion, crinolina 6 aros",
+      "fragments": [
+        "p47 de liquidacion",
+        "crinolina 6 aros"
+      ],
+      "anticipo_cents": 300000,
+      "abonos": [
+        {
+          "amount_cents": 900000,
+          "paid_at": "2026-03-14",
+          "raw": "9000 14-mar",
+          "column": 5
+        },
+        {
+          "amount_cents": 48000,
+          "paid_at": "2026-05-02",
+          "raw": "480 2-may",
+          "column": 6
+        },
+        {
+          "amount_cents": 383000,
+          "paid_at": "2026-06-13",
+          "raw": "3830 13-jun",
+          "column": 7
+        }
+      ],
+      "list_total_cents": 383000,
+      "gift_cents": 0,
+      "total_cents": 383000,
+      "paid_cents": 1631000,
+      "balance_cents": -1248000,
+      "superseded_by": {
+        "sheet": "feb 26",
+        "rowNumber": 6,
+        "raw": {
+          "0": "2026-02-14",
+          "1": "jackeline cepeda",
+          "3": "p47 de liquidacion, crinolina 6 aros",
+          "4": 3000,
+          "5": "9000 14 marz",
+          "6": "480 2 mayo ",
+          "10": 16200
+        },
+        "problems": [],
+        "signed_on": "2026-02-14",
+        "nombre": "jackeline cepeda",
+        "producto": "p47 de liquidacion, crinolina 6 aros",
+        "fragments": [
+          "p47 de liquidacion",
+          "crinolina 6 aros"
+        ],
+        "anticipo_cents": 300000,
+        "abonos": [
+          {
+            "amount_cents": 900000,
+            "paid_at": "2026-03-14",
+            "raw": "9000 14 marz",
+            "column": 5
+          },
+          {
+            "amount_cents": 48000,
+            "paid_at": "2026-05-02",
+            "raw": "480 2 mayo",
+            "column": 6
+          }
+        ],
+        "list_total_cents": 1620000,
+        "gift_cents": 0,
+        "total_cents": 1620000,
+        "paid_cents": 1248000,
+        "balance_cents": 372000,
+        "folio": "MTY-IMP-0017",
+        "lines": [
+          {
+            "fragment": "p47 de liquidacion",
+            "item": null
+          },
+          {
+            "fragment": "crinolina 6 aros",
+            "item": null
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -243,22 +243,92 @@ export function parsePagos(file) {
   return sheets
 }
 
+/** El nombre, comparable: sin acentos, sin espacios, sin puntuación. */
+const nameKey = (n) => (n ?? '').toLowerCase()
+  .replace(/[áàä]/g, 'a').replace(/[éèë]/g, 'e').replace(/[íìï]/g, 'i')
+  .replace(/[óòö]/g, 'o').replace(/[úùü]/g, 'u').replace(/ñ/g, 'n')
+  .replace(/[^a-z]/g, '')
+
 /**
- * Febrero trae once clientas capturadas dos veces: un bloque temprano y otro
- * más abajo con más abonos. Se queda la última —es la más completa— y la
- * descartada se reporta entera, con los dos totales, para que se pueda revisar.
+ * Febrero está capturado dos veces: un bloque temprano y otro más abajo con más
+ * abonos. Se conserva **el último que sirva**.
+ *
+ * Lo de «que sirva» no es un detalle: la captura tardía de jackeline cepeda
+ * trae un abono en la columna del total, así que se rechaza —y si el duplicado
+ * se decidiera sólo por ser el último, la clienta desaparecería de la
+ * importación completa, teniendo una captura buena más arriba.
  */
 export function dedupe(rows) {
-  const key = (r) => `${r.signed_on}|${(r.nombre ?? '').toLowerCase().replace(/[^a-záéíóúñ]/g, '').slice(0, 10)}`
-  const last = new Map()
-  rows.forEach((r, i) => { if (r.signed_on && r.nombre) last.set(key(r), i) })
+  const key = (r) => `${r.signed_on}|${nameKey(r.nombre).slice(0, 10)}`
+  const named = rows.filter((r) => r.signed_on && r.nombre)
+
+  const winner = new Map()
+  named.forEach((r, i) => {
+    void i
+    const k = key(r)
+    const current = winner.get(k)
+    // Gana el último; pero uno bueno le gana a uno rechazado, sea cual sea el
+    // orden, porque perder a la clienta es peor que usar la captura anterior.
+    if (!current) { winner.set(k, r); return }
+    const currentOk = current.problems.length === 0
+    const nextOk = r.problems.length === 0
+    if (nextOk || !currentOk) winner.set(k, r)
+  })
 
   const kept = []
   const dropped = []
-  rows.forEach((r, i) => {
-    if (r.signed_on && r.nombre && last.get(key(r)) !== i) {
-      dropped.push({ ...r, superseded_by: rows[last.get(key(r))] })
-    } else kept.push(r)
-  })
+  for (const r of rows) {
+    if (!r.signed_on || !r.nombre) { kept.push(r); continue }
+    const best = winner.get(key(r))
+    if (best === r) kept.push(r)
+    else dropped.push({ ...r, superseded_by: best })
+  }
   return { kept, dropped }
+}
+
+/**
+ * Parejas que se parecen mucho pero no llegaron a juntarse por sí solas: misma
+ * hoja, misma fecha de firma y nombres casi iguales. No se fusionan —fusionar a
+ * dos clientas distintas es peor que dejar dos renglones— pero se reportan para
+ * que alguien las mire.
+ *
+ * De aquí salió «julieta yahaira rdz» contra «juieta yahaira»: una letra de
+ * diferencia, que la llave exacta no perdona.
+ */
+export function nearDuplicates(rows) {
+  const usable = rows.filter((r) => r.signed_on && r.nombre)
+  // Nombre de pila y primer apellido: es lo que identifica a una persona aquí,
+  // y lo que va después («rdz», «gzz») se escribe distinto cada vez.
+  const head = (n) => nameKey((n ?? '').trim().split(/\s+/).slice(0, 2).join(' '))
+
+  const out = []
+  for (let i = 0; i < usable.length; i++) {
+    for (let j = i + 1; j < usable.length; j++) {
+      const a = usable[i]
+      const b = usable[j]
+      if (a.signed_on !== b.signed_on) continue
+      if (nameKey(a.nombre).slice(0, 10) === nameKey(b.nombre).slice(0, 10)) continue // ya se juntaron solas
+      const d = editDistance(head(a.nombre), head(b.nombre))
+      if (d > 0 && d <= 2) out.push({ a, b, distance: d })
+    }
+  }
+  return out
+}
+
+/** Distancia de edición, para perdonar el dedazo de una o dos letras. */
+export function editDistance(a, b) {
+  if (a === b) return 0
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i)
+  for (let i = 1; i <= a.length; i++) {
+    const row = [i]
+    for (let j = 1; j <= b.length; j++) {
+      row[j] = Math.min(
+        prev[j] + 1,
+        row[j - 1] + 1,
+        prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1),
+      )
+    }
+    prev = row
+  }
+  return prev[b.length]
 }

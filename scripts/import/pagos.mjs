@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { writeFileSync, mkdirSync } from 'node:fs'
-import { parsePagos, dedupe } from './parse-pagos.mjs'
+import { parsePagos, dedupe, nearDuplicates } from './parse-pagos.mjs'
 import { readWorkbook } from './xlsx.mjs'
 
 /**
@@ -56,11 +56,16 @@ const wb = readWorkbook('docs/pagos.xlsx')
 const good = []
 const rejected = []
 const duplicates = []
+const suspects = []
 for (const sheet of sheets) {
   const { kept, dropped } = dedupe(sheet.rows)
   duplicates.push(...dropped)
+  suspects.push(...nearDuplicates(kept).map((pair) => ({ ...pair, sheet: sheet.name })))
   for (const row of kept) (row.problems.length ? rejected : good).push(row)
 }
+
+// El folio se asigna aquí para que el reporte y el SQL nombren lo mismo.
+good.forEach((row, i) => { row.folio = `MTY-IMP-${String(i + 1).padStart(4, '0')}` })
 
 // Cada fragmento del producto, amarrado o no.
 const unmatched = new Map()
@@ -120,6 +125,9 @@ say()
 
 say('## Rechazados')
 say()
+say('Ninguno de estos entra al `.sql`. Cada uno lleva el contenido crudo del renglón tal como')
+say('está en la hoja, para poder corregirlo en el libro o decidirlo a mano.')
+say()
 if (rejected.length === 0) say('Ninguno.')
 for (const r of rejected) {
   say(`### \`${r.sheet}\` fila ${r.rowNumber} — ${r.nombre || '(sin nombre)'}`)
@@ -134,16 +142,44 @@ for (const r of rejected) {
 
 say('## Duplicados descartados')
 say()
-say('Febrero trae once clientas capturadas dos veces: un bloque temprano y otro más abajo con')
-say('más abonos. Se conserva el último —es el más completo— y aquí está el descartado, con los')
-say('dos totales, por si el bueno fuera el otro.')
+say('**Qué los hace duplicados:** misma hoja, **misma fecha de firma** y **mismo nombre**')
+say('—comparado sin acentos ni espacios y recortado a diez letras, porque el libro trae')
+say('«nereyda concocoan» y «nereyda concepcion» para la misma clienta, y «julieta yahaira rdz»')
+say('y «juieta yahaira»—. Febrero está capturado dos veces: un bloque temprano y otro más abajo')
+say('con más abonos. Se conserva **el último**, que es el más completo.')
+say()
+say('Los totales de las dos capturas no siempre coinciden, así que aquí están los dos: si en')
+say('algún renglón el bueno fuera el descartado, se ve de inmediato.')
 say()
 if (duplicates.length === 0) say('Ninguno.')
 else {
-  say('| hoja | fila | clienta | total descartado | total conservado |')
-  say('|---|---|---|---|---|')
+  say('| hoja | fila descartada | clienta | firma | total descartado | fila conservada | total conservado |')
+  say('|---|---|---|---|---|---|---|')
   for (const d of duplicates) {
-    say(`| \`${d.sheet}\` | ${d.rowNumber} | ${d.nombre} | ${d.total_cents ? money(d.total_cents) : '—'} | ${d.superseded_by?.total_cents ? money(d.superseded_by.total_cents) : '—'} |`)
+    const k = d.superseded_by
+    say(`| \`${d.sheet}\` | ${d.rowNumber} | ${d.nombre} | ${d.signed_on ?? '—'} | ${d.total_cents ? money(d.total_cents) : '—'} | ${k?.rowNumber ?? '—'} | ${k?.total_cents ? money(k.total_cents) : '—'} |`)
+  }
+}
+say()
+
+say('## Posibles duplicados que NO se juntaron solos')
+say()
+say('Misma hoja, misma fecha de firma, nombres a una o dos letras de distancia. **No se**')
+say('**fusionan**: juntar a dos clientas distintas es peor que dejar dos renglones. Pero si')
+say('éstas son la misma persona, ahora mismo se importa dos veces y hay que decidirlo a mano.')
+say()
+if (suspects.length === 0) say('Ninguno.')
+else {
+  say('| hoja | clienta A | fila | total A | clienta B | fila | total B | letras de diferencia |')
+  say('|---|---|---|---|---|---|---|---|')
+  for (const p of suspects) {
+    say(`| \`${p.sheet}\` | ${p.a.nombre} | ${p.a.rowNumber} | ${p.a.total_cents ? money(p.a.total_cents) : '—'} | ${p.b.nombre} | ${p.b.rowNumber} | ${p.b.total_cents ? money(p.b.total_cents) : '—'} | ${p.distance} |`)
+  }
+  say()
+  const sameTotal = suspects.filter((p) => p.a.total_cents === p.b.total_cents)
+  if (sameTotal.length > 0) {
+    say(`${sameTotal.length === 1 ? 'Uno de ellos coincide' : `${sameTotal.length} de ellos coinciden`} además en el total, que es`)
+    say('difícil de explicar como dos contratos distintos firmados el mismo día.')
   }
 }
 say()
@@ -153,7 +189,9 @@ say()
 const allFragments = good.reduce((n, r) => n + r.lines.length, 0)
 const matchedFragments = good.reduce((n, r) => n + r.lines.filter((l) => l.item).length, 0)
 if (items.length > 0) {
-  say(`${matchedFragments} de ${allFragments} fragmentos amarraron con un artículo del catálogo.`)
+  say(`**${matchedFragments} de ${allFragments}** fragmentos amarraron con un artículo del catálogo;`)
+  say(`**${allFragments - matchedFragments}** se quedan como texto. Ese par de números es la forma de comprobar que el`)
+  say('catálogo se importó antes que esto.')
   say()
   say('**El número es bajo porque el catálogo todavía es el provisional de la semilla:**')
   say(`${items.length} artículos, contra los cientos que tiene el sitio. Esta importación depende`)
@@ -183,23 +221,37 @@ const withGift = good.filter((r) => r.gift_cents > 0)
 say(`${withGift.length} contratos traen «regalo N para accesorios» (o alguna de sus variantes:`)
 say('«N de regalo», «N de ragalo en acceso»).')
 say()
-say('**Esto es una interpretación y hay que confirmarla.** El encargo decía que la aritmética')
-say('`26500-1500=25000` tiene que cuadrar. Leída así —el regalo se resta del total— diecinueve')
-say('contratos quedarían pagados de más por el importe exacto del regalo. Leída al revés —el')
-say('total de la hoja ya es lo que la novia paga y el regalo son accesorios que se le dieron sin')
-say('cobrar— la diferencia que queda es de unos cien pesos, que es el recargo cobrado encima en')
-say('el último abono. Los números dicen lo segundo:')
+say('**Confirmado por la dueña:** la columna «total» de la hoja ya trae la cifra neta. Por eso')
+say('volver a restarle el regalo dejaba diecinueve contratos pagados de más por el importe')
+say('exacto del regalo. Se importa con `list_total_cents = total + regalo`,')
+say('`gift_credit_cents = regalo` y `total_cents = total`, de modo que **lista − regalo = total**')
+say('cuadra y lo que se le debe a la tienda es lo que dice la hoja.')
 say()
-const overs = good.filter((r) => r.balance_cents < 0).map((r) => -r.balance_cents)
-say('```')
-say(`diferencias de los que pagaron de más: ${overs.sort((a, b) => a - b).map((c) => c / 100).join(', ')}`)
-say(`importes de regalo en el libro:        ${[...new Set(withGift.map((r) => r.gift_cents / 100))].sort((a, b) => a - b).join(', ')}`)
-say('```')
+
+say('## El resto sin explicar: trece contratos con exactamente $100 de más')
 say()
-say('Así que se importa con `list_total_cents = total + regalo`, `gift_credit_cents = regalo` y')
-say('`total_cents = total`, de modo que **lista − regalo = total** cuadra y lo que se le debe a')
-say('la tienda es lo que dice la hoja. Si la lectura correcta fuera la otra, es un renglón del')
-say('script y se vuelve a generar.')
+say('Trece contratos tienen pagado exactamente cien pesos por encima de su total. La sospecha')
+say('—**sin confirmar**— es el «porta traje $100» de la lista de precios, cobrado al recoger el')
+say('vestido. **No se le inventó renglón a nadie:** entra como está en la hoja y queda como un')
+say('resto sin explicar hasta que la dueña lo confirme. Si lo confirma, se vuelve un renglón de')
+say('cargo con su nombre.')
+say()
+const hundreds = good.filter((r) => r.balance_cents === -10_000)
+say('| folio | clienta | total | pagado | resto |')
+say('|---|---|---|---|---|')
+for (const r of hundreds) {
+  say(`| \`${r.folio}\` | ${r.nombre} | ${money(r.total_cents)} | ${money(r.paid_cents)} | ${money(-r.balance_cents)} |`)
+}
+say()
+const others = good.filter((r) => r.balance_cents < 0 && r.balance_cents !== -10_000)
+say(`Otros ${others.length} pagaron de más por cantidades distintas. No encajan en la misma`)
+say('explicación y hay que mirarlos aparte:')
+say()
+say('| folio | clienta | total | pagado | resto |')
+say('|---|---|---|---|---|')
+for (const r of others) {
+  say(`| \`${r.folio}\` | ${r.nombre} | ${money(r.total_cents)} | ${money(r.paid_cents)} | ${money(-r.balance_cents)} |`)
+}
 say()
 
 say('## Saldos que quedan')
@@ -208,7 +260,7 @@ const settled = good.filter((r) => r.balance_cents === 0)
 const openB = good.filter((r) => r.balance_cents > 0)
 say(`- liquidados: ${settled.length}`)
 say(`- con saldo: ${openB.length}, ${money(openB.reduce((n, r) => n + r.balance_cents, 0))} en total`)
-say(`- pagados de más: ${overs.length} (recargos cobrados encima, ver arriba)`)
+say(`- pagados de más: ${good.filter((r) => r.balance_cents < 0).length} (ver la sección de arriba)`)
 say()
 
 say('## Decisiones que se tomaron, y que conviene mirar')
@@ -241,8 +293,8 @@ sql.push('-- Sin BEGIN/COMMIT: D1 aplica el archivo como un lote y rechaza las')
 sql.push('-- transacciones explícitas.')
 sql.push(`-- La vendedora de todos estos contratos es la dueña de ${STORE}, que es quien importa.`)
 
-good.forEach((row, i) => {
-  const folio = `MTY-IMP-${String(i + 1).padStart(4, '0')}`
+good.forEach((row) => {
+  const folio = row.folio
   const parts = row.nombre.split(/\s+/)
   const name = parts[0] ?? row.nombre
   const apellido = parts.slice(1).join(' ')

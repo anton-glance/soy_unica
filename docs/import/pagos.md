@@ -9,12 +9,12 @@ son todo lo que produjo la corrida.
 | | renglones |
 |---|---|
 | encontrados en las hojas | 67 |
-| importables | **51** |
-| rechazados | 6 |
+| importables | **52** |
+| rechazados | 5 |
 | duplicados descartados | 10 |
 
-Suman 182 abonos (el anticipo cuenta como uno), $1,016,850 contratados
-y $770,820 cobrados.
+Suman 185 abonos (el anticipo cuenta como uno), $1,033,050 contratados
+y $783,300 cobrados.
 
 ## Las hojas, y cómo se leyó cada una
 
@@ -22,7 +22,7 @@ y $770,820 cobrados.
 |---|---|---|---|---|---|
 | `ene 26` | fila 1 | 6 | 6 | 0 | 0 |
 | `marzo 26` | fila 1 | 8 | 8 | 0 | 0 |
-| `feb 26` | fila 1 | 23 | 12 | 1 | 10 |
+| `feb 26` | fila 1 | 23 | 13 | 0 | 10 |
 | `6 mayo 26` | fila 1 | 8 | 8 | 0 | 0 |
 | `abril 26` | fila 1 | 5 | 5 | 0 | 0 |
 | `junio 26` | fila 1 | 5 | 4 | 1 | 0 |
@@ -40,13 +40,8 @@ por un copiar y pegar de otra hoja.
 
 ## Rechazados
 
-### `feb 26` fila 17 — jackeline cepeda
-
-- el abono «9000 14-mar» es mayor que el total (3830)
-
-```json
-{"0":"2026-02-14","1":"jackeline cepeda","3":"p47 de liquidacion, crinolina 6 aros","4":3000,"5":"9000 14-mar","6":"480 2-may","7":"3830 13-jun","10":3830}
-```
+Ninguno de estos entra al `.sql`. Cada uno lleva el contenido crudo del renglón tal como
+está en la hoja, para poder corregirlo en el libro o decidirlo a mano.
 
 ### `junio 26` fila 5 — paola chapa
 
@@ -90,26 +85,46 @@ por un copiar y pegar de otra hoja.
 
 ## Duplicados descartados
 
-Febrero trae once clientas capturadas dos veces: un bloque temprano y otro más abajo con
-más abonos. Se conserva el último —es el más completo— y aquí está el descartado, con los
-dos totales, por si el bueno fuera el otro.
+**Qué los hace duplicados:** misma hoja, **misma fecha de firma** y **mismo nombre**
+—comparado sin acentos ni espacios y recortado a diez letras, porque el libro trae
+«nereyda concocoan» y «nereyda concepcion» para la misma clienta, y «julieta yahaira rdz»
+y «juieta yahaira»—. Febrero está capturado dos veces: un bloque temprano y otro más abajo
+con más abonos. Se conserva **el último**, que es el más completo.
 
-| hoja | fila | clienta | total descartado | total conservado |
-|---|---|---|---|---|
-| `feb 26` | 3 | laila cristal | $10,000 | $24,400 |
-| `feb 26` | 5 | fatima gatica | $21,000 | $21,000 |
-| `feb 26` | 6 | jackeline cepeda | $16,200 | $3,830 |
-| `feb 26` | 7 | maria del rosario | $36,500 | $36,900 |
-| `feb 26` | 8 | ivette sarahi cabrera | $17,500 | $17,500 |
-| `feb 26` | 9 | rocio giselle roque | $28,700 | $28,700 |
-| `feb 26` | 10 | ana valeria valerio | $16,100 | $16,100 |
-| `feb 26` | 11 | Ma lourdes diaz | $22,000 | $23,400 |
-| `feb 26` | 12 | mariana hernandez | $16,000 | $16,000 |
-| `feb 26` | 13 | nereyda concocoan | $25,000 | $25,000 |
+Los totales de las dos capturas no siempre coinciden, así que aquí están los dos: si en
+algún renglón el bueno fuera el descartado, se ve de inmediato.
+
+| hoja | fila descartada | clienta | firma | total descartado | fila conservada | total conservado |
+|---|---|---|---|---|---|---|
+| `feb 26` | 3 | laila cristal | 2026-02-07 | $10,000 | 14 | $24,400 |
+| `feb 26` | 5 | fatima gatica | 2026-02-11 | $21,000 | 16 | $21,000 |
+| `feb 26` | 7 | maria del rosario | 2026-02-21 | $36,500 | 18 | $36,900 |
+| `feb 26` | 8 | ivette sarahi cabrera | 2026-02-21 | $17,500 | 19 | $17,500 |
+| `feb 26` | 9 | rocio giselle roque | 2026-02-21 | $28,700 | 20 | $28,700 |
+| `feb 26` | 10 | ana valeria valerio | 2026-02-23 | $16,100 | 21 | $16,100 |
+| `feb 26` | 11 | Ma lourdes diaz | 2026-02-24 | $22,000 | 22 | $23,400 |
+| `feb 26` | 12 | mariana hernandez | 2026-02-28 | $16,000 | 23 | $16,000 |
+| `feb 26` | 13 | nereyda concocoan | 2026-02-28 | $25,000 | 24 | $25,000 |
+| `feb 26` | 17 | jackeline cepeda | 2026-02-14 | $3,830 | 6 | $16,200 |
+
+## Posibles duplicados que NO se juntaron solos
+
+Misma hoja, misma fecha de firma, nombres a una o dos letras de distancia. **No se**
+**fusionan**: juntar a dos clientas distintas es peor que dejar dos renglones. Pero si
+éstas son la misma persona, ahora mismo se importa dos veces y hay que decidirlo a mano.
+
+| hoja | clienta A | fila | total A | clienta B | fila | total B | letras de diferencia |
+|---|---|---|---|---|---|---|---|
+| `feb 26` | julieta yahaira rdz | 4 | $38,250 | juieta yahaira | 15 | $38,250 | 1 |
+
+Uno de ellos coincide además en el total, que es
+difícil de explicar como dos contratos distintos firmados el mismo día.
 
 ## Fragmentos de producto
 
-16 de 85 fragmentos amarraron con un artículo del catálogo.
+**16 de 87** fragmentos amarraron con un artículo del catálogo;
+**71** se quedan como texto. Ese par de números es la forma de comprobar que el
+catálogo se importó antes que esto.
 
 **El número es bajo porque el catálogo todavía es el provisional de la semilla:**
 16 artículos, contra los cientos que tiene el sitio. Esta importación depende
@@ -121,8 +136,8 @@ Los que no amarraron:
 
 | fragmento | veces |
 |---|---|
+| `crinolina 6 aros` | 6 |
 | `melissa` | 5 |
-| `crinolina 6 aros` | 5 |
 | `p53` | 2 |
 | `tirantes` | 2 |
 | `mantilla 45` | 2 |
@@ -142,6 +157,7 @@ Los que no amarraron:
 | `p136- crinolina 6 aros` | 1 |
 | `p33 de liquidacion mas ajustes` | 1 |
 | `merry -yana` | 1 |
+| `p47 de liquidacion` | 1 |
 | `merry- yana liquidacion` | 1 |
 | `azalia m` | 1 |
 | `crinolina 6a` | 1 |
@@ -184,28 +200,53 @@ Los que no amarraron:
 22 contratos traen «regalo N para accesorios» (o alguna de sus variantes:
 «N de regalo», «N de ragalo en acceso»).
 
-**Esto es una interpretación y hay que confirmarla.** El encargo decía que la aritmética
-`26500-1500=25000` tiene que cuadrar. Leída así —el regalo se resta del total— diecinueve
-contratos quedarían pagados de más por el importe exacto del regalo. Leída al revés —el
-total de la hoja ya es lo que la novia paga y el regalo son accesorios que se le dieron sin
-cobrar— la diferencia que queda es de unos cien pesos, que es el recargo cobrado encima en
-el último abono. Los números dicen lo segundo:
+**Confirmado por la dueña:** la columna «total» de la hoja ya trae la cifra neta. Por eso
+volver a restarle el regalo dejaba diecinueve contratos pagados de más por el importe
+exacto del regalo. Se importa con `list_total_cents = total + regalo`,
+`gift_credit_cents = regalo` y `total_cents = total`, de modo que **lista − regalo = total**
+cuadra y lo que se le debe a la tienda es lo que dice la hoja.
 
-```
-diferencias de los que pagaron de más: 50, 95, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 250, 300, 550, 1150
-importes de regalo en el libro:        1000, 1500, 2500, 3000
-```
+## El resto sin explicar: trece contratos con exactamente $100 de más
 
-Así que se importa con `list_total_cents = total + regalo`, `gift_credit_cents = regalo` y
-`total_cents = total`, de modo que **lista − regalo = total** cuadra y lo que se le debe a
-la tienda es lo que dice la hoja. Si la lectura correcta fuera la otra, es un renglón del
-script y se vuelve a generar.
+Trece contratos tienen pagado exactamente cien pesos por encima de su total. La sospecha
+—**sin confirmar**— es el «porta traje $100» de la lista de precios, cobrado al recoger el
+vestido. **No se le inventó renglón a nadie:** entra como está en la hoja y queda como un
+resto sin explicar hasta que la dueña lo confirme. Si lo confirma, se vuelve un renglón de
+cargo con su nombre.
+
+| folio | clienta | total | pagado | resto |
+|---|---|---|---|---|
+| `MTY-IMP-0002` | laura denise sifuentes | $4,000 | $4,100 | $100 |
+| `MTY-IMP-0003` | karina elizabeth kiroga | $19,700 | $19,800 | $100 |
+| `MTY-IMP-0005` | alejandra jaime | $31,150 | $31,250 | $100 |
+| `MTY-IMP-0006` | lizbeth jaqueline villanueva | $17,500 | $17,600 | $100 |
+| `MTY-IMP-0008` | sandra lizeth calderon | $1,500 | $1,600 | $100 |
+| `MTY-IMP-0010` | andrea dominguez | $10,800 | $10,900 | $100 |
+| `MTY-IMP-0012` | nora debany garcia | $12,400 | $12,500 | $100 |
+| `MTY-IMP-0015` | guadalupe del angel | $7,800 | $7,900 | $100 |
+| `MTY-IMP-0023` | rocio giselle roque | $28,700 | $28,800 | $100 |
+| `MTY-IMP-0032` | maria fernanda rosalino | $17,500 | $17,600 | $100 |
+| `MTY-IMP-0036` | stephani rodriguez | $25,800 | $25,900 | $100 |
+| `MTY-IMP-0040` | zuralba aguilar | $15,250 | $15,350 | $100 |
+| `MTY-IMP-0045` | martha guadalupe | $18,300 | $18,400 | $100 |
+
+Otros 6 pagaron de más por cantidades distintas. No encajan en la misma
+explicación y hay que mirarlos aparte:
+
+| folio | clienta | total | pagado | resto |
+|---|---|---|---|---|
+| `MTY-IMP-0004` | hannia yamileth rodriguez | $17,000 | $17,095 | $95 |
+| `MTY-IMP-0011` | blanca aracely reyes | $15,000 | $15,300 | $300 |
+| `MTY-IMP-0020` | fatima gatica | $21,000 | $21,250 | $250 |
+| `MTY-IMP-0021` | maria del rosario | $36,900 | $37,450 | $550 |
+| `MTY-IMP-0022` | ivette sarahi cabrera | $17,500 | $17,550 | $50 |
+| `MTY-IMP-0027` | nereyda concepcion | $25,000 | $26,150 | $1,150 |
 
 ## Saldos que quedan
 
 - liquidados: 8
-- con saldo: 24, $249,725 en total
-- pagados de más: 19 (recargos cobrados encima, ver arriba)
+- con saldo: 25, $253,445 en total
+- pagados de más: 19 (ver la sección de arriba)
 
 ## Decisiones que se tomaron, y que conviene mirar
 
@@ -222,5 +263,5 @@ script y se vuelve a generar.
 - **Comprobantes.** Estos abonos se cobraron antes de que el sistema existiera y no tienen
   foto. Se marcan `imported = 1` y la excepción vive sólo aquí: la API sigue rechazando
   cualquier abono nuevo sin comprobante.
-- **Fechas ilegibles.** 1 de 182 abonos no traen fecha que se pueda leer
+- **Fechas ilegibles.** 1 de 185 abonos no traen fecha que se pueda leer
   (`«2800 28-2»`). Se guarda el monto y la fecha queda nula, con el texto original al lado.
