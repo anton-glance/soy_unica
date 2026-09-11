@@ -258,30 +258,96 @@ const nameKey = (n) => (n ?? '').toLowerCase()
  * se decidiera sólo por ser el último, la clienta desaparecería de la
  * importación completa, teniendo una captura buena más arriba.
  */
+/**
+ * Lo que decidió la dueña a mano, renglón por renglón.
+ *
+ * Vive aquí, junto al código que lo aplica, y no escondido en la lógica: cada
+ * entrada dice qué se hizo y por qué, el reporte las nombra una por una, y
+ * cambiar de opinión sobre cualquiera es cambiar una línea de esta tabla.
+ *
+ * Las llaves son hoja + renglón del libro, que no se mueven.
+ */
+export const MANUAL = [
+  {
+    sheet: 'feb 26',
+    rows: [4, 15],
+    kind: 'misma clienta',
+    who: 'julieta yahaira rdz / juieta yahaira',
+    why: 'Misma fecha de firma, mismo total al peso ($38,250) y una letra de diferencia en el '
+      + 'nombre. La llave exacta no las junta; la dueña confirmó que es una sola persona. Se '
+      + 'conserva la captura tardía.',
+  },
+  {
+    sheet: 'feb 26',
+    rows: [3, 14],
+    kind: 'cambio de modelo',
+    who: 'laila cristal',
+    why: 'NO es un duplicado. El contrato permite cambiar de modelo antes de las medidas a uno '
+      + 'de mayor precio, y eso es exactamente «p40 de liquidación» de $10,000 convertido en '
+      + '«madelyn» de $24,400. La captura tardía es la buena, que es lo que ya se conservaba, '
+      + 'pero en el reporte va como cambio de modelo y no como captura descartada.',
+  },
+  {
+    sheet: 'feb 26',
+    rows: [11, 22],
+    kind: 'accesorios después de firmar',
+    who: 'Ma lourdes diaz',
+    why: 'Los $1,400 de diferencia entre las dos capturas son accesorios agregados después de '
+      + 'firmar: coinciden exactamente con su cargo por talla 16. La captura tardía es la buena.',
+  },
+  {
+    sheet: 'feb 26',
+    rows: [7, 18],
+    kind: 'accesorios después de firmar',
+    who: 'maria del rosario',
+    why: 'Los $400 de diferencia son accesorios agregados después de firmar. La captura tardía '
+      + 'es la buena.',
+  },
+]
+
+const manualFor = (sheet, row) => MANUAL.find((m) => m.sheet === sheet && m.rows.includes(row))
+
 export function dedupe(rows) {
   const key = (r) => `${r.signed_on}|${nameKey(r.nombre).slice(0, 10)}`
   const named = rows.filter((r) => r.signed_on && r.nombre)
 
+  // Una decisión manual junta dos renglones que la llave automática no junta:
+  // se les da la misma llave, la del renglón que se conserva.
+  const forced = new Map()
+  for (const m of MANUAL) {
+    const last = Math.max(...m.rows)
+    for (const row of m.rows) forced.set(`${m.sheet}|${row}`, `manual:${m.sheet}:${last}`)
+  }
+  const keyOf = (r) => forced.get(`${r.sheet}|${r.rowNumber}`) ?? key(r)
+
   const winner = new Map()
-  named.forEach((r, i) => {
-    void i
-    const k = key(r)
+  for (const r of named) {
+    const k = keyOf(r)
     const current = winner.get(k)
     // Gana el último; pero uno bueno le gana a uno rechazado, sea cual sea el
     // orden, porque perder a la clienta es peor que usar la captura anterior.
-    if (!current) { winner.set(k, r); return }
+    if (!current) { winner.set(k, r); continue }
     const currentOk = current.problems.length === 0
     const nextOk = r.problems.length === 0
     if (nextOk || !currentOk) winner.set(k, r)
-  })
+  }
 
   const kept = []
   const dropped = []
   for (const r of rows) {
     if (!r.signed_on || !r.nombre) { kept.push(r); continue }
-    const best = winner.get(key(r))
+    const best = winner.get(keyOf(r))
     if (best === r) kept.push(r)
-    else dropped.push({ ...r, superseded_by: best })
+    else {
+      const manual = manualFor(r.sheet, r.rowNumber)
+      dropped.push({
+        ...r,
+        superseded_by: best,
+        kind: manual?.kind ?? 'captura duplicada',
+        why: manual?.why ?? null,
+        manual: Boolean(manual),
+      })
+    }
   }
   return { kept, dropped }
 }

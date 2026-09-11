@@ -340,10 +340,21 @@ npx wrangler d1 execute soy-unica --local --persist-to .wrangler/state --file do
 
 ### C2 — los contratos de 2026 · corrido
 
-`docs/import/pagos.md`. De 67 renglones en las nueve hojas de 2026: **52
-importables**, 5 rechazados, 10 duplicados descartados. Aplicado a la base
-local: 52 contratos, 185 abonos, 52 clientas, 22 créditos de regalo, cero
-parcialidades generadas, y las dos aritméticas cuadran en los 52.
+`docs/import/pagos.md`. De 67 renglones en las nueve hojas de 2026: **51
+importables**, 5 rechazados, 11 descartados. Aplicado a la base local: 51
+contratos, 182 abonos, 51 clientas, 22 créditos de regalo, cero parcialidades
+generadas, y las dos aritméticas cuadran en los 51.
+
+De los once descartados, cuatro los decidió la dueña a mano —una clienta
+capturada con el nombre mal escrito, un cambio de modelo que no era duplicado y
+dos casos de accesorios agregados después de firmar—. Están en la tabla `MANUAL`
+de `scripts/import/parse-pagos.mjs`, cada una con su motivo, y el reporte las
+nombra una por una.
+
+Los cinco rechazados salen en `docs/import/pendientes.html`, una hoja de papel
+con sus celdas crudas y los huecos en blanco: **no se les inventó ningún
+importe**. Una de ellas ya pagó $11,800 sin total anotado, así que la hoja lo
+marca como cuenta por cobrar viva.
 
 El libro está lleno a mano desde 2018 y se nota: tres distribuciones de columnas
 distintas, una hoja sin encabezado, un encabezado que miente sobre dónde está el

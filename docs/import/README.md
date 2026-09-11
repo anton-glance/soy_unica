@@ -98,21 +98,28 @@ como texto.
 | --- | --- |
 | `docs/import/pagos.md` | **el reporte que hay que leer** |
 | `docs/import/pagos.sql` | los `INSERT`, para aplicar |
+| `docs/import/pendientes.html` | **la hoja para imprimir**: los renglones rechazados, con sus celdas crudas y los huecos en blanco |
 | `docs/import/pagos.json` | lo mismo en crudo, por si hace falta mirarlo con otra herramienta. No se versiona: son miles de renglones generados que taparían los reportes en el diff |
 
 ### Qué revisar en el reporte antes de aplicar
 
-1. **Rechazados.** No entran al `.sql`. Cada uno trae el contenido crudo del
-   renglón: se corrige en el libro y se vuelve a generar, o se captura a mano.
+1. **Rechazados.** No entran al `.sql`: les falta un dato que no se puede
+   deducir. Se abre `docs/import/pendientes.html` en el navegador y se imprime
+   —cabe en una hoja—; la dueña llena los huecos a mano y después se capturan en
+   el sistema como cualquier contrato. **Ojo con las cuentas por cobrar vivas**:
+   la hoja marca con un recuadro a quien ya pagó y no tiene total anotado.
 2. **Duplicados descartados.** De cada pareja se conserva una captura. La tabla
    muestra los dos totales: si en algún renglón el bueno fuera el descartado, se
    ve de inmediato.
-3. **Posibles duplicados que no se juntaron solos.** Nombres a una o dos letras
-   de distancia, misma fecha. Ahora mismo **se importan las dos veces**. Hay que
-   decidirlo a mano.
-4. **El resto de $100.** Trece contratos con exactamente cien pesos pagados de
+3. **Decisiones tomadas a mano.** Las que ya decidió la dueña, cada una con su
+   motivo. Viven en la tabla `MANUAL` de `scripts/import/parse-pagos.mjs`:
+   cambiar de opinión sobre cualquiera es cambiar una línea y volver a generar.
+4. **Posibles duplicados que no se juntaron solos.** Nombres a una o dos letras
+   de distancia, misma fecha. Mientras estén ahí **se importan las dos veces**,
+   hasta que entren a la tabla `MANUAL`.
+5. **El resto de $100.** Trece contratos con exactamente cien pesos pagados de
    más. Mientras no se confirme qué es, se quedan así, sin renglón inventado.
-5. **Fragmentos que no amarraron.** Se guardan como texto. Si son muchos, es
+6. **Fragmentos que no amarraron.** Se guardan como texto. Si son muchos, es
    señal de que el catálogo todavía no está importado: importa primero el
    catálogo y vuelve a generar esto.
 

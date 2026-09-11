@@ -9,12 +9,12 @@ son todo lo que produjo la corrida.
 | | renglones |
 |---|---|
 | encontrados en las hojas | 67 |
-| importables | **52** |
+| importables | **51** |
 | rechazados | 5 |
-| duplicados descartados | 10 |
+| duplicados descartados | 11 |
 
-Suman 185 abonos (el anticipo cuenta como uno), $1,033,050 contratados
-y $783,300 cobrados.
+Suman 182 abonos (el anticipo cuenta como uno), $994,800 contratados
+y $762,350 cobrados.
 
 ## Las hojas, y cómo se leyó cada una
 
@@ -22,7 +22,7 @@ y $783,300 cobrados.
 |---|---|---|---|---|---|
 | `ene 26` | fila 1 | 6 | 6 | 0 | 0 |
 | `marzo 26` | fila 1 | 8 | 8 | 0 | 0 |
-| `feb 26` | fila 1 | 23 | 13 | 0 | 10 |
+| `feb 26` | fila 1 | 23 | 12 | 0 | 11 |
 | `6 mayo 26` | fila 1 | 8 | 8 | 0 | 0 |
 | `abril 26` | fila 1 | 5 | 5 | 0 | 0 |
 | `junio 26` | fila 1 | 5 | 4 | 1 | 0 |
@@ -40,8 +40,12 @@ por un copiar y pegar de otra hoja.
 
 ## Rechazados
 
-Ninguno de estos entra al `.sql`. Cada uno lleva el contenido crudo del renglón tal como
-está en la hoja, para poder corregirlo en el libro o decidirlo a mano.
+Ninguno de estos entra al `.sql`. Les falta un dato que **no se puede adivinar**, y
+adivinarlo sería peor que dejarlos fuera.
+
+**`docs/import/pendientes.html` es la hoja para imprimir**: los cinco renglones con todas
+sus celdas tal como están en el libro y los huecos en blanco para completarlos a mano.
+Una vez completados se capturan en el sistema como cualquier contrato.
 
 ### `junio 26` fila 5 — paola chapa
 
@@ -83,26 +87,45 @@ está en la hoja, para poder corregirlo en el libro o decidirlo a mano.
 {"0":"2026-08-29","1":"doris encinia","3":"crinolina 3 aros","5":"p139","9":2750}
 ```
 
-## Duplicados descartados
+## Decisiones tomadas a mano
 
-**Qué los hace duplicados:** misma hoja, **misma fecha de firma** y **mismo nombre**
+Éstas **no** salieron de ninguna regla automática: las decidió la dueña mirando los
+renglones. Viven en la tabla `MANUAL` de `scripts/import/parse-pagos.mjs`, cada una con su
+motivo; cambiar de opinión sobre cualquiera es cambiar una línea de esa tabla y volver a
+generar.
+
+### `feb 26` filas 4 y 15 — julieta yahaira rdz / juieta yahaira
+
+**misma clienta.** Misma fecha de firma, mismo total al peso ($38,250) y una letra de diferencia en el nombre. La llave exacta no las junta; la dueña confirmó que es una sola persona. Se conserva la captura tardía.
+
+### `feb 26` filas 3 y 14 — laila cristal
+
+**cambio de modelo.** NO es un duplicado. El contrato permite cambiar de modelo antes de las medidas a uno de mayor precio, y eso es exactamente «p40 de liquidación» de $10,000 convertido en «madelyn» de $24,400. La captura tardía es la buena, que es lo que ya se conservaba, pero en el reporte va como cambio de modelo y no como captura descartada.
+
+### `feb 26` filas 11 y 22 — Ma lourdes diaz
+
+**accesorios después de firmar.** Los $1,400 de diferencia entre las dos capturas son accesorios agregados después de firmar: coinciden exactamente con su cargo por talla 16. La captura tardía es la buena.
+
+### `feb 26` filas 7 y 18 — maria del rosario
+
+**accesorios después de firmar.** Los $400 de diferencia son accesorios agregados después de firmar. La captura tardía es la buena.
+
+## Capturas duplicadas descartadas
+
+**Qué las hace duplicados:** misma hoja, **misma fecha de firma** y **mismo nombre**
 —comparado sin acentos ni espacios y recortado a diez letras, porque el libro trae
-«nereyda concocoan» y «nereyda concepcion» para la misma clienta, y «julieta yahaira rdz»
-y «juieta yahaira»—. Febrero está capturado dos veces: un bloque temprano y otro más abajo
-con más abonos. Se conserva **el último**, que es el más completo.
+«nereyda concocoan» y «nereyda concepcion» para la misma clienta—. Febrero está capturado
+dos veces: un bloque temprano y otro más abajo con más abonos. Se conserva **la última que**
+**sirva**: si la tardía se rechaza, gana la anterior, porque perder a la clienta es peor.
 
-Los totales de las dos capturas no siempre coinciden, así que aquí están los dos: si en
-algún renglón el bueno fuera el descartado, se ve de inmediato.
+Los totales de las dos capturas no siempre coinciden, así que aquí están los dos.
 
 | hoja | fila descartada | clienta | firma | total descartado | fila conservada | total conservado |
 |---|---|---|---|---|---|---|
-| `feb 26` | 3 | laila cristal | 2026-02-07 | $10,000 | 14 | $24,400 |
 | `feb 26` | 5 | fatima gatica | 2026-02-11 | $21,000 | 16 | $21,000 |
-| `feb 26` | 7 | maria del rosario | 2026-02-21 | $36,500 | 18 | $36,900 |
 | `feb 26` | 8 | ivette sarahi cabrera | 2026-02-21 | $17,500 | 19 | $17,500 |
 | `feb 26` | 9 | rocio giselle roque | 2026-02-21 | $28,700 | 20 | $28,700 |
 | `feb 26` | 10 | ana valeria valerio | 2026-02-23 | $16,100 | 21 | $16,100 |
-| `feb 26` | 11 | Ma lourdes diaz | 2026-02-24 | $22,000 | 22 | $23,400 |
 | `feb 26` | 12 | mariana hernandez | 2026-02-28 | $16,000 | 23 | $16,000 |
 | `feb 26` | 13 | nereyda concocoan | 2026-02-28 | $25,000 | 24 | $25,000 |
 | `feb 26` | 17 | jackeline cepeda | 2026-02-14 | $3,830 | 6 | $16,200 |
@@ -110,20 +133,16 @@ algún renglón el bueno fuera el descartado, se ve de inmediato.
 ## Posibles duplicados que NO se juntaron solos
 
 Misma hoja, misma fecha de firma, nombres a una o dos letras de distancia. **No se**
-**fusionan**: juntar a dos clientas distintas es peor que dejar dos renglones. Pero si
-éstas son la misma persona, ahora mismo se importa dos veces y hay que decidirlo a mano.
+**fusionan solas**: juntar a dos clientas distintas es peor que dejar dos renglones. Cada
+una que aparezca aquí se importa dos veces hasta que alguien la decida y entre a la tabla
+`MANUAL`.
 
-| hoja | clienta A | fila | total A | clienta B | fila | total B | letras de diferencia |
-|---|---|---|---|---|---|---|---|
-| `feb 26` | julieta yahaira rdz | 4 | $38,250 | juieta yahaira | 15 | $38,250 | 1 |
-
-Uno de ellos coincide además en el total, que es
-difícil de explicar como dos contratos distintos firmados el mismo día.
+Ninguno.
 
 ## Fragmentos de producto
 
-**16 de 87** fragmentos amarraron con un artículo del catálogo;
-**71** se quedan como texto. Ese par de números es la forma de comprobar que el
+**15 de 85** fragmentos amarraron con un artículo del catálogo;
+**70** se quedan como texto. Ese par de números es la forma de comprobar que el
 catálogo se importó antes que esto.
 
 **El número es bajo porque el catálogo todavía es el provisional de la semilla:**
@@ -156,7 +175,6 @@ Los que no amarraron:
 | `mantilla 016` | 1 |
 | `p136- crinolina 6 aros` | 1 |
 | `p33 de liquidacion mas ajustes` | 1 |
-| `merry -yana` | 1 |
 | `p47 de liquidacion` | 1 |
 | `merry- yana liquidacion` | 1 |
 | `azalia m` | 1 |
@@ -224,11 +242,11 @@ cargo con su nombre.
 | `MTY-IMP-0010` | andrea dominguez | $10,800 | $10,900 | $100 |
 | `MTY-IMP-0012` | nora debany garcia | $12,400 | $12,500 | $100 |
 | `MTY-IMP-0015` | guadalupe del angel | $7,800 | $7,900 | $100 |
-| `MTY-IMP-0023` | rocio giselle roque | $28,700 | $28,800 | $100 |
-| `MTY-IMP-0032` | maria fernanda rosalino | $17,500 | $17,600 | $100 |
-| `MTY-IMP-0036` | stephani rodriguez | $25,800 | $25,900 | $100 |
-| `MTY-IMP-0040` | zuralba aguilar | $15,250 | $15,350 | $100 |
-| `MTY-IMP-0045` | martha guadalupe | $18,300 | $18,400 | $100 |
+| `MTY-IMP-0022` | rocio giselle roque | $28,700 | $28,800 | $100 |
+| `MTY-IMP-0031` | maria fernanda rosalino | $17,500 | $17,600 | $100 |
+| `MTY-IMP-0035` | stephani rodriguez | $25,800 | $25,900 | $100 |
+| `MTY-IMP-0039` | zuralba aguilar | $15,250 | $15,350 | $100 |
+| `MTY-IMP-0044` | martha guadalupe | $18,300 | $18,400 | $100 |
 
 Otros 6 pagaron de más por cantidades distintas. No encajan en la misma
 explicación y hay que mirarlos aparte:
@@ -237,15 +255,15 @@ explicación y hay que mirarlos aparte:
 |---|---|---|---|---|
 | `MTY-IMP-0004` | hannia yamileth rodriguez | $17,000 | $17,095 | $95 |
 | `MTY-IMP-0011` | blanca aracely reyes | $15,000 | $15,300 | $300 |
-| `MTY-IMP-0020` | fatima gatica | $21,000 | $21,250 | $250 |
-| `MTY-IMP-0021` | maria del rosario | $36,900 | $37,450 | $550 |
-| `MTY-IMP-0022` | ivette sarahi cabrera | $17,500 | $17,550 | $50 |
-| `MTY-IMP-0027` | nereyda concepcion | $25,000 | $26,150 | $1,150 |
+| `MTY-IMP-0019` | fatima gatica | $21,000 | $21,250 | $250 |
+| `MTY-IMP-0020` | maria del rosario | $36,900 | $37,450 | $550 |
+| `MTY-IMP-0021` | ivette sarahi cabrera | $17,500 | $17,550 | $50 |
+| `MTY-IMP-0026` | nereyda concepcion | $25,000 | $26,150 | $1,150 |
 
 ## Saldos que quedan
 
 - liquidados: 8
-- con saldo: 25, $253,445 en total
+- con saldo: 24, $236,145 en total
 - pagados de más: 19 (ver la sección de arriba)
 
 ## Decisiones que se tomaron, y que conviene mirar
@@ -263,5 +281,5 @@ explicación y hay que mirarlos aparte:
 - **Comprobantes.** Estos abonos se cobraron antes de que el sistema existiera y no tienen
   foto. Se marcan `imported = 1` y la excepción vive sólo aquí: la API sigue rechazando
   cualquier abono nuevo sin comprobante.
-- **Fechas ilegibles.** 1 de 185 abonos no traen fecha que se pueda leer
+- **Fechas ilegibles.** 1 de 182 abonos no traen fecha que se pueda leer
   (`«2800 28-2»`). Se guarda el monto y la fecha queda nula, con el texto original al lado.
