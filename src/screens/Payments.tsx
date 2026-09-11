@@ -20,7 +20,7 @@ interface Coverage {
 }
 
 interface Detail {
-  contract: { id: number; folio: string; status: string; plan_name: string | null; total_cents: number }
+  contract: { id: number; folio: string; status: string; plan_name: string | null; total_cents: number; imported: number }
   customer: { name: string; apellido: string; phone: string; wedding_date: string | null } | null
   item: { id: number; code: string; name: string; status: string; ready_notified_at: string | null } | null
   lines: { description: string; price_cents: number; line_kind: string }[]
@@ -124,6 +124,14 @@ function ContractView({ folio, onBack }: { folio: string; onBack: () => void }) 
     <Screen title={bride || 'Sin nombre'} onBack={onBack} backLabel="Regresar a la búsqueda">
       <div className="wrap">
         <div className="panel">
+          {/* Un contrato importado del libro de pagos no tiene fotos de sus
+              comprobantes y nunca las va a tener: se cobraron antes de que
+              existiera el sistema. Hay que verlo antes de buscarlas. */}
+          {detail.contract.imported === 1 && (
+            <p className="pill pill--brass" style={{ marginBottom: 'var(--space-8)' }}>
+              Contrato histórico, importado del libro de pagos · sus abonos no tienen comprobante
+            </p>
+          )}
           <p className="muted" style={{ margin: '0 0 var(--space-9)' }}>
             {[
               detail.customer?.phone,

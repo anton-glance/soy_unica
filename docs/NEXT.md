@@ -324,3 +324,47 @@ leerla como una venta perdida que nunca se registró.
 
 Los cuadros del inicio muestran cuántas sesiones siguen abiertas en la sucursal.
 Si dice dos y sólo hay una tableta en uso, ahí está el aviso.
+
+## 9. Las importaciones de datos (rama aparte)
+
+Dos importadores, en `scripts/import/`. Ninguno escribe en ninguna base: cada
+uno produce **un reporte** y **un `.sql`** que se aplica a mano. Es a propósito
+—la única forma de que esto toque una base es que una persona corra el comando,
+y el reporte existe para que esa persona sepa qué está aplicando.
+
+```
+node scripts/import/pagos.mjs --items="$(…)"   # libro de pagos 2026
+node scripts/import/catalog.mjs --fetch        # catálogo del sitio
+npx wrangler d1 execute soy-unica --local --persist-to .wrangler/state --file docs/import/pagos.sql
+```
+
+### C2 — los contratos de 2026 · corrido
+
+`docs/import/pagos.md`. De 67 renglones en las nueve hojas de 2026: **51
+importables**, 6 rechazados, 10 duplicados descartados. Aplicado a la base
+local: 51 contratos, 182 abonos, 51 clientas, 22 créditos de regalo, cero
+parcialidades generadas, y las dos aritméticas cuadran en los 51.
+
+El libro está lleno a mano desde 2018 y se nota: tres distribuciones de columnas
+distintas, una hoja sin encabezado, un encabezado que miente sobre dónde está el
+producto, celdas con dos abonos adentro, un abono escrito «cancelo», un «120000»
+que era 12000, y once clientas de febrero capturadas dos veces. Nada de eso se
+adivina en silencio: lo que no se entiende se rechaza con el contenido crudo de
+la celda.
+
+**Lo que hay que confirmar antes de tocar producción:** el regalo de accesorios.
+El encargo decía que `26500-1500=25000` tiene que cuadrar; los números del libro
+dicen que el total de la hoja **ya es** lo que la novia paga. Está argumentado en
+el reporte con la evidencia de los dos lados.
+
+### C1 — el catálogo · escrito y probado, no corrido
+
+`docs/import/catalog.md`. El importador está completo: paginación de la Store
+API, mapeo con sus casos difíciles, recodificado de imágenes con los mismos
+límites de la tableta (1600 px, WebP, ≤300 KB) y renglones en `files` + R2. El
+mapeo está probado en `tests/catalog-map.test.ts`.
+
+**No se pudo correr contra el sitio:** este entorno no tiene salida a
+`soyunicanovias.com`. Las cifras del reporte salen de una fixture. Falta correrlo
+donde haya red para tener los números de verdad —y la proyección de
+almacenamiento, que sin las imágenes no existe.
