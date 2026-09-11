@@ -174,6 +174,7 @@ app.get('/weekly', requireOwner, async (c) => {
         stage: reached(row),
         reason: row.reason,
         note: row.note,
+        outcome: row.outcome,
         bride: [row.bride, row.apellido].filter(Boolean).join(' '),
         phone: row.phone,
         wedding_date: row.wedding_date,
@@ -190,9 +191,14 @@ app.get('/weekly', requireOwner, async (c) => {
   const anonimas = sessions.filter((row) => !sold(row) && row.customer_id === null)
   const motivos = new Map<string, number>()
   for (const row of anonimas) {
-    const key = row.closed_at === null ? 'sigue abierta' : (row.reason ?? 'sin motivo')
+    // Abandonada no es perdida: nadie dijo por qué se fue. Se cuenta aparte
+    // para no leerla como un motivo de no-venta que nunca se registró.
+    const key = row.closed_at === null
+      ? 'sigue abierta'
+      : row.outcome === 'abandoned' ? 'abandonada (la tableta se quedó abierta)' : (row.reason ?? 'sin motivo')
     motivos.set(key, (motivos.get(key) ?? 0) + 1)
   }
+  const abandonadas = sessions.filter((row) => row.outcome === 'abandoned').length
 
   const reachedFitting = sessions.filter((row) => rank(reached(row)) >= rank('fitting')).length
 
@@ -204,6 +210,7 @@ app.get('/weekly', requireOwner, async (c) => {
       opened: sessions.length,
       reached_fitting: reachedFitting,
       sold: ventas.length,
+      abandoned: abandonadas,
     },
     ventas,
     sin_venta: sinVenta,

@@ -291,3 +291,36 @@ la query. La dueña ve CDMX entrando como CDMX.
   otra rama y otro PR.
 - **El «Cerrar sesión» del kiosco sigue siendo una píldora con texto**, por la
   misma razón de las rondas anteriores.
+
+
+## 8. Correcciones sobre la ronda 5
+
+### CI: una corrida por commit
+
+`on: push` + `on: pull_request` corría el mismo commit dos veces en cualquier
+rama con PR abierto. El disparador de push queda limitado a `main`.
+
+### Sesiones abandonadas
+
+`outcome = 'abandoned'` estaba en el esquema desde el principio y no lo escribía
+nadie: una sesión sólo se cerraba a mano, con el NIP. Cuando la vendedora apaga
+la tableta al final del día sin cerrarla, los apartados de esa novia se quedan
+en `watching` para siempre y a la mañana siguiente esos vestidos ya no aparecen
+en el kiosco, sin forma de arreglarlo desde la tienda.
+
+Ahora el tiempo las cierra. `worker/lib/reaper.ts` busca las sesiones sin
+actividad —el último `session_events.at`, o `opened_at` si no tiene ninguno— por
+más de `stores.session_timeout_hours` (4 por omisión, configurable en Ajustes,
+mínimo 1) y las cierra con `outcome = 'abandoned'`, soltando sus apartados. Les
+conserva **eventos y favoritos**: no compró, pero vino.
+
+El barrido corre en tres lugares: un cron del Worker cada hora, al abrir una
+sesión nueva —que es la mañana siguiente, cuando de verdad importa— y al
+consultar las sesiones abiertas.
+
+Abandonada **no** es perdida: nadie dijo por qué se fue la clienta. El reporte
+la cuenta aparte, con su propio renglón en el embudo y su propio motivo, para no
+leerla como una venta perdida que nunca se registró.
+
+Los cuadros del inicio muestran cuántas sesiones siguen abiertas en la sucursal.
+Si dice dos y sólo hay una tableta en uso, ahí está el aviso.

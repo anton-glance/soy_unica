@@ -14,7 +14,7 @@ interface Venta {
 }
 
 interface SinVenta {
-  session_id: number; stage: string; reason: string | null; note: string | null
+  session_id: number; stage: string; outcome: string | null; reason: string | null; note: string | null
   bride: string; phone: string | null; wedding_date: string | null
   dress: Pick | null; favorites: Pick[]; seller: string | null
   opened_at: string; closed_at: string | null
@@ -22,7 +22,7 @@ interface SinVenta {
 
 interface Week {
   from: string; to: string
-  conversion: { opened: number; reached_fitting: number; sold: number }
+  conversion: { opened: number; reached_fitting: number; sold: number; abandoned: number }
   ventas: Venta[]
   sin_venta: SinVenta[]
   anonimas: { count: number; reasons: { reason: string; n: number }[] }
@@ -70,7 +70,7 @@ export function WeeklyReport() {
     return <Screen title="Reporte semanal" onBack={back} backLabel="Regresar al inicio" center><span className="spinner" aria-hidden="true" /></Screen>
   }
 
-  const { opened, reached_fitting, sold } = week.conversion
+  const { opened, reached_fitting, sold, abandoned } = week.conversion
   const pct = (n: number) => (opened === 0 ? '—' : `${Math.round((n / opened) * 100)}%`)
 
   return (
@@ -91,6 +91,17 @@ export function WeeklyReport() {
           <div><b>{reached_fitting}</b><span>llegaron al probador · {pct(reached_fitting)}</span></div>
           <div><b>{sold}</b><span>terminaron en venta · {pct(sold)}</span></div>
         </div>
+        {/* Una sesión abandonada no dice nada de la clienta: dice que la
+            tableta se quedó abierta. Se avisa aparte para que no se lea como
+            un motivo de no-venta. */}
+        {abandoned > 0 && (
+          <p className="muted" style={{ margin: '0 0 var(--space-12)' }}>
+            {abandoned === 1
+              ? '1 sesión se cerró sola por quedarse abierta sin actividad.'
+              : `${abandoned} sesiones se cerraron solas por quedarse abiertas sin actividad.`}
+            {' '}No cuentan como venta perdida: nadie registró por qué se fue la clienta.
+          </p>
+        )}
 
         <h3 className="report-head">Ventas <span className="muted">· {week.ventas.length}</span></h3>
         {week.ventas.length === 0 && <p className="muted">Ninguna venta esta semana.</p>}
@@ -132,7 +143,9 @@ export function WeeklyReport() {
                     .filter(Boolean).join(' · ')}
                 </p>
               </div>
-              <span className="bdg warn">{STAGE_ES[r.stage] ?? r.stage}</span>
+              <span className={`bdg ${r.outcome === 'abandoned' ? 'mute' : 'warn'}`}>
+                {r.outcome === 'abandoned' ? 'Se quedó abierta' : (STAGE_ES[r.stage] ?? r.stage)}
+              </span>
             </div>
             <p style={{ marginTop: 'var(--space-6)' }}>
               {r.dress
@@ -142,7 +155,11 @@ export function WeeklyReport() {
                 <span className="muted"> · también vio {r.favorites.filter((f) => f.code !== r.dress?.code).map((f) => f.code).join(', ')}</span>
               )}
             </p>
-            {(r.reason || r.note) && (
+            {r.outcome === 'abandoned' ? (
+              <p className="state wait" style={{ marginTop: 'var(--space-6)' }}>
+                La tableta se quedó abierta y la sesión se cerró sola · llegó a {(STAGE_ES[r.stage] ?? r.stage).toLowerCase()}
+              </p>
+            ) : (r.reason || r.note) && (
               <p className="state late" style={{ marginTop: 'var(--space-6)' }}>
                 {[r.reason, r.note].filter(Boolean).join(' · ')}
               </p>

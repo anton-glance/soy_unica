@@ -26,6 +26,10 @@ export class Kiosk {
     return this.unwrap<T>(await this.raw(path, { method: 'POST', body: body === undefined ? undefined : JSON.stringify(body) }))
   }
 
+  async patch<T>(path: string, body?: unknown): Promise<T> {
+    return this.unwrap<T>(await this.raw(path, { method: 'PATCH', body: body === undefined ? undefined : JSON.stringify(body) }))
+  }
+
   /** El rechazo esperado: el estado y el mensaje en español que vio la vendedora. */
   async refusal(path: string, body?: unknown, method = 'POST'): Promise<{ status: number; error: string }> {
     const res = await this.raw(path, { method, body: body === undefined ? undefined : JSON.stringify(body) })
