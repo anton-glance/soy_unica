@@ -386,3 +386,97 @@ mapeo está probado en `tests/catalog-map.test.ts`.
 `soyunicanovias.com`. Las cifras del reporte salen de una fixture. Falta correrlo
 donde haya red para tener los números de verdad —y la proyección de
 almacenamiento, que sin las imágenes no existe.
+
+## 10. Round 6 — recorded, not built: two design questions
+
+Two items from this round were explicitly "record only" — the discussion is
+to start from what's written here, not from a decision already made. Written
+in English, unlike the rest of this file, per the standing instruction that
+everything a developer reads (not a bride or a seller) is English from here on.
+
+### A. Accessories sold after the contract is signed
+
+A bride who bought only a dress often comes back weeks later for a veil or a
+tiara. Today, `contract_items` (dress/accessory/surcharge/gift_credit lines)
+and `installments` both hang off exactly one `contracts` row, and every write
+path that touches them — `POST /sessions/:id/select`, `/terms`, `/payments` —
+assumes that row already exists and belongs to a `kiosk_session`. A sale with
+no session, no measurements, and no new contract doesn't fit anywhere in that
+shape, but it has to land under the same client and show up as more money
+owed against her existing plan, not as a second, unrelated balance.
+
+**The question to settle first:** does this sale get
+1. **a second, lightweight contract** linked to the same `customer_id`, with
+   its own folio, its own single `installment`, and `status` values that make
+   sense for something with no measurements and no signature (today's
+   `status` CHECK on `contracts` — `draft/active/paid/delivered/cancelled/...`
+   — was written for the dress contract's lifecycle, not this); or
+2. **an addendum on the existing contract** — a new `contract_items` row
+   (`line_kind = 'accessory'`) plus a new `installments` row appended after
+   the current schedule, with `total_cents` recalculated.
+
+Whichever shape wins, three things read `total_cents`/`installments` today and
+each needs a specific answer, not just "handle it somehow":
+
+- **The schedule.** `buildLedger()` (`worker/lib/payments.ts`) walks
+  `installments` in `seq` order and applies payments to whichever is next
+  due. An addendum's new installment either gets appended after the existing
+  ones (the bride owes it last) or interleaved by date — that's a product
+  decision, not a technical one, and changes what "next due" means.
+- **The balance.** `GET /contracts/:folio` (`worker/routes/contracts.ts`) sums
+  one contract's ledger for the client page. Two contracts means two ledgers
+  to show together (or merge) on the one page a seller looks at when the
+  bride is standing there.
+- **The weekly report.** `worker/routes/reports.ts` counts a session's outcome
+  by its one `dress` line and lists its `accessory` lines alongside it
+  (`picked.filter(p => p.line_kind === 'accessory')`). A same-day accessory
+  sale with no session behind it wouldn't be counted by anything that walks
+  `kiosk_sessions` — it needs its own place in the week's numbers, decided
+  before it's built, or it will quietly not show up anywhere.
+
+### B. One catalog across both branches
+
+`items` carries `store_id` directly (`db/migrations/0001_init.sql`), so the
+same model sold in both Monterrey and CDMX is two separate rows today, each
+with its own price, its own photos, and its own life — nothing keeps them in
+sync, and nothing connects them. That was fine as long as a dress lived and
+died in one branch. It stopped being fine once the catalog importer
+(`scripts/import/catalog.mjs`, merged in an earlier round) confirmed CDMX's
+catalog is separate data that has to be brought in on its own — and the owner
+has said she also ships physical garments between the two stores overnight,
+which the current schema has no way to express at all: `items.store_id` is
+fixed at intake, so a dress can't move branches without becoming, in the
+database, a different item with a new history.
+
+**The shape discussed, to design against, not to build yet:**
+
+- **`models`** — the catalog. No `store_id`. Name, brand, cut, color, the
+  photos — everything that's a fact about the design, true in every branch at
+  once. This is what `scripts/import/map-product.mjs` should target instead
+  of `items` directly.
+- **`store_models`** — join row per (model, store): the price *that branch*
+  sells it at, and whether that branch offers it at all. This is where the
+  "Monterrey leaves it unpriced because CDMX carries it higher" case
+  (`needs_review`, already built this round) actually belongs — it's a fact
+  about one branch's row, not about the model.
+- **`units`** — the physical garments. Each one has its own `store_id`
+  (where it physically is right now, on some rack), its own `status`
+  (`available/watching/reserved/tailoring/.../sold`), its own `held_by_session`
+  — everything `items` tracks today about one dress's real-world state,
+  including the transfer a `store_id` change would represent when a garment
+  moves between branches.
+
+Everywhere that isn't the catalog stays exactly as strict as it is now:
+`kiosk_sessions`, `contracts`, `payments`, and every report keep `store_id`
+and stay scoped to one branch — a session in `mty` still can't touch `cdmx`'s
+anything. Only the catalog stops being duplicated per branch.
+
+This is a real schema migration — every foreign key onto `items.id` (from
+`contract_items`, `item_photos`, `session_favorites`, `kiosk_sessions` via
+`held_by_session`) has to be re-pointed at `units.id`, and every read that
+currently joins straight to `items` for a model's name/price now joins through
+`units → models`/`store_models`. It should happen **before** the catalog
+import reaches production — importing into the current one-row-per-branch
+shape now, then migrating that data into `models`/`store_models`/`units`
+later, is strictly more work than migrating the schema first and importing
+into it directly once.

@@ -45,6 +45,14 @@ export function bytes(value: number): string {
   return `${n.toFixed(n >= 10 ? 0 : 1)} ${units[i]}`
 }
 
+/** "8112345678" → "+52 81 1234 5678", para mostrarlo donde ya está guardado. */
+export function formatPhoneMX(digits: string | null | undefined): string {
+  const d = String(digits ?? '').replace(/\D/g, '').slice(0, 10)
+  if (!d) return '—'
+  const groups = [d.slice(0, 2), d.slice(2, 6), d.slice(6, 10)].filter(Boolean)
+  return `+52 ${groups.join(' ')}`
+}
+
 /** "12,500" o "12500.50" → centavos. Devuelve null si no se entiende. */
 export function parseMoney(input: string): number | null {
   const cleaned = input.replace(/[^0-9.,-]/g, '').replace(/,/g, '')

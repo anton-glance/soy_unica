@@ -16,13 +16,20 @@ import { IconButton } from './IconButton'
  * regreso.
  */
 export function Screen({
-  title, onBack, backLabel = 'Regresar', onClose, closeLabel = 'Salir', center, children, footer,
+  title, onBack, backLabel = 'Regresar', onClose, closeLabel = 'Salir', right, center, children, footer,
 }: {
   title: ReactNode
   onBack?: () => void
   backLabel?: string
   onClose?: () => void
   closeLabel?: string
+  /**
+   * Reemplaza la (X) del hueco derecho por lo que haga falta ahí — el kiosco
+   * pone «Sesión abierta» y «Cerrar sesión», que son del kiosco y no una
+   * salida del sistema. Sólo una pantalla necesita las dos cosas a la vez, así
+   * que nunca hay que combinarlas.
+   */
+  right?: ReactNode
   /** Centra el contenido en el alto disponible (entrada, NIP, avisos). */
   center?: boolean
   children?: ReactNode
@@ -36,7 +43,7 @@ export function Screen({
         </div>
         <h1 className="topbar__title">{title}</h1>
         <div className="topbar__slot topbar__slot--end">
-          {onClose && <IconButton kind="close" label={closeLabel} onClick={onClose} />}
+          {right ?? (onClose && <IconButton kind="close" label={closeLabel} onClick={onClose} />)}
         </div>
       </header>
 
