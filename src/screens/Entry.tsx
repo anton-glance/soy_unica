@@ -13,6 +13,24 @@ const STORE_SUB: Record<Store, string> = { mty: 'San Nicolás', cdmx: 'Ciudad de
 const ROLE_LABEL: Record<Role, string> = { owner: 'Dueña', seller: 'Vendedora' }
 
 /**
+ * El logo y, debajo, la sucursal ya elegida. El renglón de la sucursal existe
+ * en las DOS pantallas —vacío en la primera, invisible pero del mismo alto—
+ * para que el bloque completo mida lo mismo en ambas: si no, elegir la
+ * sucursal le agrega una línea al bloque y los botones de abajo saltan hacia
+ * abajo en la segunda pantalla.
+ */
+function EntryBrand({ store }: { store: Store | null }) {
+  return (
+    <div className="entry__brand">
+      <Brandmark size="lg" />
+      <p className="entry__brand-sub" style={{ visibility: store ? 'visible' : 'hidden' }}>
+        {store ? `${STORE_LABEL[store]} · ${STORE_SUB[store]}` : 'Monterrey · San Nicolás'}
+      </p>
+    </div>
+  )
+}
+
+/**
  * La entrada: sucursal, rol y NIP. Después del NIP se cae directo en los
  * cuatro cuadros, sin ninguna pantalla intermedia.
  */
@@ -27,7 +45,7 @@ export function Entry() {
     return (
       // La primera pantalla: no hay a dónde regresar.
       <Screen title="Selecciona la sucursal" center>
-        <Brandmark size="lg" />
+        <EntryBrand store={null} />
         <div className="entry__choices">
           {(['mty', 'cdmx'] as Store[]).map((id) => (
             <button key={id} type="button" className="btn-main" onClick={() => setStore(id)}>
@@ -42,8 +60,7 @@ export function Entry() {
   if (!role) {
     return (
       <Screen title="Selecciona tu rol" onBack={() => setStore(null)} backLabel="Regresar a la sucursal" center>
-        <Brandmark size="lg" />
-        <p className="lede">{STORE_LABEL[store]} · {STORE_SUB[store]}</p>
+        <EntryBrand store={store} />
         <div className="entry__choices">
           {(['owner', 'seller'] as Role[]).map((id) => (
             <button key={id} type="button" className="btn-main" onClick={() => setRole(id)}>

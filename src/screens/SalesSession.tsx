@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { ApiError, UnauthorizedError, get, post } from '../lib/api'
 import { money } from '../lib/format'
 import { useSession } from '../lib/session'
@@ -14,6 +14,7 @@ import { Screen } from '../components/Screen'
 import { Chips, Field } from '../components/Field'
 import { PrintMedidas } from './PrintMedidas'
 import { PrintContrato } from './PrintContrato'
+import { ScrollRail } from '../components/ScrollRail'
 
 /**
  * El identificador de la sesión de venta vive en `localStorage`, por navegador.
@@ -22,7 +23,7 @@ import { PrintContrato } from './PrintContrato'
  * resolver, se descarta y se abre una sesión nueva en vez de dejar una pantalla
  * sin salida.
  */
-const SESSION_KEY = 'su:session'
+export const SESSION_KEY = 'su:session'
 
 type Stage =
   | 'browsing' | 'fitting' | 'selected' | 'bride_data' | 'sheet_printed'
@@ -45,8 +46,11 @@ interface SessionState {
 const STAGE_TITLE: Record<Stage, string> = {
   browsing: '', fitting: '', selected: 'Datos de la novia',
   bride_data: 'Hoja de medidas', sheet_printed: 'Foto de la hoja firmada', sheet_signed: 'Plan de pago',
-  terms: 'Imprimir el contrato', contract_printed: 'Foto del contrato firmado', signed: 'Anticipo',
-  payment: 'Anticipo', closed: 'Sesión cerrada',
+  terms: 'Imprimir el contrato', contract_printed: 'Foto del contrato firmado',
+  // 'signed' y 'payment' no llegan a pintarse: el efecto de redirección los
+  // manda a la ficha de la clienta antes de que este título se vea. Siguen
+  // aquí porque `Stage` los exige, no porque alguien los vaya a leer.
+  signed: 'Sesión de venta', payment: 'Sesión de venta', closed: 'Sesión cerrada',
 }
 const STAGE_HINT: Record<Stage, string> = {
   browsing: '', fitting: '',
@@ -56,9 +60,7 @@ const STAGE_HINT: Record<Stage, string> = {
   sheet_signed: 'Sólo aparecen los planes que caben por precio, por meses y por la fecha del evento.',
   terms: 'El contrato va impreso al reverso de las mismas dos hojas.',
   contract_printed: 'El contrato se activa sólo con las dos fotos: la hoja de medidas y el contrato.',
-  signed: 'El primer abono se registra igual que cualquier otro.',
-  payment: 'El primer abono se registra igual que cualquier otro.',
-  closed: '',
+  signed: '', payment: '', closed: '',
 }
 
 export function SalesSession() {
@@ -70,6 +72,10 @@ export function SalesSession() {
   })
   const [state, setState] = useState<SessionState | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // Se declara aquí arriba, antes de cualquier regreso condicional: los
+  // ganchos de React tienen que correr siempre en el mismo orden, y este
+  // componente regresa temprano en varias ramas (cargando, en el kiosco...).
+  const closeRef = useRef<CloseControlHandle>(null)
 
   const reload = useCallback(async (id: number) => {
     const { data } = await get<SessionState>(`/sessions/${id}`)
@@ -122,6 +128,22 @@ export function SalesSession() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  /*
+   * No hay pantalla de «Anticipo»: en cuanto el contrato firma, se va derecho
+   * a la ficha de la clienta a registrar el abono ahí. El paso de antes no
+   * hacía nada —su «Actualizar» no cambiaba nada— y sólo era una parada de
+   * más entre firmar y cobrar.
+   */
+  const stageForRedirect = state?.session.stage
+  const folioForRedirect = state?.contract?.folio
+  // `useLayoutEffect`, no `useEffect`: corre antes de que el navegador pinte,
+  // así no alcanza a mostrarse ni un parpadeo de esta pantalla de por medio.
+  useLayoutEffect(() => {
+    if ((stageForRedirect === 'signed' || stageForRedirect === 'payment') && folioForRedirect) {
+      navigate(`/pagos?folio=${encodeURIComponent(folioForRedirect)}`, true)
+    }
+  }, [stageForRedirect, folioForRedirect, navigate])
+
   if (error) {
     return (
       <Screen title="No se pudo abrir la sesión" onBack={() => navigate('/')} backLabel="Regresar al inicio" center>
@@ -143,15 +165,33 @@ export function SalesSession() {
   if (stage === 'browsing' || stage === 'fitting') {
     return <Kiosk sessionId={sessionId} onChange={refresh} onClosed={onClosed} onLeave={() => navigate('/')} />
   }
+  // El efecto de arriba ya está redirigiendo a la ficha de la clienta; esto
+  // sólo se ve, si acaso, el instante entre el primer pintado y ese salto.
+  if (stage === 'signed' || stage === 'payment') {
+    return <Screen title="Sesión de venta" center><span className="spinner" aria-hidden="true" /></Screen>
+  }
 
-  const footer = <CloseControl sessionId={sessionId} onClosed={onClosed} />
+  // «Datos de la novia» usa la (X) de arriba, como el resto de la aplicación;
+  // los demás pasos ya traen algo pegado abajo (imprimir, guardar el plan) y
+  // ahí «Cerrar sesión» se queda en el pie, con su propio texto. El control es
+  // el mismo NIP + motivo en los dos casos: sólo cambia de dónde se dispara.
+  const closeControl = (
+    <CloseControl
+      ref={closeRef}
+      sessionId={sessionId}
+      onClosed={onClosed}
+      trigger={stage === 'selected' ? () => null : undefined}
+    />
+  )
 
   return (
     <Screen
       title={STAGE_TITLE[stage]}
       onBack={() => navigate('/')}
       backLabel="Regresar al inicio"
-      footer={footer}
+      onClose={stage === 'selected' ? () => closeRef.current?.open() : undefined}
+      closeLabel="Cerrar sesión"
+      footer={stage === 'selected' ? undefined : closeControl}
     >
       <div className="wrap">
         {state.contract && (
@@ -165,10 +205,10 @@ export function SalesSession() {
         {stage === 'sheet_signed' && <Terms sessionId={sessionId} onDone={refresh} />}
         {stage === 'terms' && <ContractPrint sessionId={sessionId} state={state} onDone={refresh} />}
         {stage === 'contract_printed' && <SignContract sessionId={sessionId} state={state} onDone={refresh} />}
-        {(stage === 'signed' || stage === 'payment') && state.contract && (
-          <FirstPayment folio={state.contract.folio} onDone={refresh} />
-        )}
+        {/* 'signed' y 'payment' no dibujan nada aquí: el efecto de arriba ya
+            mandó a la ficha de la clienta en cuanto el folio estuvo listo. */}
       </div>
+      {stage === 'selected' && closeControl}
     </Screen>
   )
 }
@@ -300,10 +340,25 @@ function Kiosk({ sessionId, onChange, onClosed, onLeave }: {
       // NIP, si no bastaría un toque para llegar a los contratos.
       onBack={() => setView({ at: 'handover', then: 'leave' })}
       backLabel="Salir del kiosco"
-      footer={
-        <div className="row" style={{ justifyContent: 'center' }}>
+      // Del kiosco, no del sistema: van en la barra, no en el pie, porque el
+      // pie es donde vive «Ver mis favoritos» y tiene que verse siempre, no
+      // sólo al llegar al final de la lista.
+      right={
+        <div className="row" style={{ alignItems: 'center', flexWrap: 'nowrap' }}>
           <span className="pill"><span className="dot" />Sesión abierta</span>
           <CloseControl sessionId={sessionId} onClosed={onClosed} />
+        </div>
+      }
+      footer={
+        <div className="tray">
+          <p>
+            {favs.length === 0
+              ? 'Toca el corazón de los vestidos que te gusten. La vendedora los traerá para probar.'
+              : `${favs.length} ${favs.length === 1 ? 'vestido guardado' : 'vestidos guardados'}. Muéstrale la lista a la vendedora cuando quieras probártelos.`}
+          </p>
+          <button type="button" className="btn-main" disabled={favs.length === 0} onClick={() => setView({ at: 'favorites' })}>
+            {favs.length === 0 ? 'Ver mis favoritos' : `Ver mis favoritos (${favs.length})`}
+          </button>
         </div>
       }
     >
@@ -354,17 +409,6 @@ function Kiosk({ sessionId, onChange, onClosed, onLeave }: {
         {visible.length === 0 && <p className="lede">Nada con ese filtro. Toca «Todos» para ver todo otra vez.</p>}
       </div>
 
-      <div className="tray">
-        <p>
-          {favs.length === 0
-            ? 'Toca el corazón de los vestidos que te gusten. La vendedora los traerá para probar.'
-            : `${favs.length} ${favs.length === 1 ? 'vestido guardado' : 'vestidos guardados'}. Muéstrale la lista a la vendedora cuando quieras probártelos.`}
-        </p>
-        <button type="button" className="btn-main" disabled={favs.length === 0} onClick={() => setView({ at: 'favorites' })}>
-          {favs.length === 0 ? 'Ver mis favoritos' : `Ver mis favoritos (${favs.length})`}
-        </button>
-      </div>
-
       {open && (
         <Dialog title={open.name} onCancel={() => setOpen(null)} big>
           <div className="detail">
@@ -413,12 +457,14 @@ function Kiosk({ sessionId, onChange, onClosed, onLeave }: {
           closeLabel="Seguir viendo"
           narrow
           actions={
-            <>
-              <button type="button" className="btn-quiet" onClick={() => setView({ at: 'catalog' })}>De acuerdo</button>
-              <button type="button" className="btn-main" onClick={() => setView({ at: 'pin', then: view.then })}>
+            <div className="row" style={{ justifyContent: 'center', width: '100%' }}>
+              <button type="button" className="btn-quiet" style={{ flex: 1 }} onClick={() => setView({ at: 'catalog' })}>
+                De acuerdo
+              </button>
+              <button type="button" className="btn-main" style={{ flex: 1 }} onClick={() => setView({ at: 'pin', then: view.then })}>
                 Soy la vendedora
               </button>
-            </>
+            </div>
           }
         >
           <p className="lede">Ella sigue desde aquí.</p>
@@ -459,7 +505,7 @@ function FavoritesReview({ favs, showPrices, onClose, onRemove, onCall }: {
       </p>
 
       {/* Se desliza de lado: nunca empuja el botón fuera de la pantalla. */}
-      <div className="fav-rail">
+      <ScrollRail>
         {favs.map((d) => (
           <figure key={d.id} className="fav-rail__item">
             <GownArt seed={d.id} />
@@ -478,7 +524,7 @@ function FavoritesReview({ favs, showPrices, onClose, onRemove, onCall }: {
             </button>
           </figure>
         ))}
-      </div>
+      </ScrollRail>
     </Dialog>
   )
 }
@@ -526,7 +572,10 @@ function SelectionScreen({ sessionId, pin, favorites, accessories, showPrices, o
       }
     >
       <div className="wrap">
-        <p className="lede">Estos son los vestidos que la clienta quiere probarse.</p>
+        <p className="lede">
+          Llévale al probador todos los vestidos que marcó. Cuando ya se los haya probado y se
+          decida por uno, márcalo aquí abajo y ofrécele accesorios antes de continuar.
+        </p>
 
         <div className="grid grid--tight">
           {favorites.map((d) => (
@@ -573,25 +622,28 @@ function SelectionScreen({ sessionId, pin, favorites, accessories, showPrices, o
 
       {catalogOpen && (
         <Dialog title="Accesorios" onCancel={() => setCatalogOpen(false)} closeLabel="Listo" big>
-          <div className="fav-rail">
-            {accessories.map((a) => (
-              <figure key={a.id} className="fav-rail__item">
-                <GownArt seed={a.id} />
-                <figcaption>{a.name}</figcaption>
-                <p className="muted" style={{ fontSize: 'var(--text-sm)' }}>{a.code} · {money(a.price_cents)}</p>
-                <button
-                  type="button"
-                  className="chip"
-                  aria-pressed={picked.includes(a.id)}
-                  style={{ marginTop: 'var(--space-3)', width: '100%' }}
-                  onClick={() => setPicked((p) => (p.includes(a.id) ? p.filter((id) => id !== a.id) : [...p, a.id]))}
-                >
-                  {picked.includes(a.id) ? 'Agregado' : 'Agregar'}
-                </button>
-              </figure>
-            ))}
-            {accessories.length === 0 && <p className="lede">No hay accesorios en esta sucursal.</p>}
-          </div>
+          {accessories.length === 0 ? (
+            <p className="lede">No hay accesorios en esta sucursal.</p>
+          ) : (
+            <ScrollRail>
+              {accessories.map((a) => (
+                <figure key={a.id} className="fav-rail__item">
+                  <GownArt seed={a.id} />
+                  <figcaption>{a.name}</figcaption>
+                  <p className="muted" style={{ fontSize: 'var(--text-sm)' }}>{a.code} · {money(a.price_cents)}</p>
+                  <button
+                    type="button"
+                    className="chip"
+                    aria-pressed={picked.includes(a.id)}
+                    style={{ marginTop: 'var(--space-3)', width: '100%' }}
+                    onClick={() => setPicked((p) => (p.includes(a.id) ? p.filter((id) => id !== a.id) : [...p, a.id]))}
+                  >
+                    {picked.includes(a.id) ? 'Agregado' : 'Agregar'}
+                  </button>
+                </figure>
+              ))}
+            </ScrollRail>
+          )}
         </Dialog>
       )}
 
@@ -601,17 +653,19 @@ function SelectionScreen({ sessionId, pin, favorites, accessories, showPrices, o
           onCancel={() => setConfirming(false)}
           narrow
           actions={
-            <ActionButton
-              done="Listo"
-              onAction={async () => {
-                await post(`/sessions/${sessionId}/select`, {
-                  item_id: chosenDress.id, pin, accessory_item_ids: picked,
-                })
-                await onDone()
-              }}
-            >
-              Pasar a las medidas
-            </ActionButton>
+            <div className="row" style={{ justifyContent: 'center', width: '100%' }}>
+              <ActionButton
+                done="Listo"
+                onAction={async () => {
+                  await post(`/sessions/${sessionId}/select`, {
+                    item_id: chosenDress.id, pin, accessory_item_ids: picked,
+                  })
+                  await onDone()
+                }}
+              >
+                Pasar a las medidas
+              </ActionButton>
+            </div>
           }
         >
           <div className="stack">
@@ -633,6 +687,33 @@ function SelectionScreen({ sessionId, pin, favorites, accessories, showPrices, o
       )}
     </Screen>
   )
+}
+
+/**
+ * La máscara del teléfono: "+52 " fijo y diez huecos en grupos de 2-4-4,
+ * rellenados de izquierda a derecha con lo que ya se tecleó. Los tres
+ * ayudantes son puro texto, sin estado de React, para poder llamarlos desde el
+ * mismo `onInput` sin controlar el campo — así el autocompletado del navegador
+ * también pasa por aquí y sale bien formateado.
+ */
+function formatPhoneMask(digits: string): string {
+  const slots = digits.padEnd(10, '_').split('')
+  const group = (from: number, to: number) => slots.slice(from, to).join('')
+  return `+52 ${group(0, 2)} ${group(2, 6)} ${group(6, 10)}`
+}
+
+/** Todo lo que sigue al «+52» fijo, sin espacios ni huecos: los dígitos reales. */
+function phoneDigitsFromMasked(raw: string): string {
+  const rest = raw.startsWith('+52') ? raw.slice(3) : raw
+  return rest.replace(/\D/g, '')
+}
+
+/** Dónde debe quedar el cursor después de formatear, para que borrar borre el
+ * último dígito de verdad y no un espacio o un guion bajo de la máscara. */
+function phoneMaskCaret(digitCount: number): number {
+  if (digitCount <= 2) return 4 + digitCount
+  if (digitCount <= 6) return 5 + digitCount
+  return 6 + digitCount
 }
 
 // ───────────────────────────────────────────────────── datos de novia ──
@@ -661,19 +742,35 @@ function BrideForm({ sessionId, onDone }: { sessionId: number; onDone: () => Pro
       <div className="two">
         <div className="field">
           <label htmlFor="bride-phone">Teléfono</label>
-          {/* `type="tel"` con inputMode numérico; los no-dígitos se caen solos. */}
+          {/*
+            El «+52» es fijo: no se puede borrar, y no viaja con el número. Lo
+            que ve la vendedora es la máscara «+52 __ ____ ____»; lo que se
+            guarda —en el campo oculto que de verdad manda el formulario— son
+            sólo los 10 dígitos, sin prefijo y sin espacios, igual que antes.
+          */}
           <input
             id="bride-phone"
-            name="phone"
             type="tel"
             inputMode="numeric"
             autoComplete="tel"
-            placeholder="8112345678"
+            defaultValue={formatPhoneMask('')}
+            onFocus={(e) => {
+              // Si todavía no hay nada tecleado, el cursor arranca después del prefijo.
+              const el = e.currentTarget
+              const n = phoneDigitsFromMasked(el.value).length
+              if (n === 0) el.setSelectionRange(4, 4)
+            }}
             onInput={(e) => {
               const el = e.currentTarget
-              el.value = el.value.replace(/\D/g, '').slice(0, 10)
+              const digits = phoneDigitsFromMasked(el.value).slice(0, 10)
+              el.value = formatPhoneMask(digits)
+              const caret = phoneMaskCaret(digits.length)
+              el.setSelectionRange(caret, caret)
+              const hidden = el.form?.elements.namedItem('phone')
+              if (hidden instanceof HTMLInputElement) hidden.value = digits
             }}
           />
+          <input type="hidden" name="phone" defaultValue="" />
           <p className="err" style={{ color: 'var(--ink-faint)' }}>10 dígitos</p>
         </div>
         <div className="field">
@@ -727,16 +824,32 @@ function SheetPrint({ sessionId, state, onDone }: { sessionId: number; state: Se
           onCancel={() => setAsking(false)}
           narrow
           actions={
-            <ActionButton
-              done="Impresa"
-              onAction={async () => {
-                await post(`/sessions/${sessionId}/sheet-printed`)
-                setAsking(false)
-                setPrinting(true)
-              }}
-            >
-              Imprimir
-            </ActionButton>
+            <div className="row" style={{ justifyContent: 'center', width: '100%' }}>
+              {/* La misma llamada al servidor en los dos casos: lo único que
+                  cambia es si se abre la vista de impresión o se salta
+                  derecho a la foto de la hoja ya firmada. */}
+              <ActionButton
+                className="btn-quiet"
+                done="Lista"
+                onAction={async () => {
+                  await post(`/sessions/${sessionId}/sheet-printed`)
+                  setAsking(false)
+                  await onDone()
+                }}
+              >
+                Ya la tengo impresa
+              </ActionButton>
+              <ActionButton
+                done="Impresa"
+                onAction={async () => {
+                  await post(`/sessions/${sessionId}/sheet-printed`)
+                  setAsking(false)
+                  setPrinting(true)
+                }}
+              >
+                Imprimir
+              </ActionButton>
+            </div>
           }
         >
           <p className="lede">
@@ -894,11 +1007,17 @@ function ContractPrint({ sessionId, state, onDone }: { sessionId: number; state:
       <p className="pill pill--brass" style={{ marginBottom: 'var(--space-9)' }}>
         Vuelve a poner las 2 hojas en la bandeja, cara impresa hacia abajo.
       </p>
+      {/* Imprimir es la acción principal, oscura; «ya lo tengo impreso» es la
+          salida secundaria y va a su izquierda, igual que en la hoja de medidas. */}
       <div className="row">
-        <button type="button" className="btn-quiet" onClick={() => setPrinting(true)}>Abrir el contrato para imprimir</button>
-        <ActionButton onAction={async () => { await post(`/sessions/${sessionId}/contract-printed`); await onDone() }}>
-          Ya se imprimió
+        <ActionButton
+          className="btn-quiet"
+          done="Listo"
+          onAction={async () => { await post(`/sessions/${sessionId}/contract-printed`); await onDone() }}
+        >
+          Ya lo tengo impreso
         </ActionButton>
+        <button type="button" className="btn-main" onClick={() => setPrinting(true)}>Abrir el contrato para imprimir</button>
       </div>
     </div>
   )
@@ -953,17 +1072,6 @@ function SignContract({ sessionId, state, onDone }: { sessionId: number; state: 
   )
 }
 
-function FirstPayment({ folio, onDone }: { folio: string; onDone: () => Promise<void> }) {
-  return (
-    <div className="panel">
-      <div className="row">
-        <a className="btn-main" href={`/pagos?folio=${encodeURIComponent(folio)}`}>Registrar el anticipo</a>
-        <ActionButton className="btn-quiet" onAction={onDone} done="Actualizado">Actualizar</ActionButton>
-      </div>
-    </div>
-  )
-}
-
 // ─────────────────────────────────────────────────────────────── cierre ──
 const LOST_REASONS = [
   { value: 'precio', label: 'Precio' },
@@ -974,7 +1082,19 @@ const LOST_REASONS = [
   { value: 'otro', label: 'Otro' },
 ] as const
 
-function CloseControl({ sessionId, onClosed }: { sessionId: number; onClosed: () => void }) {
+export interface CloseControlHandle { open: () => void }
+
+/**
+ * El disparador es reemplazable: en la mayoría de los pasos es el botón
+ * «Cerrar sesión» del pie, pero en «Datos de la novia» es la (X) de la barra,
+ * como en el resto de la aplicación. El NIP y el motivo son siempre los
+ * mismos; sólo cambia de dónde se abren — de ahí el `ref` con `open()`.
+ */
+export const CloseControl = forwardRef<CloseControlHandle, {
+  sessionId: number
+  onClosed: () => void
+  trigger?: (open: () => void) => ReactNode
+}>(function CloseControl({ sessionId, onClosed, trigger }, ref) {
   const [step, setStep] = useState<'closed' | 'pin' | 'reason'>('closed')
   const [pin, setPin] = useState('')
   const [outcome, setOutcome] = useState<'won' | 'lost' | null>(null)
@@ -986,12 +1106,16 @@ function CloseControl({ sessionId, onClosed }: { sessionId: number; onClosed: ()
 
   function reset() { setStep('closed'); setPin(''); setError(null) }
 
+  useImperativeHandle(ref, () => ({ open: () => setStep('pin') }), [])
+
   const detail = outcome === 'won' ? reason : note
   const ready = Boolean(outcome) && Boolean(reason.trim()) && Boolean(detail.trim()) && (!needsDisposal || disposed)
 
   return (
     <>
-      <button type="button" className="btn-quiet" onClick={() => setStep('pin')}>Cerrar sesión</button>
+      {trigger ? trigger(() => setStep('pin')) : (
+        <button type="button" className="btn-quiet" onClick={() => setStep('pin')}>Cerrar sesión</button>
+      )}
 
       {step === 'pin' && (
         // El teclado es el mismo de siempre y queda en el centro exacto de la
@@ -1066,5 +1190,5 @@ function CloseControl({ sessionId, onClosed }: { sessionId: number; onClosed: ()
       )}
     </>
   )
-}
+})
 

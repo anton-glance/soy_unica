@@ -103,12 +103,19 @@ interface ContractRow {
 app.get('/open', async (c) => {
   const s = c.get('session')
   const reaped = await reapAbandoned(c.env.DB, s.store)
-  const open = await all<{ id: number; stage: Stage; device_label: string; opened_at: string; last_seen: string }>(
+  // El nombre de la novia, si ya se capturó: es lo que deja identificar una
+  // sesión de otra en el aviso de «Nueva sesión» — el id solo no dice nada.
+  const open = await all<{
+    id: number; stage: Stage; device_label: string; opened_at: string; last_seen: string
+    bride_name: string | null; bride_apellido: string | null
+  }>(
     c.env.DB,
     `SELECT k.id, k.stage, k.device_label, k.opened_at,
-            COALESCE(MAX(e.at), k.opened_at) AS last_seen
+            COALESCE(MAX(e.at), k.opened_at) AS last_seen,
+            cu.name AS bride_name, cu.apellido AS bride_apellido
        FROM kiosk_sessions k
        LEFT JOIN session_events e ON e.session_id = k.id
+       LEFT JOIN customers cu ON cu.id = k.customer_id
       WHERE k.store_id = ? AND k.closed_at IS NULL
       GROUP BY k.id
       ORDER BY last_seen DESC`,

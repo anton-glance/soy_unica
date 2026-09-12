@@ -386,3 +386,179 @@ mapeo está probado en `tests/catalog-map.test.ts`.
 `soyunicanovias.com`. Las cifras del reporte salen de una fixture. Falta correrlo
 donde haya red para tener los números de verdad —y la proyección de
 almacenamiento, que sin las imágenes no existe.
+
+## 10. Round 6 — recorded, not built: three design questions
+
+Three items from this round were explicitly "record only" — the discussion is
+to start from what's written here, not from a decision already made. Written
+in English, unlike the rest of this file, per the standing instruction that
+everything a developer reads (not a bride or a seller) is English from here on.
+
+### A. Accessories sold after the contract is signed
+
+A bride who bought only a dress often comes back weeks later for a veil or a
+tiara. Today, `contract_items` (dress/accessory/surcharge/gift_credit lines)
+and `installments` both hang off exactly one `contracts` row, and every write
+path that touches them — `POST /sessions/:id/select`, `/terms`, `/payments` —
+assumes that row already exists and belongs to a `kiosk_session`. A sale with
+no session, no measurements, and no new contract doesn't fit anywhere in that
+shape, but it has to land under the same client and show up as more money
+owed against her existing plan, not as a second, unrelated balance.
+
+**The question to settle first:** does this sale get
+1. **a second, lightweight contract** linked to the same `customer_id`, with
+   its own folio, its own single `installment`, and `status` values that make
+   sense for something with no measurements and no signature (today's
+   `status` CHECK on `contracts` — `draft/active/paid/delivered/cancelled/...`
+   — was written for the dress contract's lifecycle, not this); or
+2. **an addendum on the existing contract** — a new `contract_items` row
+   (`line_kind = 'accessory'`) plus a new `installments` row appended after
+   the current schedule, with `total_cents` recalculated.
+
+Whichever shape wins, three things read `total_cents`/`installments` today and
+each needs a specific answer, not just "handle it somehow":
+
+- **The schedule.** `buildLedger()` (`worker/lib/payments.ts`) walks
+  `installments` in `seq` order and applies payments to whichever is next
+  due. An addendum's new installment either gets appended after the existing
+  ones (the bride owes it last) or interleaved by date — that's a product
+  decision, not a technical one, and changes what "next due" means.
+- **The balance.** `GET /contracts/:folio` (`worker/routes/contracts.ts`) sums
+  one contract's ledger for the client page. Two contracts means two ledgers
+  to show together (or merge) on the one page a seller looks at when the
+  bride is standing there.
+- **The weekly report.** `worker/routes/reports.ts` counts a session's outcome
+  by its one `dress` line and lists its `accessory` lines alongside it
+  (`picked.filter(p => p.line_kind === 'accessory')`). A same-day accessory
+  sale with no session behind it wouldn't be counted by anything that walks
+  `kiosk_sessions` — it needs its own place in the week's numbers, decided
+  before it's built, or it will quietly not show up anywhere.
+
+### B. One catalog across both branches
+
+`items` carries `store_id` directly (`db/migrations/0001_init.sql`), so the
+same model sold in both Monterrey and CDMX is two separate rows today, each
+with its own price, its own photos, and its own life — nothing keeps them in
+sync, and nothing connects them. That was fine as long as a dress lived and
+died in one branch. It stopped being fine once the catalog importer
+(`scripts/import/catalog.mjs`, merged in an earlier round) confirmed CDMX's
+catalog is separate data that has to be brought in on its own — and the owner
+has said she also ships physical garments between the two stores overnight,
+which the current schema has no way to express at all: `items.store_id` is
+fixed at intake, so a dress can't move branches without becoming, in the
+database, a different item with a new history.
+
+**The shape discussed, to design against, not to build yet:**
+
+- **`models`** — the catalog. No `store_id`. Name, brand, cut, color, the
+  photos — everything that's a fact about the design, true in every branch at
+  once. This is what `scripts/import/map-product.mjs` should target instead
+  of `items` directly.
+- **`store_models`** — join row per (model, store): the price *that branch*
+  sells it at, and whether that branch offers it at all. This is where the
+  "Monterrey leaves it unpriced because CDMX carries it higher" case
+  (`needs_review`, already built this round) actually belongs — it's a fact
+  about one branch's row, not about the model.
+- **`units`** — the physical garments. Each one has its own `store_id`
+  (where it physically is right now, on some rack), its own `status`
+  (`available/watching/reserved/tailoring/.../sold`), its own `held_by_session`
+  — everything `items` tracks today about one dress's real-world state,
+  including the transfer a `store_id` change would represent when a garment
+  moves between branches.
+
+Everywhere that isn't the catalog stays exactly as strict as it is now:
+`kiosk_sessions`, `contracts`, `payments`, and every report keep `store_id`
+and stay scoped to one branch — a session in `mty` still can't touch `cdmx`'s
+anything. Only the catalog stops being duplicated per branch.
+
+This is a real schema migration — every foreign key onto `items.id` (from
+`contract_items`, `item_photos`, `session_favorites`, `kiosk_sessions` via
+`held_by_session`) has to be re-pointed at `units.id`, and every read that
+currently joins straight to `items` for a model's name/price now joins through
+`units → models`/`store_models`. It should happen **before** the catalog
+import reaches production — importing into the current one-row-per-branch
+shape now, then migrating that data into `models`/`store_models`/`units`
+later, is strictly more work than migrating the schema first and importing
+into it directly once.
+
+### C. Order-new versus sell-the-display
+
+The garments on the rack are displays, not stock. The normal sale is
+measurements, then an order placed with the supplier, then delivery of a
+new garment — the display itself never leaves the store. This is already
+in the contract template the bride signs: clause 3 says the delivery
+window "se cuenta desde la fecha de toma de medidas" (counts from the
+measurement date), which only makes sense for a garment that doesn't exist
+yet, and clause 8's brand-specific "envio extra" surcharges
+(`db/migrations/0002_seed.sql`) are shipping costs from the supplier, not
+anything the store pays to move a garment off its own rack. Only when the
+wedding is closer than roughly two months does the owner offer to sell the
+display itself instead of waiting on an order. Both paths are live today —
+`docs/import/pagos.md`'s unmatched-fragment table from the real payment
+ledger includes a `s10 de exhibicion` line, the imported evidence of the
+exception being noted, not the rule.
+
+**Fulfilment is a property of the sale, not of the item.** The same display
+dress is order-new for a bride marrying in eight months and sell-the-display
+for one marrying in six weeks, and the deciding input — days until the
+wedding — is a date the system already holds
+(`kiosk_sessions`/`contracts` → the bride's wedding date) before the sale is
+even confirmed. Don't model this as a flag on the item that someone has to
+maintain by hand.
+
+That's a stronger statement than it first looks, because **`items` already
+has a flag exactly like that, and it's the wrong shape for this decision.**
+`items.acquisition` (`unidad`/`pedido`, `db/migrations/0001_init.sql`) is
+fixed per catalog row: today it distinguishes stock units from the
+made-to-order "a medida" models seeded alongside them
+(`madelyn`/`aurora`/`isabella`, all `acquisition = 'pedido'`), and it drives
+the entire hold mechanism in `worker/routes/sessions.ts` — a `'unidad'`
+item gets `watching` on selection (`select`, line ~179) and `held_by_session`
+tracked through to `reserved` at signing (line ~620), all unwound by
+`worker/lib/reaper.ts` on timeout; a `'pedido'` item never touches any of
+that (`if (item.acquisition === 'pedido') return`, line ~179). That split
+is real and worth keeping for the make-to-order models — but it cannot also
+carry this decision, because the exact same physical display needs to
+behave as `'pedido'` for the far-out wedding and as `'unidad'` for the near
+one, and `items.acquisition` has no way to be two things depending on who's
+buying it this week.
+
+**Shape to discuss:**
+
+- A `fulfilment` field (`'pedido'`/`'exhibicion'`) on the **contract line**,
+  not the item — chosen at the selection step (`POST /sessions/:id/select`
+  is where `acquisition` is read today), defaulted from days-until-wedding
+  against a configurable threshold (default 60 days), and overridable with
+  the reason recorded. `stores.min_days_before_wedding` is the existing
+  precedent for exactly this kind of per-store, owner-configurable
+  threshold (`worker/routes/settings.ts`) — this would live next to it.
+- `'pedido'` never depletes anything; `'exhibicion'` is the only path that
+  consumes a physical garment — i.e. only `'exhibicion'` should drive the
+  `watching`/`reserved`/hold logic that `items.acquisition === 'unidad'`
+  drives unconditionally today.
+- Supplier lead time and the brand shipping surcharges (clause 8, above)
+  attach to `'pedido'` only, and the contract's "delivery time counts from
+  the measurement date" clause (clause 3) is specifically about the
+  `'pedido'` path — a sold display is handed over once it's paid off, not
+  manufactured and shipped.
+- **This partly invalidates the premise behind the current hold mechanism.**
+  For an ordered sale the dress on the rack should not disappear from the
+  kiosk at all — another bride further from her wedding date should still
+  be able to see it, favourite it, and order the same model — which is not
+  how `watching`/`reserved` behaves today for anything not already flagged
+  `acquisition = 'pedido'` at intake.
+- The owner's accepted fallback, if a per-sale field proves too fiddly in
+  practice: leave everything showing as available in the kiosk while
+  inventory says available, and let her remove by hand what no longer
+  physically exists — closer to how a small shop actually tracks a rack,
+  at the cost of the system no longer preventing the double-booking this
+  hold mechanism exists to prevent.
+
+**B and C must be designed together, not in sequence.** Both touch what
+`items` means and how a contract line points at one: B turns `items` into
+`units` (physical, transferable, store-owned) sitting under `models`/
+`store_models` (the shared catalog), and C decides whether a `unit` even
+gets touched by a given sale at all. Designing the `units` split first and
+only later asking "does this sale consume a unit" risks re-litigating the
+same foreign keys (`contract_items.item_id`, `held_by_session`,
+`session_favorites`) a second time.
