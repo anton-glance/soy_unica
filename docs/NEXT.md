@@ -387,9 +387,9 @@ mapeo está probado en `tests/catalog-map.test.ts`.
 donde haya red para tener los números de verdad —y la proyección de
 almacenamiento, que sin las imágenes no existe.
 
-## 10. Round 6 — recorded, not built: two design questions
+## 10. Round 6 — recorded, not built: three design questions
 
-Two items from this round were explicitly "record only" — the discussion is
+Three items from this round were explicitly "record only" — the discussion is
 to start from what's written here, not from a decision already made. Written
 in English, unlike the rest of this file, per the standing instruction that
 everything a developer reads (not a bride or a seller) is English from here on.
@@ -480,3 +480,85 @@ import reaches production — importing into the current one-row-per-branch
 shape now, then migrating that data into `models`/`store_models`/`units`
 later, is strictly more work than migrating the schema first and importing
 into it directly once.
+
+### C. Order-new versus sell-the-display
+
+The garments on the rack are displays, not stock. The normal sale is
+measurements, then an order placed with the supplier, then delivery of a
+new garment — the display itself never leaves the store. This is already
+in the contract template the bride signs: clause 3 says the delivery
+window "se cuenta desde la fecha de toma de medidas" (counts from the
+measurement date), which only makes sense for a garment that doesn't exist
+yet, and clause 8's brand-specific "envio extra" surcharges
+(`db/migrations/0002_seed.sql`) are shipping costs from the supplier, not
+anything the store pays to move a garment off its own rack. Only when the
+wedding is closer than roughly two months does the owner offer to sell the
+display itself instead of waiting on an order. Both paths are live today —
+`docs/import/pagos.md`'s unmatched-fragment table from the real payment
+ledger includes a `s10 de exhibicion` line, the imported evidence of the
+exception being noted, not the rule.
+
+**Fulfilment is a property of the sale, not of the item.** The same display
+dress is order-new for a bride marrying in eight months and sell-the-display
+for one marrying in six weeks, and the deciding input — days until the
+wedding — is a date the system already holds
+(`kiosk_sessions`/`contracts` → the bride's wedding date) before the sale is
+even confirmed. Don't model this as a flag on the item that someone has to
+maintain by hand.
+
+That's a stronger statement than it first looks, because **`items` already
+has a flag exactly like that, and it's the wrong shape for this decision.**
+`items.acquisition` (`unidad`/`pedido`, `db/migrations/0001_init.sql`) is
+fixed per catalog row: today it distinguishes stock units from the
+made-to-order "a medida" models seeded alongside them
+(`madelyn`/`aurora`/`isabella`, all `acquisition = 'pedido'`), and it drives
+the entire hold mechanism in `worker/routes/sessions.ts` — a `'unidad'`
+item gets `watching` on selection (`select`, line ~179) and `held_by_session`
+tracked through to `reserved` at signing (line ~620), all unwound by
+`worker/lib/reaper.ts` on timeout; a `'pedido'` item never touches any of
+that (`if (item.acquisition === 'pedido') return`, line ~179). That split
+is real and worth keeping for the make-to-order models — but it cannot also
+carry this decision, because the exact same physical display needs to
+behave as `'pedido'` for the far-out wedding and as `'unidad'` for the near
+one, and `items.acquisition` has no way to be two things depending on who's
+buying it this week.
+
+**Shape to discuss:**
+
+- A `fulfilment` field (`'pedido'`/`'exhibicion'`) on the **contract line**,
+  not the item — chosen at the selection step (`POST /sessions/:id/select`
+  is where `acquisition` is read today), defaulted from days-until-wedding
+  against a configurable threshold (default 60 days), and overridable with
+  the reason recorded. `stores.min_days_before_wedding` is the existing
+  precedent for exactly this kind of per-store, owner-configurable
+  threshold (`worker/routes/settings.ts`) — this would live next to it.
+- `'pedido'` never depletes anything; `'exhibicion'` is the only path that
+  consumes a physical garment — i.e. only `'exhibicion'` should drive the
+  `watching`/`reserved`/hold logic that `items.acquisition === 'unidad'`
+  drives unconditionally today.
+- Supplier lead time and the brand shipping surcharges (clause 8, above)
+  attach to `'pedido'` only, and the contract's "delivery time counts from
+  the measurement date" clause (clause 3) is specifically about the
+  `'pedido'` path — a sold display is handed over once it's paid off, not
+  manufactured and shipped.
+- **This partly invalidates the premise behind the current hold mechanism.**
+  For an ordered sale the dress on the rack should not disappear from the
+  kiosk at all — another bride further from her wedding date should still
+  be able to see it, favourite it, and order the same model — which is not
+  how `watching`/`reserved` behaves today for anything not already flagged
+  `acquisition = 'pedido'` at intake.
+- The owner's accepted fallback, if a per-sale field proves too fiddly in
+  practice: leave everything showing as available in the kiosk while
+  inventory says available, and let her remove by hand what no longer
+  physically exists — closer to how a small shop actually tracks a rack,
+  at the cost of the system no longer preventing the double-booking this
+  hold mechanism exists to prevent.
+
+**B and C must be designed together, not in sequence.** Both touch what
+`items` means and how a contract line points at one: B turns `items` into
+`units` (physical, transferable, store-owned) sitting under `models`/
+`store_models` (the shared catalog), and C decides whether a `unit` even
+gets touched by a given sale at all. Designing the `units` split first and
+only later asking "does this sale consume a unit" risks re-litigating the
+same foreign keys (`contract_items.item_id`, `held_by_session`,
+`session_favorites`) a second time.
