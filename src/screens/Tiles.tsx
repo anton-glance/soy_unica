@@ -10,7 +10,7 @@ import { CloseControl, SESSION_KEY, type CloseControlHandle } from './SalesSessi
 
 const TILES = [
   { to: '/sesion', label: 'Nueva sesión' },
-  { to: '/pagos', label: 'Registrar pago' },
+  { to: '/clientes', label: 'Clientes' },
   { to: '/inventario', label: 'Inventario' },
   { to: '/gastos', label: 'Registrar gasto' },
 ]
@@ -23,7 +23,7 @@ interface OpenSession {
 /** Cómo se nombra cada etapa en el aviso de sesiones abiertas — no es la
  * misma lista que los títulos de pantalla: aquí hacen falta las de ver y
  * probar, que en la pantalla no llevan título propio. */
-const STAGE_LABEL: Record<string, string> = {
+export const STAGE_LABEL: Record<string, string> = {
   browsing: 'Viendo el catálogo', fitting: 'Probándose vestidos', selected: 'Datos de la novia',
   bride_data: 'Hoja de medidas', sheet_printed: 'Foto de la hoja firmada', sheet_signed: 'Plan de pago',
   terms: 'Imprimir el contrato', contract_printed: 'Foto del contrato firmado',
@@ -101,7 +101,7 @@ export function Tiles() {
               trabajo del día y esto se abre una vez por semana. */}
           {me?.role === 'owner' && (
             <div className="row" style={{ justifyContent: 'center' }}>
-              <button type="button" className="btn-quiet" onClick={() => navigate('/reporte')}>Reporte de la semana</button>
+              <button type="button" className="btn-quiet" onClick={() => navigate('/reporte')}>Reportes</button>
               <button type="button" className="btn-quiet" onClick={() => navigate('/ajustes')}>⚙ Ajustes</button>
             </div>
           )}

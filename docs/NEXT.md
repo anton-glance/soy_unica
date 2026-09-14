@@ -387,178 +387,183 @@ mapeo está probado en `tests/catalog-map.test.ts`.
 donde haya red para tener los números de verdad —y la proyección de
 almacenamiento, que sin las imágenes no existe.
 
-## 10. Round 6 — recorded, not built: three design questions
+## 10. Round 6 — the open questions, settled
 
-Three items from this round were explicitly "record only" — the discussion is
-to start from what's written here, not from a decision already made. Written
-in English, unlike the rest of this file, per the standing instruction that
-everything a developer reads (not a bride or a seller) is English from here on.
+The owner answered every question section 10 raised. This replaces that
+section entirely — the three-question discussion it used to hold is gone;
+these are the decisions instead. Still in English, per the same standing
+instruction: everything a developer reads is English from here on.
 
-### A. Accessories sold after the contract is signed
+### Cancelled — one catalog across both branches
 
-A bride who bought only a dress often comes back weeks later for a veil or a
-tiara. Today, `contract_items` (dress/accessory/surcharge/gift_credit lines)
-and `installments` both hang off exactly one `contracts` row, and every write
-path that touches them — `POST /sessions/:id/select`, `/terms`, `/payments` —
-assumes that row already exists and belongs to a `kiosk_session`. A sale with
-no session, no measurements, and no new contract doesn't fit anywhere in that
-shape, but it has to land under the same client and show up as more money
-owed against her existing plan, not as a second, unrelated balance.
+The `models` / `store_models` / `units` split proposed here is **cancelled**.
+Confirmed directly with the owner: separate catalogs and inventories per
+branch are fine as they are. The two branches' catalogs overlap by only a
+handful of items — the same unpriced ones `needs_review` already flags,
+where Monterrey leaves a dress unpriced because CDMX carries it at a
+different price — and entering those few rows twice, once per branch, is an
+acceptable cost. More locations than the current two are not a concern on
+any near horizon.
 
-**The question to settle first:** does this sale get
-1. **a second, lightweight contract** linked to the same `customer_id`, with
-   its own folio, its own single `installment`, and `status` values that make
-   sense for something with no measurements and no signature (today's
-   `status` CHECK on `contracts` — `draft/active/paid/delivered/cancelled/...`
-   — was written for the dress contract's lifecycle, not this); or
-2. **an addendum on the existing contract** — a new `contract_items` row
-   (`line_kind = 'accessory'`) plus a new `installments` row appended after
-   the current schedule, with `total_cents` recalculated.
+Recording the reason so this doesn't get re-proposed later: the split was
+motivated by CDMX's catalog turning out to be separate data (confirmed when
+`scripts/import/catalog.mjs` was built) and by garments occasionally moving
+between branches overnight. Neither turns out to need a schema change —
+CDMX's catalog is simply imported on its own into `mty`/`cdmx` as today's
+schema already allows, and a garment moving branches is rare enough, and
+`items.store_id` cheap enough to hand-edit for the few rows it affects, that
+it doesn't justify re-pointing every foreign key onto `items.id` through a
+new `units` table. `items` stays exactly as it is: one row per branch, no
+`store_id`-less catalog layer above it.
 
-Whichever shape wins, three things read `total_cents`/`installments` today and
-each needs a specific answer, not just "handle it somehow":
+### Reduced — order-new versus sell-the-display
 
-- **The schedule.** `buildLedger()` (`worker/lib/payments.ts`) walks
-  `installments` in `seq` order and applies payments to whichever is next
-  due. An addendum's new installment either gets appended after the existing
-  ones (the bride owes it last) or interleaved by date — that's a product
-  decision, not a technical one, and changes what "next due" means.
-- **The balance.** `GET /contracts/:folio` (`worker/routes/contracts.ts`) sums
-  one contract's ledger for the client page. Two contracts means two ledgers
-  to show together (or merge) on the one page a seller looks at when the
-  bride is standing there.
-- **The weekly report.** `worker/routes/reports.ts` counts a session's outcome
-  by its one `dress` line and lists its `accessory` lines alongside it
-  (`picked.filter(p => p.line_kind === 'accessory')`). A same-day accessory
-  sale with no session behind it wouldn't be counted by anything that walks
-  `kiosk_sessions` — it needs its own place in the week's numbers, decided
-  before it's built, or it will quietly not show up anywhere.
+Every model in the catalog is made to order — that's why measurements exist
+at all, and why clause 3 of the contract counts the delivery window from the
+measurement date. There is no display-vs-order distinction to model: the
+owner deactivates an item from the catalog by hand (today: `retire` /
+`unretire`, `worker/lib/items.ts`) when she no longer physically has it to
+show. So there is no `fulfilment` field on the contract line, and no
+automatic depletion of anything when a sale closes.
 
-### B. One catalog across both branches
+What survives from that discussion is much smaller: the `watching` status
+(`items.status`, set by `takeHold()` in `worker/routes/sessions.ts`) is a
+**soft indicator only** — it tells the kiosk "someone is currently looking at
+this," nothing more — and it must never block a second bride from taking the
+same model to the fitting room.
 
-`items` carries `store_id` directly (`db/migrations/0001_init.sql`), so the
-same model sold in both Monterrey and CDMX is two separate rows today, each
-with its own price, its own photos, and its own life — nothing keeps them in
-sync, and nothing connects them. That was fine as long as a dress lived and
-died in one branch. It stopped being fine once the catalog importer
-(`scripts/import/catalog.mjs`, merged in an earlier round) confirmed CDMX's
-catalog is separate data that has to be brought in on its own — and the owner
-has said she also ships physical garments between the two stores overnight,
-which the current schema has no way to express at all: `items.store_id` is
-fixed at intake, so a dress can't move branches without becoming, in the
-database, a different item with a new history.
+**What `watching` actually does today, checked against the code, and why it
+still blocks:**
 
-**The shape discussed, to design against, not to build yet:**
+- `takeHold()` (`worker/routes/sessions.ts`, called from `/view` and
+  `/favorites`) sets `status = 'watching'` and `held_by_session` on a
+  `'unidad'` item the moment a bride opens its detail or favourites it —
+  `'pedido'` items are skipped entirely (`if (item.acquisition === 'pedido')
+  return`), which was already correct and needs no change.
+- `GET /items/kiosk` reports `held_by_other` for any `'unidad'` item another
+  session is watching, and the kiosk card shows "La está viendo otra
+  clienta" — that's the soft indicator, and it's fine as it is.
+- `POST /sessions/:id/select` is where the soft indicator turns into a real
+  block: for a `'unidad'` item, `if (item.held_by_session !== null &&
+  item.held_by_session !== row.id) throw conflict('Ese vestido lo está
+  viendo otra clienta en este momento.')` refuses the second bride outright.
+  That's the blocking behaviour that has to go — favouriting or viewing a
+  model must stay visible to everyone, but choosing it for a fitting must
+  never depend on who looked at it first.
 
-- **`models`** — the catalog. No `store_id`. Name, brand, cut, color, the
-  photos — everything that's a fact about the design, true in every branch at
-  once. This is what `scripts/import/map-product.mjs` should target instead
-  of `items` directly.
-- **`store_models`** — join row per (model, store): the price *that branch*
-  sells it at, and whether that branch offers it at all. This is where the
-  "Monterrey leaves it unpriced because CDMX carries it higher" case
-  (`needs_review`, already built this round) actually belongs — it's a fact
-  about one branch's row, not about the model.
-- **`units`** — the physical garments. Each one has its own `store_id`
-  (where it physically is right now, on some rack), its own `status`
-  (`available/watching/reserved/tailoring/.../sold`), its own `held_by_session`
-  — everything `items` tracks today about one dress's real-world state,
-  including the transfer a `store_id` change would represent when a garment
-  moves between branches.
+This is recorded, not built this round: the fix is to stop `/select` from
+refusing on `held_by_session` alone (a `'unidad'` item should be selectable
+by any session unless it's already `reserved` on an *active* contract, which
+`/select`'s `status` check just below the quoted line already covers on its
+own), and to leave `watching`/`held_by_other` purely informational from
+there on. `worker/lib/reaper.ts`'s release-on-timeout logic keeps working
+unchanged; it just stops being the thing standing between two brides and one
+rack.
 
-Everywhere that isn't the catalog stays exactly as strict as it is now:
-`kiosk_sessions`, `contracts`, `payments`, and every report keep `store_id`
-and stay scoped to one branch — a session in `mty` still can't touch `cdmx`'s
-anything. Only the catalog stops being duplicated per branch.
+### Merged and expanded — clients and resumable sessions
 
-This is a real schema migration — every foreign key onto `items.id` (from
-`contract_items`, `item_photos`, `session_favorites`, `kiosk_sessions` via
-`held_by_session`) has to be re-pointed at `units.id`, and every read that
-currently joins straight to `items` for a model's name/price now joins through
-`units → models`/`store_models`. It should happen **before** the catalog
-import reaches production — importing into the current one-row-per-branch
-shape now, then migrating that data into `models`/`store_models`/`units`
-later, is strictly more work than migrating the schema first and importing
-into it directly once.
+The client's whole history — not one contract, not one session — is now the
+unit the owner thinks in. A bride leaves and comes back, often weeks later;
+the client card is meant to be every session she's ever had, each with its
+start, her favourites, what she chose, and how it ended, and she should be
+resumable from wherever a given session stopped.
 
-### C. Order-new versus sell-the-display
+**What round 6 already moved toward this, so it doesn't get re-described as
+untouched:** the close reason was already captured before this round
+(`kiosk_sessions.outcome`, `reason`, `note`, `closed_at_stage`), and this
+round added a `GET /clients/:id` endpoint (`worker/routes/clients.ts`) and a
+client page (`src/screens/Clients.tsx`) that show one customer's one session
+— her favourites as "Lo que vio" when there was no sale, her outcome and
+reason under "Por qué no se vendió", and a same-day "Reanudar" via `Agregar`
+when that session is still open (`session.closed_at === null`). What's
+**not** built yet, and is the actual scope of "merged and expanded": a
+`customers` row is created fresh by every session that reaches
+`POST /sessions/:id/bride` (`worker/routes/sessions.ts`), with no lookup by
+phone against an existing customer first — so today a returning bride gets a
+second, disconnected `customers` row rather than a second session folded
+into her existing one. Merging those into one client identity (matched on
+phone, most likely) and letting a *closed* session be resumed — not only one
+the reaper hasn't caught up to yet — is the real work this section defers.
 
-The garments on the rack are displays, not stock. The normal sale is
-measurements, then an order placed with the supplier, then delivery of a
-new garment — the display itself never leaves the store. This is already
-in the contract template the bride signs: clause 3 says the delivery
-window "se cuenta desde la fecha de toma de medidas" (counts from the
-measurement date), which only makes sense for a garment that doesn't exist
-yet, and clause 8's brand-specific "envio extra" surcharges
-(`db/migrations/0002_seed.sql`) are shipping costs from the supplier, not
-anything the store pays to move a garment off its own rack. Only when the
-wedding is closer than roughly two months does the owner offer to sell the
-display itself instead of waiting on an order. Both paths are live today —
-`docs/import/pagos.md`'s unmatched-fragment table from the real payment
-ledger includes a `s10 de exhibicion` line, the imported evidence of the
-exception being noted, not the rule.
+Also confirmed reachable, since the owner said she couldn't find it: the
+weekly report's "Sesiones sin venta" section (`src/screens/Reports.tsx`,
+formerly `WeeklyReport.tsx`) is reached from the tiles via the owner-only
+"Reportes" button (`src/screens/Tiles.tsx`) — that path exists and works.
+It's easy to miss because it's below "⚙ Ajustes" and not a tile itself; worth
+a second look if it's still hard to find once this round ships, but nothing
+about the route is actually broken.
 
-**Fulfilment is a property of the sale, not of the item.** The same display
-dress is order-new for a bride marrying in eight months and sell-the-display
-for one marrying in six weeks, and the deciding input — days until the
-wedding — is a date the system already holds
-(`kiosk_sessions`/`contracts` → the bride's wedding date) before the sale is
-even confirmed. Don't model this as a flag on the item that someone has to
-maintain by hand.
+### Changed — accessories after the contract, and it's no longer a question
 
-That's a stronger statement than it first looks, because **`items` already
-has a flag exactly like that, and it's the wrong shape for this decision.**
-`items.acquisition` (`unidad`/`pedido`, `db/migrations/0001_init.sql`) is
-fixed per catalog row: today it distinguishes stock units from the
-made-to-order "a medida" models seeded alongside them
-(`madelyn`/`aurora`/`isabella`, all `acquisition = 'pedido'`), and it drives
-the entire hold mechanism in `worker/routes/sessions.ts` — a `'unidad'`
-item gets `watching` on selection (`select`, line ~179) and `held_by_session`
-tracked through to `reserved` at signing (line ~620), all unwound by
-`worker/lib/reaper.ts` on timeout; a `'pedido'` item never touches any of
-that (`if (item.acquisition === 'pedido') return`, line ~179). That split
-is real and worth keeping for the make-to-order models — but it cannot also
-carry this decision, because the exact same physical display needs to
-behave as `'pedido'` for the far-out wedding and as `'unidad'` for the near
-one, and `items.acquisition` has no way to be two things depending on who's
-buying it this week.
+Round 6 asked which shape a post-signature accessory sale should take.
+Settled, and now built: **the addendum**, not a second contract.
+`POST /contracts/:folio/accessories` (`worker/routes/contracts.ts`) inserts a
+new `contract_items` row (`line_kind = 'accessory'`, `added_at` set —
+`db/migrations/0009_contract_item_added_at.sql`) on the *existing* contract
+and adds its price straight onto `contracts.total_cents`. No new session, no
+new folio, no new `installments` row: the extra amount simply raises the
+balance `buildLedger()` (`worker/lib/payments.ts`) already computes as
+`total_cents − paid`, so it's covered by whatever the bride pays next,
+same as an under-paid instalment would be. The client page
+(`src/screens/Clients.tsx`) shows it as its own line under "Lo que se
+llevó", marked "agregado {date}", and the owner's report
+(`src/screens/Reports.tsx`) lists it separately from what was sold at
+signing, per session, under "Agregado después del contrato".
 
-**Shape to discuss:**
+This only covers accessories, deliberately: a dress always needs a session
+and measurements, so this shortcut never applies to one.
 
-- A `fulfilment` field (`'pedido'`/`'exhibicion'`) on the **contract line**,
-  not the item — chosen at the selection step (`POST /sessions/:id/select`
-  is where `acquisition` is read today), defaulted from days-until-wedding
-  against a configurable threshold (default 60 days), and overridable with
-  the reason recorded. `stores.min_days_before_wedding` is the existing
-  precedent for exactly this kind of per-store, owner-configurable
-  threshold (`worker/routes/settings.ts`) — this would live next to it.
-- `'pedido'` never depletes anything; `'exhibicion'` is the only path that
-  consumes a physical garment — i.e. only `'exhibicion'` should drive the
-  `watching`/`reserved`/hold logic that `items.acquisition === 'unidad'`
-  drives unconditionally today.
-- Supplier lead time and the brand shipping surcharges (clause 8, above)
-  attach to `'pedido'` only, and the contract's "delivery time counts from
-  the measurement date" clause (clause 3) is specifically about the
-  `'pedido'` path — a sold display is handed over once it's paid off, not
-  manufactured and shipped.
-- **This partly invalidates the premise behind the current hold mechanism.**
-  For an ordered sale the dress on the rack should not disappear from the
-  kiosk at all — another bride further from her wedding date should still
-  be able to see it, favourite it, and order the same model — which is not
-  how `watching`/`reserved` behaves today for anything not already flagged
-  `acquisition = 'pedido'` at intake.
-- The owner's accepted fallback, if a per-sale field proves too fiddly in
-  practice: leave everything showing as available in the kiosk while
-  inventory says available, and let her remove by hand what no longer
-  physically exists — closer to how a small shop actually tracks a rack,
-  at the cost of the system no longer preventing the double-booking this
-  hold mechanism exists to prevent.
+### New — promo price, not price history
 
-**B and C must be designed together, not in sequence.** Both touch what
-`items` means and how a contract line points at one: B turns `items` into
-`units` (physical, transferable, store-owned) sitting under `models`/
-`store_models` (the shared catalog), and C decides whether a `unit` even
-gets touched by a given sale at all. Designing the `units` split first and
-only later asking "does this sale consume a unit" risks re-litigating the
-same foreign keys (`contract_items.item_id`, `held_by_session`,
-`session_favorites`) a second time.
+Not a history of every price a model has carried — a **current price plus an
+optional promo price**. When a promo price is set, the kiosk and the seller
+screens render the regular price struck through and the promo price larger
+and brighter next to it; with no promo price set, an item displays exactly
+as it does today.
+
+Two places this touches, both already in the codebase, neither built against
+yet:
+
+- **The site's "Bridal Sale -20%" flag.** `scripts/import/map-product.mjs`
+  already detects this category and records it as a note on the imported
+  item (`row.promo`, see `docs/import/catalog.mjs`'s promotion-note section)
+  — it has never touched `price_cents`. Once promo pricing exists, this is
+  the first real producer of it: the importer should compute the promo price
+  from the flagged 20% off instead of writing a note nobody acts on.
+- **The contract's late-payment clause.** Clause 2 of the printed contract
+  (`db/migrations/0002_seed.sql`'s seeded `contract_template`) already says a
+  late payment costs the bride her "descuento o promoción" — so a promo
+  price has to be capturable *per contract*, frozen at the price the bride
+  actually signed at (contracts already copy `plan_name` at signing for the
+  same reason: the plan can change name later and the paper is the legal
+  record), not read live off the item, or a late payment would have nothing
+  fixed to take away.
+
+### New — PIN recovery
+
+The immediate bug is fixed this round: see part 1.2 and
+`docs/DEPLOY.md` §11 for the manual `pin_hash`/`pin_salt` reset, which is
+the only recovery path that exists today and needs `wrangler` access to the
+remote database — not something the owner can do herself.
+
+What's recorded, not built, is how she regains access **without** a
+developer. Three shapes, weighed against each other, none chosen yet:
+
+1. **A recovery code, generated once and kept offline** (written down,
+   given to the owner at deploy time) — closest to how most consumer
+   password resets work, but it's one more secret to lose, and losing it
+   is exactly the failure mode this exists to recover from.
+2. **Owner resets seller.** Natural fit for the existing role hierarchy
+   (`users.role IN ('owner','seller')`) and needs no new secret — but
+   doesn't help if the owner herself is the one locked out, which is
+   exactly what happened in part 1.2.
+3. **Seller resets owner.** Closes that gap, but means a seller can lock the
+   owner out of her own settings, which is a bigger trust shift than it
+   sounds — Ajustes is owner-only today (`app.use('*', requireOwner)`,
+   `worker/routes/settings.ts`) precisely because a seller isn't supposed to
+   change store-level configuration.
+
+Whichever shape wins, the design constraint is the same one the double-entry
+fix in part 1.2 exists for: **two people must never be locked out at once**.
+A design that lets the owner and the sole seller each hold the other's only
+key back in is worth checking against that before anything else.

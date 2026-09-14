@@ -1,6 +1,9 @@
 #!/usr/bin/env node
-import { writeFileSync, mkdirSync, existsSync, readFileSync, statSync } from 'node:fs'
+import { writeFileSync, mkdirSync, existsSync, readFileSync, statSync, mkdtempSync, rmSync } from 'node:fs'
 import { createRequire } from 'node:module'
+import { spawnSync } from 'node:child_process'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import {
   toItem, ACCESSORY_CATEGORIES, CUT_CATEGORIES, LIQUIDATION_CATEGORY, PROMO_CATEGORY, RENTAL_CATEGORY,
 } from './map-product.mjs'
@@ -404,7 +407,7 @@ for (const row of rows) {
   sql.push(`          ${row.price_cents}, ${q(notes.join(' · '))}, date('now'),`)
   sql.push(`          ${row.review.length > 0 ? 1 : 0}, ${row.review.length > 0 ? q(row.review.join(',')) : 'NULL'});`)
   for (const f of row.files ?? []) {
-    sql.push('INSERT OR IGNORE INTO files (id, store_id, kind, r2_key, mime, bytes, width, height, created_by)')
+    sql.push('INSERT OR IGNORE INTO files (id, store_id, kind, r2_key, mime, bytes, width, height, uploaded_by)')
     sql.push(`  SELECT ${q(f.id)}, '${row.store}', 'item_photo', ${q(f.key)}, 'image/webp', ${f.bytes}, ${f.width}, ${f.height}, u.id`)
     sql.push(`    FROM users u WHERE u.store_id = '${row.store}' AND u.role = 'owner' ORDER BY u.id LIMIT 1;`)
     sql.push('INSERT OR IGNORE INTO item_photos (item_id, file_id, sort, is_primary)')
@@ -413,9 +416,64 @@ for (const row of rows) {
   }
 }
 
+// ────────────────────────────────────────────────────────────── verify ──
+/**
+ * Round 6 caught this the hard way: `files` has no column named `created_by`
+ * (it's `uploaded_by`), and that typo shipped to the remote database because
+ * nothing had ever actually run the generated `.sql`. `tests/catalog-map.test.ts`
+ * only covers `toItem()`, the mapping step — never the SQL text below, and
+ * never against a database built from `db/migrations`.
+ *
+ * So before this script will write `catalog.sql`, it builds a throwaway local
+ * D1 database from the real migrations and executes the generated SQL against
+ * it. Any statement erroring here — a bad column name, a bad type, a
+ * constraint the schema actually enforces — fails the whole run loudly and
+ * `catalog.sql` is never written. This is disposable state, wiped after: it
+ * proves nothing about your real `.wrangler/state`, and touches no remote
+ * database.
+ */
+function verifyAgainstMigratedDatabase(sqlText) {
+  const persistTo = mkdtempSync(join(tmpdir(), 'soy-unica-catalog-verify-'))
+  try {
+    const migrate = spawnSync(
+      'npx',
+      ['wrangler', 'd1', 'migrations', 'apply', 'soy-unica', '--local', '--persist-to', persistTo],
+      { encoding: 'utf8', env: { ...process.env, CI: '1' } },
+    )
+    if (migrate.status !== 0) {
+      throw new Error(
+        `could not build a throwaway database from db/migrations to verify against:\n${migrate.stdout}\n${migrate.stderr}`,
+      )
+    }
+    const sqlPath = join(persistTo, 'catalog-verify.sql')
+    writeFileSync(sqlPath, sqlText)
+    const apply = spawnSync(
+      'npx',
+      ['wrangler', 'd1', 'execute', 'soy-unica', '--local', '--persist-to', persistTo, '--file', sqlPath, '-y'],
+      { encoding: 'utf8' },
+    )
+    if (apply.status !== 0) {
+      throw new Error(`generated SQL does not apply to a freshly migrated database:\n${apply.stdout}\n${apply.stderr}`)
+    }
+  } finally {
+    rmSync(persistTo, { recursive: true, force: true })
+  }
+}
+
+const sqlText = sql.join('\n')
+console.log('verifying the generated SQL against a fresh copy of db/migrations…')
+try {
+  verifyAgainstMigratedDatabase(sqlText)
+} catch (err) {
+  console.error(`\n✘ ${err.message}\n`)
+  console.error('catalog.sql was NOT written. Fix the SQL this script generates and run it again.')
+  process.exit(1)
+}
+console.log('verified — the SQL applies cleanly.\n')
+
 mkdirSync(OUT, { recursive: true })
 writeFileSync(`${OUT}/catalog.md`, lines.join('\n'))
-writeFileSync(`${OUT}/catalog.sql`, sql.join('\n'))
+writeFileSync(`${OUT}/catalog.sql`, sqlText)
 if (wantImages) writeFileSync(MANIFEST, uploads.map((u) => `${u.local}\t${u.key}`).join('\n') + '\n')
 console.log(`report   → ${OUT}/catalog.md`)
 console.log(`sql      → ${OUT}/catalog.sql   (${rows.length} rows into ${STORE})`)

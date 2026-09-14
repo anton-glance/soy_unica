@@ -8,6 +8,7 @@ import { requireOwner } from '../lib/auth'
 import { canTransition, deriveStatus, reviewFields, type ItemAction, type ItemStatus } from '../lib/items'
 import { balanceOf } from '../lib/payments'
 import { nowIso, todayISO } from '../lib/dates'
+import { csvResponse, toCsv } from '../lib/csv'
 
 const app = new Hono<AppEnv>()
 
@@ -103,20 +104,27 @@ app.get('/', async (c) => {
   const review = c.req.query('review') === '1'
   const sort = c.req.query('sort') ?? 'code'
 
-  const where: string[] = ['store_id = ?']
-  const args: (string | number)[] = [s.store]
+  // Los filtros que no son «status» son compartidos: la lista los aplica todos,
+  // y los chips de conteo los aplican también, sin el status de cada chip —
+  // si no, «Accesorios» seguía contando vestidos reservados en su chip
+  // «Reservado», porque el conteo ignoraba por completo el filtro de tipo.
+  const shared: string[] = ['store_id = ?']
+  const sharedArgs: (string | number)[] = [s.store]
   if (q) {
     // Búsqueda ancha: código, nombre, marca, corte.
-    where.push('(code LIKE ?1x OR name LIKE ?1x OR IFNULL(brand,\'\') LIKE ?1x OR IFNULL(cut,\'\') LIKE ?1x)'.replace(/\?1x/g, '?'))
+    shared.push('(code LIKE ?1x OR name LIKE ?1x OR IFNULL(brand,\'\') LIKE ?1x OR IFNULL(cut,\'\') LIKE ?1x)'.replace(/\?1x/g, '?'))
     const like = `%${q}%`
-    args.push(like, like, like, like)
+    sharedArgs.push(like, like, like, like)
   }
+  if (kind) { shared.push('kind = ?'); sharedArgs.push(kind) }
+  if (acquisition) { shared.push('acquisition = ?'); sharedArgs.push(acquisition) }
+  if (condition) { shared.push('condition = ?'); sharedArgs.push(condition) }
+  if (s.role !== 'owner') shared.push("status <> 'sold'")
+
+  const where = [...shared]
+  const args = [...sharedArgs]
   if (status) { where.push('status = ?'); args.push(status) }
-  if (kind) { where.push('kind = ?'); args.push(kind) }
-  if (acquisition) { where.push('acquisition = ?'); args.push(acquisition) }
-  if (condition) { where.push('condition = ?'); args.push(condition) }
   if (review) where.push('needs_review = 1')
-  if (s.role !== 'owner') where.push("status <> 'sold'")
 
   const columns: Record<string, string> = {
     code: 'code', name: 'name', brand: 'brand', price: 'price_cents',
@@ -141,17 +149,31 @@ app.get('/', async (c) => {
   )
   const review_count = await one<{ n: number }>(
     c.env.DB,
-    `SELECT COUNT(*) AS n FROM items WHERE store_id = ? AND needs_review = 1
-     ${s.role !== 'owner' ? "AND status <> 'sold'" : ''}`,
-    s.store,
+    `SELECT COUNT(*) AS n FROM items WHERE ${shared.join(' AND ')} AND needs_review = 1`,
+    ...sharedArgs,
   )
   const counts = await all<{ status: string; n: number }>(
     c.env.DB,
-    `SELECT status, COUNT(*) AS n FROM items WHERE store_id = ?
-     ${s.role !== 'owner' ? "AND status <> 'sold'" : ''} GROUP BY status`,
-    s.store,
+    `SELECT status, COUNT(*) AS n FROM items WHERE ${shared.join(' AND ')} GROUP BY status`,
+    ...sharedArgs,
   )
   return c.json({ items: rows.map((r) => forRole(r, s.role)), counts, review_count: review_count?.n ?? 0 })
+})
+
+/** El inventario completo, crudo, para abrir en cualquier hoja de cálculo. */
+app.get('/export', async (c) => {
+  const s = c.get('session')
+  const rows = await all<ItemRow>(
+    c.env.DB,
+    `SELECT * FROM items WHERE store_id = ? ${s.role !== 'owner' ? "AND status <> 'sold'" : ''} ORDER BY code`,
+    s.store,
+  )
+  const columns = [
+    'code', 'name', 'kind', 'acquisition', 'condition', 'brand', 'size', 'cut', 'color',
+    ...(s.role === 'owner' ? ['cost_cents'] : []),
+    'price_cents', 'status', 'location', 'notes', 'intake_date', 'needs_review', 'review_fields',
+  ]
+  return csvResponse('inventario.csv', toCsv(columns, rows))
 })
 
 /** Catálogo del kiosko: lo que ve la novia, con los apartados de otras tabletas. */
@@ -257,7 +279,6 @@ app.put('/:id{[0-9]+}/photos', async (c) => {
   const item = await loadItem(c.env.DB, s.store, Number(c.req.param('id')))
   const body = await readJson<{ photos?: { file_id?: string; is_primary?: boolean }[] }>(c)
   const photos = Array.isArray(body.photos) ? body.photos : []
-  if (photos.length > 5) throw badRequest('Son cinco fotos como máximo por artículo.')
 
   const ids: string[] = []
   for (const photo of photos) {

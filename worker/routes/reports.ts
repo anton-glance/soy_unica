@@ -1,9 +1,9 @@
 import { Hono } from 'hono'
 import type { AppEnv } from '../lib/env'
-import { all } from '../lib/db'
+import { all, one } from '../lib/db'
 import { badRequest } from '../lib/errors'
 import { requireOwner } from '../lib/auth'
-import { addDays, isDate, todayISO, weekStart } from '../lib/dates'
+import { isDate, todayISO } from '../lib/dates'
 
 const app = new Hono<AppEnv>()
 
@@ -59,12 +59,20 @@ const rank = (stage: string) => {
   return i === -1 ? -1 : i
 }
 
-app.get('/weekly', requireOwner, async (c) => {
+/**
+ * Antes sólo existía «la semana de tal fecha»; ahora el rango lo decide quien
+ * pide el reporte —esta semana, la pasada, este mes, el pasado o uno a la
+ * medida— y aquí sólo se valida: nada de fechas en el futuro, y que el inicio
+ * no sea posterior al final.
+ */
+app.get('/period', requireOwner, async (c) => {
   const s = c.get('session')
-  const day = c.req.query('date') ?? todayISO()
-  if (!isDate(day)) throw badRequest('Esa fecha no es válida.')
-  const from = weekStart(day)
-  const to = addDays(from, 6)
+  const from = c.req.query('from') ?? todayISO()
+  const to = c.req.query('to') ?? from
+  if (!isDate(from) || !isDate(to)) throw badRequest('Esas fechas no son válidas.')
+  if (from > to) throw badRequest('«Desde» no puede ser posterior a «hasta».')
+  const today = todayISO()
+  if (to > today) throw badRequest('No se puede pedir un periodo en el futuro.')
 
   const sessions = await all<SessionRow>(
     c.env.DB,
@@ -142,6 +150,23 @@ app.get('/weekly', requireOwner, async (c) => {
   const sold = (row: SessionRow) =>
     row.contract_status !== null && !['draft', 'void', 'cancelled'].includes(row.contract_status)
 
+  // Lo que se agregó después de firmar — sólo accesorios, por
+  // /contracts/:folio/accessories (docs/NEXT.md, «Accesorios después del
+  // contrato») — es su propio renglón, no parte de lo que se vendió al
+  // firmar: `session_selections` de arriba nunca lo tiene, porque esa compra
+  // no pasa por ninguna sesión.
+  const contractIds = sessions.filter(sold).map((row) => row.contract_id).filter((id): id is number => id !== null)
+  const addedAfter = contractIds.length
+    ? await all<{ contract_id: number; description: string; price_cents: number; added_at: string }>(
+        c.env.DB,
+        `SELECT contract_id, description, price_cents, added_at FROM contract_items
+          WHERE contract_id IN (${contractIds.map(() => '?').join(',')}) AND added_at IS NOT NULL
+          ORDER BY added_at`,
+        ...contractIds)
+    : []
+  const addedAfterBy = new Map<number, typeof addedAfter>()
+  for (const row of addedAfter) addedAfterBy.set(row.contract_id, [...(addedAfterBy.get(row.contract_id) ?? []), row])
+
   const ventas = sessions.filter(sold).map((row) => {
     const picked = selectionsBy.get(row.id) ?? []
     const dress = picked.find((p) => p.line_kind === 'dress') ?? null
@@ -158,8 +183,20 @@ app.get('/weekly', requireOwner, async (c) => {
       deposit_cents: depositBy.get(row.id) ?? 0,
       seller: row.seller,
       signed_at: row.signed_at,
+      added_after: (row.contract_id !== null ? addedAfterBy.get(row.contract_id) : undefined) ?? [],
     }
   })
+
+  // Item 24: dos cifras de dinero de verdad, no de contrato — lo que de verdad
+  // entró y salió de la caja en el periodo, sin importar de qué sesión venga.
+  const received = await one<{ n: number }>(
+    c.env.DB, `SELECT COALESCE(SUM(amount_cents), 0) AS n FROM payments WHERE store_id = ? AND voided_at IS NULL AND paid_at BETWEEN ? AND ?`,
+    s.store, from, to,
+  )
+  const spent = await one<{ n: number }>(
+    c.env.DB, `SELECT COALESCE(SUM(amount_cents), 0) AS n FROM expenses WHERE store_id = ? AND spent_at BETWEEN ? AND ?`,
+    s.store, from, to,
+  )
 
   // Las que llegaron a datos de la novia: hay a quién llamar.
   const sinVenta = sessions
@@ -206,6 +243,7 @@ app.get('/weekly', requireOwner, async (c) => {
     from,
     to,
     store_id: s.store,
+    finance: { received_cents: received?.n ?? 0, spent_cents: spent?.n ?? 0 },
     conversion: {
       opened: sessions.length,
       reached_fitting: reachedFitting,

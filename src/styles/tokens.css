@@ -45,7 +45,12 @@
   --tap-key: 72px;     /* teclas del NIP */
 
   /* ── marco universal ───────────────────────────────────────────────────── */
-  --bar-h: 96px;       /* alto de la barra superior: igual en toda la app */
+  /*
+   * Alto de la barra superior, igual en toda la app. Antes eran 96px y el
+   * título más largo («Foto del contrato firmado», en Prata) se cortaba por
+   * arriba: la letra grande no cabía entera en una línea tan ajustada.
+   */
+  --bar-h: 112px;
   --footer-h: 110px;   /* alto del pie de acción: también igual en toda la app */
 
   /* ── tipografía ────────────────────────────────────────────────────────── */

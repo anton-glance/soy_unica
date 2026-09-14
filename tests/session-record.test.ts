@@ -125,10 +125,13 @@ describe('el reporte semanal de sesiones', () => {
       bride: string; phone: string | null; dress: { code: string } | null }[]
     anonimas: { count: number; reasons: { reason: string; n: number }[] }
   }
-  const week = () => owner.get<Week>('/api/reports/weekly')
+  // Sin fecha explícita el periodo ya no lo decide el servidor: lo de hoy
+  // basta, todas las sesiones de esta prueba se abrieron en esta corrida.
+  const today = new Date().toISOString().slice(0, 10)
+  const week = () => owner.get<Week>(`/api/reports/period?from=${today}&to=${today}`)
 
   it('es sólo para la dueña', async () => {
-    const refusal = await tablet.refusal('/api/reports/weekly', undefined, 'GET')
+    const refusal = await tablet.refusal(`/api/reports/period?from=${today}&to=${today}`, undefined, 'GET')
     expect(refusal.status).toBe(403)
   })
 

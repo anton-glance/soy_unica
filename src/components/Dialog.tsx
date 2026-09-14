@@ -37,8 +37,14 @@ export function Dialog({
             <IconButton kind="close" label={closeLabel} onClick={onCancel} size={big ? 'lg' : 'md'} />
           </div>
         </div>
-        {children}
-        {actions && <div className="row" style={{ marginTop: 'var(--space-11)' }}>{actions}</div>}
+        {/*
+          El cuerpo es lo único que se desliza. El botón principal se queda
+          siempre a la vista, pegado al pie de la hoja — antes, en apaisado
+          con poca altura, quedaba fuera del borde inferior sin forma de
+          llegar a él.
+        */}
+        <div className="sheet-body">{children}</div>
+        {actions && <div className="sheet-actions row">{actions}</div>}
       </div>
     </div>
   )
