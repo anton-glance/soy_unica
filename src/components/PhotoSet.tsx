@@ -5,11 +5,13 @@ import { ApiError, OfflineError, upload } from '../lib/api'
 export interface Shot { file_id: string; url: string }
 
 /**
- * Hasta cinco fotos del artículo, una marcada como principal. Usa el mismo
- * redimensionado en la tableta que el resto: la foto se comprime antes de
- * subirse, nunca viaja el original de la cámara.
+ * Las fotos del artículo, una marcada como principal. Sin tope: una prenda
+ * puede necesitar más de cinco ángulos y antes se rechazaba la sexta sin
+ * ninguna razón de negocio detrás, sólo un número puesto por poner uno. Usa el
+ * mismo redimensionado en la tableta que el resto: la foto se comprime antes
+ * de subirse, nunca viaja el original de la cámara.
  */
-export function PhotoSet({ photos, primary, onChange, max = 5 }: {
+export function PhotoSet({ photos, primary, onChange, max = Infinity }: {
   photos: Shot[]
   primary: string | null
   onChange: (photos: Shot[], primary: string | null) => void
@@ -76,7 +78,7 @@ export function PhotoSet({ photos, primary, onChange, max = 5 }: {
             <label htmlFor={id} className="shots__add">
               {busy && <span className="spinner" aria-hidden="true" />}
               <span>{busy ? 'Subiendo…' : 'Agregar foto'}</span>
-              <em>{photos.length} de {max}</em>
+              <em>{Number.isFinite(max) ? `${photos.length} de ${max}` : `${photos.length} ${photos.length === 1 ? 'foto' : 'fotos'}`}</em>
             </label>
             <input
               id={id}

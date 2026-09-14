@@ -42,15 +42,15 @@ export function ScrollRail({ children, className }: { children: ReactNode; class
         {children}
       </div>
       {overflowing && !atStart && (
-        <button type="button" className="icon-btn rail__arrow rail__arrow--prev" aria-label="Ver anteriores" onClick={() => step(-1)}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <button type="button" className="rail__arrow rail__arrow--prev" aria-label="Ver anteriores" onClick={() => step(-1)}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M15 5 8 12l7 7" />
           </svg>
         </button>
       )}
       {overflowing && !atEnd && (
-        <button type="button" className="icon-btn rail__arrow rail__arrow--next" aria-label="Ver siguientes" onClick={() => step(1)}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <button type="button" className="rail__arrow rail__arrow--next" aria-label="Ver siguientes" onClick={() => step(1)}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M9 5l7 7-7 7" />
           </svg>
         </button>

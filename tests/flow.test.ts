@@ -232,19 +232,29 @@ describe('abonos', () => {
   })
 })
 
-describe('cierre de la sesión ganada', () => {
-  it('exige el NIP y el resultado', async () => {
-    expect((await tabletA.refusal(`/api/sessions/${sessionA}/close`, { outcome: 'won', reason: 'todo bien' })).status).toBe(400)
-    expect((await tabletA.refusal(`/api/sessions/${sessionA}/close`, { pin: '1111' })).status).toBe(400)
+describe('firmar cierra la sesión sola', () => {
+  // Round 6: firmar y subir las dos fotos dejaba el contrato activo pero la
+  // sesión seguía «abierta» para siempre — la siguiente vendedora que
+  // intentaba abrir una sesión nueva se topaba con que ya había una abierta,
+  // por una venta que ya había terminado hacía rato.
+  it('queda cerrada como vendida en el mismo instante en que el contrato se activa', async () => {
+    const { session } = await tabletA.get<{ session: { closed_at: string | null; outcome: string | null; stage: string; closed_at_stage: string | null } }>(
+      `/api/sessions/${sessionA}`,
+    )
+    expect(session.closed_at).not.toBeNull()
+    expect(session.outcome).toBe('won')
+    expect(session.stage).toBe('closed')
+    expect(session.closed_at_stage).toBe('signed')
   })
 
-  it('cierra como vendida', async () => {
-    const closed = await tabletA.post<{ outcome: string; sheets_disposed: boolean }>(`/api/sessions/${sessionA}/close`, {
-      outcome: 'won', reason: 'Le encantó desde la primera prueba', pin: '1111',
-    })
-    expect(closed.outcome).toBe('won')
-    // Sí se firmó contrato: no hay hojas que destruir.
-    expect(closed.sheets_disposed).toBe(false)
+  it('ya no se puede volver a cerrar a mano: alguien tendría que inventarle un motivo a una sesión que ya terminó', async () => {
+    const refusal = await tabletA.refusal(`/api/sessions/${sessionA}/close`, { outcome: 'won', reason: 'todo bien', pin: '1111' })
+    expect(refusal.status).toBe(409)
+  })
+
+  it('no sale entre las sesiones abiertas, así que abrir una nueva no choca con ella', async () => {
+    const open = await tabletA.get<{ open: { id: number }[] }>('/api/sessions/open')
+    expect(open.open.some((s) => s.id === sessionA)).toBe(false)
   })
 })
 
@@ -287,6 +297,48 @@ describe('la dueña ve todo lo que quedó', () => {
     const refusal = await owner.refusal(`/api/items/${uniqueDress.id}/deliver`)
     expect(refusal.status).toBe(409)
     expect(refusal.error).toMatch(/No se puede pasar/)
+  })
+})
+
+describe('accesorio agregado después de firmado', () => {
+  it('no se puede agregar un vestido, sólo accesorios', async () => {
+    const refusal = await tabletA.refusal(`/api/contracts/${folio}/accessories`, { item_id: uniqueDress.id })
+    expect(refusal.status).toBe(400)
+    expect(refusal.error).toMatch(/[Ss]ólo se pueden agregar accesorios/)
+  })
+
+  it('se suma al total y queda marcado con cuándo se agregó', async () => {
+    const items = await kioskItems(tabletA, sessionA)
+    const accessory = items.find((i) => i.kind === 'accessory' && i.price_cents > 0) as KioskItem
+    expect(accessory).toBeDefined()
+
+    const before = await owner.get<{ contract: { total_cents: number } }>(`/api/contracts/${folio}`)
+    const added = await tabletA.post<{ ok: boolean; total_cents: number }>(`/api/contracts/${folio}/accessories`, { item_id: accessory.id })
+    expect(added.total_cents).toBe(before.contract.total_cents + accessory.price_cents)
+
+    const after = await owner.get<{
+      contract: { total_cents: number }
+      lines: { description: string; price_cents: number; line_kind: string; added_at: string | null }[]
+    }>(`/api/contracts/${folio}`)
+    expect(after.contract.total_cents).toBe(added.total_cents)
+    const line = after.lines.find((l) => l.description.includes(accessory.code))
+    expect(line).toBeDefined()
+    expect(line?.line_kind).toBe('accessory')
+    expect(line?.added_at).not.toBeNull()
+  })
+
+  it('sale como su propio renglón en el reporte, aparte de lo vendido al firmar', async () => {
+    const today = new Date().toISOString().slice(0, 10)
+    const week = await owner.get<{
+      ventas: { session_id: number; added_after: { description: string; price_cents: number }[] }[]
+    }>(`/api/reports/period?from=${today}&to=${today}`)
+    const venta = week.ventas.find((v) => v.session_id === sessionA)
+    expect(venta?.added_after.length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('un folio que no existe se rechaza en vez de crear nada', async () => {
+    const refusal = await owner.refusal('/api/contracts/MTY-00000/accessories', { item_id: 1 })
+    expect(refusal.status).toBe(404)
   })
 })
 
@@ -334,6 +386,12 @@ describe('sesión perdida: las hojas y el folio', () => {
     // Se conserva su nombre y su teléfono en el registro cancelado.
     expect(dead.customer.name).toBe('Ana')
     expect(dead.customer.phone).toBe('8187654321')
+  })
+
+  it('un contrato cancelado no admite accesorios agregados', async () => {
+    const refusal = await owner.refusal(`/api/contracts/${lostFolio}/accessories`, { item_id: 1 })
+    expect(refusal.status).toBe(409)
+    expect(refusal.error).toMatch(/ya firmado/)
   })
 
   it('el folio del contrato cancelado nunca se reutiliza', async () => {

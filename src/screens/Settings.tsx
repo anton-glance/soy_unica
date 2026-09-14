@@ -20,7 +20,10 @@ interface SettingsData {
   users: { id: number; name: string; role: string; active: number }[]
   plans: { id: number; name: string; splits: string; max_months: number; discount_pct: number; min_price_cents: number; active: number }[]
   surcharges: { id: number; name: string; kind: string; amount_cents: number; pct: number; active: number }[]
-  commissions: { id: number; priority: number; rate_pct: number; basis: string; period: string; active: number }[]
+  commissions: {
+    id: number; priority: number; min_price_cents: number; max_price_cents: number | null
+    rate_pct: number; basis: string; period: string; active: number
+  }[]
   retention_floors: Record<string, number>
 }
 
@@ -89,7 +92,7 @@ function StorageCard({ storage }: { storage: Storage | null }) {
       <p style={{ fontSize: 'var(--text-lg)' }}>
         <b className="mono" style={{ fontWeight: 'var(--weight-medium)' }}>{bytes(storage.used_bytes)}</b> de {bytes(storage.quota_bytes)}
         {storage.full_on !== null
-          ? <> · a este ritmo se llena en {storage.full_on}</>
+          ? <> · a este ritmo, se llena en el año {storage.full_on}</>
           : <> · todavía no hay suficiente historia para estimar cuándo se llena</>}
       </p>
       <div style={{ height: 10, borderRadius: 'var(--radius-pill)', background: 'var(--linen)', margin: 'var(--space-6) 0' }}>
@@ -107,6 +110,7 @@ function StorageCard({ storage }: { storage: Storage | null }) {
 
 function Pins({ users }: { users: SettingsData['users'] }) {
   const [pins, setPins] = useState<Record<number, string>>({})
+  const [confirms, setConfirms] = useState<Record<number, string>>({})
   const roleLabel = (u: { name: string; role: string }) => {
     const role = u.role === 'owner' ? 'Dueña' : 'Vendedora'
     return u.name === role ? role : `${u.name} · ${role}`
@@ -114,33 +118,54 @@ function Pins({ users }: { users: SettingsData['users'] }) {
   return (
     <div className="panel">
       <h3 style={{ marginBottom: 'var(--space-6)' }}>NIP</h3>
-      <p className="lede">De 4 a 6 dígitos. El NIP nunca se guarda ni se registra en claro.</p>
-      {users.map((user) => (
-        <div key={user.id} className="inv-bar" style={{ alignItems: 'center', marginBottom: 'var(--space-5)' }}>
-          <div style={{ minWidth: 190 }}>{roleLabel(user)}</div>
-          <div className="field" style={{ minWidth: 200 }}>
-            <input
-              type="password"
-              inputMode="numeric"
-              placeholder="Nuevo NIP"
-              value={pins[user.id] ?? ''}
-              onChange={(e) => setPins((p) => ({ ...p, [user.id]: e.target.value }))}
-              aria-label={`Nuevo NIP de ${user.name}`}
-            />
+      <p className="lede">
+        De 4 a 6 dígitos, escrito dos veces. El NIP nunca se guarda ni se registra en claro — si el
+        cambio queda mal escrito no hay forma de recuperarlo salvo el reinicio manual descrito en
+        <code>docs/DEPLOY.md</code>.
+      </p>
+      {users.map((user) => {
+        const pin = pins[user.id] ?? ''
+        const confirm = confirms[user.id] ?? ''
+        const mismatch = confirm.length > 0 && pin !== confirm
+        return (
+          <div key={user.id} className="inv-bar" style={{ alignItems: 'center', marginBottom: 'var(--space-5)', flexWrap: 'wrap' }}>
+            <div style={{ minWidth: 190 }}>{roleLabel(user)}</div>
+            <div className="field" style={{ minWidth: 160 }}>
+              <input
+                type="password"
+                inputMode="numeric"
+                placeholder="Nuevo NIP"
+                value={pin}
+                onChange={(e) => setPins((p) => ({ ...p, [user.id]: e.target.value }))}
+                aria-label={`Nuevo NIP de ${user.name}`}
+              />
+            </div>
+            <div className="field" style={{ minWidth: 160 }}>
+              <input
+                type="password"
+                inputMode="numeric"
+                placeholder="Confirmar NIP"
+                value={confirm}
+                onChange={(e) => setConfirms((p) => ({ ...p, [user.id]: e.target.value }))}
+                aria-label={`Confirmar NIP de ${user.name}`}
+              />
+            </div>
+            <ActionButton
+              className="btn-quiet"
+              disabled={!/^\d{4,6}$/.test(pin) || pin !== confirm}
+              done="NIP cambiado"
+              onAction={async () => {
+                await patch(`/settings/users/${user.id}/pin`, { pin })
+                setPins((p) => ({ ...p, [user.id]: '' }))
+                setConfirms((p) => ({ ...p, [user.id]: '' }))
+              }}
+            >
+              Cambiar
+            </ActionButton>
+            {mismatch && <p className="err" role="alert" style={{ margin: 0, width: '100%' }}>Los NIP no coinciden.</p>}
           </div>
-          <ActionButton
-            className="btn-quiet"
-            disabled={!/^\d{4,6}$/.test(pins[user.id] ?? '')}
-            done="NIP cambiado"
-            onAction={async () => {
-              await patch(`/settings/users/${user.id}/pin`, { pin: pins[user.id] })
-              setPins((p) => ({ ...p, [user.id]: '' }))
-            }}
-          >
-            Cambiar
-          </ActionButton>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
@@ -235,7 +260,10 @@ function Retention({ store, floors, onSaved }: { store: Store; floors: Record<st
       </p>
 
       <div className="f3">
-        <Field label={`Fotos de vestidos vendidos (meses, mínimo ${floors.retention_sold_photos_months})`}>
+        <Field
+          label={`Fotos de artículos (meses desde que se retiran del catálogo, mínimo ${floors.retention_sold_photos_months})`}
+          hint="Cuenta desde que se venden o se retiran del catálogo a mano, no desde que entraron al inventario."
+        >
           {(id) => <input id={id} type="text" inputMode="numeric" value={form.sold} onChange={(e) => setForm({ ...form, sold: e.target.value })} />}
         </Field>
         <Field label={`Documentos de clientas (meses, mínimo ${floors.retention_client_docs_months})`}>
@@ -359,29 +387,27 @@ function Catalogs({ data, onSaved }: { data: SettingsData; onSaved: () => Promis
     <>
       <div className="panel">
         <h3 style={{ marginBottom: 'var(--space-6)' }}>Planes de pago</h3>
-        <p className="lede">Son un conjunto fijo. No hay planes a la medida: son imposibles de seguir.</p>
-        <div className="hist">
-          {data.plans.map((plan) => (
-            <div key={plan.id} style={{ opacity: plan.active ? 1 : .5 }}>
-              <span>
-                <b style={{ fontWeight: 'var(--weight-regular)' }}>{plan.name}</b> · {plan.splits} ·{' '}
-                {plan.max_months === 0 ? 'liquida al recoger' : `${plan.max_months} meses`}
-                {plan.discount_pct > 0 && ` · ${plan.discount_pct}% de descuento`}
-                {plan.min_price_cents > 0 && ` · desde ${money(plan.min_price_cents)}`}
-              </span>
-              <ActionButton
-                className="btn-quiet"
-                onAction={async () => { await patch(`/settings/plans/${plan.id}`, { active: plan.active ? 0 : 1 }); await onSaved() }}
-              >
-                {plan.active ? 'Desactivar' : 'Activar'}
-              </ActionButton>
-            </div>
-          ))}
-        </div>
+        <p className="lede">
+          Son un conjunto fijo — no hay planes a la medida, son imposibles de seguir — pero sus
+          números sí se editan: el descuento de contado, hasta qué precio aplica un plan, a cuántos
+          meses.
+        </p>
+        {data.plans.map((plan) => <PlanRow key={plan.id} plan={plan} onSaved={onSaved} />)}
       </div>
 
       <div className="panel">
         <h3 style={{ marginBottom: 'var(--space-6)' }}>Cargos</h3>
+        <p className="lede">
+          Lo que el contrato llama «Pagos extra» en su punto 9: envío según la marca del vestido,
+          recargo por talla grande, ajustes con precio propio (bastilla, mangas, segundo planchado),
+          mantillas y crinolina sueltas, coser el cinto, porta traje. Cada uno es un monto fijo o un
+          porcentaje del precio del vestido.
+        </p>
+        <p className="pill pill--brass" style={{ marginBottom: 'var(--space-9)' }}>
+          Todavía no hay dónde escogerlos al armar una venta — el plan de pago no ofrece marcarlos —
+          así que hoy activarlos o desactivarlos aquí no cambia ningún contrato. Son el catálogo de
+          cargos, listos para cuando esa pantalla exista.
+        </p>
         <div className="hist">
           {data.surcharges.map((s) => (
             <div key={s.id} style={{ opacity: s.active ? 1 : .5 }}>
@@ -402,20 +428,141 @@ function Catalogs({ data, onSaved }: { data: SettingsData; onSaved: () => Promis
 
       <div className="panel">
         <h3 style={{ marginBottom: 'var(--space-6)' }}>Comisiones</h3>
-        <div className="hist">
-          {data.commissions.map((c) => (
-            <div key={c.id} style={{ opacity: c.active ? 1 : .5 }}>
-              <span>Prioridad {c.priority} · {c.rate_pct}% sobre {c.basis} · {c.period === 'weekly' ? 'semanal' : 'mensual'}</span>
-              <ActionButton
-                className="btn-quiet"
-                onAction={async () => { await patch(`/settings/commission_rules/${c.id}`, { active: c.active ? 0 : 1 }); await onSaved() }}
-              >
-                {c.active ? 'Desactivar' : 'Activar'}
-              </ActionButton>
-            </div>
-          ))}
-        </div>
+        <p className="lede">
+          Lo que gana quien vende, sobre lo que la clienta pagó (no sobre el precio de lista): una
+          tabla de renglones por rango de precio, cada uno con su tasa. El primer renglón cuyo rango
+          incluye la venta es el que aplica —de ahí la prioridad—, así que un rango angosto casi
+          siempre necesita una prioridad más baja (se revisa primero) que el general que lo rodea.
+          Las tasas cambian por sucursal y con el tiempo, así que se editan aquí, no en el código.
+        </p>
+        {data.commissions.map((c) => <CommissionRow key={c.id} commission={c} onSaved={onSaved} />)}
       </div>
     </>
+  )
+}
+
+function PlanRow({ plan, onSaved }: { plan: SettingsData['plans'][number]; onSaved: () => Promise<void> }) {
+  const [form, setForm] = useState(() => ({
+    name: plan.name,
+    splits: (JSON.parse(plan.splits) as number[]).join(','),
+    max_months: String(plan.max_months),
+    discount_pct: String(plan.discount_pct),
+    min_price: String(plan.min_price_cents / 100),
+  }))
+  const splitNumbers = form.splits.split(',').map((s) => Number(s.trim())).filter((n) => !Number.isNaN(n))
+  const splitsValid = splitNumbers.length > 0 && splitNumbers.reduce((a, b) => a + b, 0) === 100
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, [k]: e.target.value })
+
+  return (
+    <div className="panel" style={{ background: 'var(--ivory)', opacity: plan.active ? 1 : .6 }}>
+      <div className="f3">
+        <Field label="Nombre">{(id) => <input id={id} type="text" value={form.name} onChange={set('name')} />}</Field>
+        <Field label="Parcialidades (%)" hint="Separadas por coma, en orden. Deben sumar 100.">
+          {(id) => <input id={id} type="text" value={form.splits} onChange={set('splits')} placeholder="50,25,25" />}
+        </Field>
+        <Field label="Meses para liquidar" hint="0 = se liquida al recoger el vestido">
+          {(id) => <input id={id} type="text" inputMode="numeric" value={form.max_months} onChange={set('max_months')} />}
+        </Field>
+      </div>
+      <div className="two">
+        <Field label="Descuento (%)">{(id) => <input id={id} type="text" inputMode="decimal" value={form.discount_pct} onChange={set('discount_pct')} />}</Field>
+        <Field label="Precio mínimo del vestido" hint="0 = sin mínimo">
+          {(id) => <input id={id} type="text" inputMode="decimal" value={form.min_price} onChange={set('min_price')} />}
+        </Field>
+      </div>
+      {!splitsValid && <p className="err">Las parcialidades deben sumar 100.</p>}
+      <div className="row">
+        <ActionButton
+          disabled={!splitsValid || !form.name.trim()}
+          onAction={async () => {
+            await patch(`/settings/plans/${plan.id}`, {
+              name: form.name.trim(),
+              splits: JSON.stringify(splitNumbers),
+              max_months: Number(form.max_months) || 0,
+              discount_pct: Number(form.discount_pct) || 0,
+              min_price_cents: parseMoney(form.min_price) ?? 0,
+            })
+            await onSaved()
+          }}
+        >
+          Guardar
+        </ActionButton>
+        <ActionButton
+          className="btn-quiet"
+          onAction={async () => { await patch(`/settings/plans/${plan.id}`, { active: plan.active ? 0 : 1 }); await onSaved() }}
+        >
+          {plan.active ? 'Desactivar' : 'Activar'}
+        </ActionButton>
+      </div>
+    </div>
+  )
+}
+
+const BASIS_ES: Record<string, string> = { cash: 'lo cobrado', sale_value: 'el precio de venta', split: 'cada parcialidad' }
+
+function CommissionRow({ commission, onSaved }: { commission: SettingsData['commissions'][number]; onSaved: () => Promise<void> }) {
+  const [form, setForm] = useState(() => ({
+    priority: String(commission.priority),
+    min_price: String(commission.min_price_cents / 100),
+    max_price: commission.max_price_cents === null ? '' : String(commission.max_price_cents / 100),
+    rate_pct: String(commission.rate_pct),
+    basis: commission.basis,
+    period: commission.period,
+  }))
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm({ ...form, [k]: e.target.value })
+
+  return (
+    <div className="panel" style={{ background: 'var(--ivory)', opacity: commission.active ? 1 : .6 }}>
+      <div className="f3">
+        <Field label="Prioridad" hint="Más bajo se revisa primero">
+          {(id) => <input id={id} type="text" inputMode="numeric" value={form.priority} onChange={set('priority')} />}
+        </Field>
+        <Field label="Desde (precio de venta)">{(id) => <input id={id} type="text" inputMode="decimal" value={form.min_price} onChange={set('min_price')} />}</Field>
+        <Field label="Hasta" hint="Vacío = sin tope">{(id) => <input id={id} type="text" inputMode="decimal" value={form.max_price} onChange={set('max_price')} />}</Field>
+      </div>
+      <div className="f3">
+        <Field label="Tasa (%)">{(id) => <input id={id} type="text" inputMode="decimal" value={form.rate_pct} onChange={set('rate_pct')} />}</Field>
+        <Field label="Sobre">
+          {(id) => (
+            <select id={id} value={form.basis} onChange={set('basis')}>
+              <option value="cash">{BASIS_ES.cash}</option>
+              <option value="sale_value">{BASIS_ES.sale_value}</option>
+              <option value="split">{BASIS_ES.split}</option>
+            </select>
+          )}
+        </Field>
+        <Field label="Periodo">
+          {(id) => (
+            <select id={id} value={form.period} onChange={set('period')}>
+              <option value="weekly">Semanal</option>
+              <option value="monthly">Mensual</option>
+            </select>
+          )}
+        </Field>
+      </div>
+      <div className="row">
+        <ActionButton
+          onAction={async () => {
+            await patch(`/settings/commission_rules/${commission.id}`, {
+              priority: Number(form.priority) || 0,
+              min_price_cents: parseMoney(form.min_price) ?? 0,
+              max_price_cents: form.max_price.trim() === '' ? null : (parseMoney(form.max_price) ?? 0),
+              rate_pct: Number(form.rate_pct) || 0,
+              basis: form.basis,
+              period: form.period,
+            })
+            await onSaved()
+          }}
+        >
+          Guardar
+        </ActionButton>
+        <ActionButton
+          className="btn-quiet"
+          onAction={async () => { await patch(`/settings/commission_rules/${commission.id}`, { active: commission.active ? 0 : 1 }); await onSaved() }}
+        >
+          {commission.active ? 'Desactivar' : 'Activar'}
+        </ActionButton>
+      </div>
+    </div>
   )
 }

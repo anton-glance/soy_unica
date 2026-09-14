@@ -73,13 +73,6 @@ app.post('/', async (c) => {
 
   const ledger = await recalculate(c.env.DB, contract.id, s.store)
 
-  // El primer abono de la sesión mueve la etapa a `payment`.
-  if (contract.session_id) {
-    await stmt(c.env.DB,
-      `UPDATE kiosk_sessions SET stage = 'payment' WHERE id = ? AND stage = 'signed' AND closed_at IS NULL`,
-      contract.session_id).run()
-  }
-
   return c.json({ payment_id: paymentId, ledger }, 201)
 })
 

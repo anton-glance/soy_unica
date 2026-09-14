@@ -9,12 +9,15 @@ import { bytes } from '../lib/format'
  * la sube. Es la única forma de que una foto entre al sistema.
  */
 export function PhotoCapture({
-  kind, contractId, label, onUploaded,
+  kind, contractId, label, onUploaded, hideIdleLabel,
 }: {
   kind: PhotoKind
   contractId?: number
   label: string
   onUploaded: (fileId: string) => void | Promise<void>
+  /** La tarjeta que lo envuelve ya dice «Pendiente»: repetirlo aquí abajo,
+   * dentro del botón, era el mismo dato dos veces en la misma tarjeta. */
+  hideIdleLabel?: boolean
 }) {
   const id = useId()
   const [state, setState] = useState<'idle' | 'busy' | 'done'>('idle')
@@ -60,9 +63,11 @@ export function PhotoCapture({
           onChange={onPick}
           style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }}
         />
-        <b style={{ color: state === 'done' ? 'var(--sage)' : 'var(--ink-faint)' }}>
-          {state === 'done' && size !== null ? `Foto adjuntada · ${bytes(size)}` : 'Sin foto todavía'}
-        </b>
+        {(state !== 'idle' || !hideIdleLabel) && (
+          <b style={{ color: state === 'done' ? 'var(--sage)' : 'var(--ink-faint)' }}>
+            {state === 'done' && size !== null ? `Foto adjuntada · ${bytes(size)}` : 'Sin foto todavía'}
+          </b>
+        )}
       </div>
       {error && <p className="err" role="alert">{error}</p>}
     </>

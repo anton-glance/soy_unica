@@ -61,8 +61,11 @@ async function candidates(db: D1Database, store: string): Promise<{ deletable: C
 
     for (const row of rows) {
       const entry: Candidate = { ...row, reason: '' }
-      if (row.kind === 'item_photo' && row.item_status !== 'sold') {
-        continue // La retención de fotos de vestido corre sólo una vez vendido.
+      // La retención de fotos de artículo corre sólo una vez que ya no está en
+      // el catálogo activo — vendido, o retirado a mano por la dueña, que es
+      // como se quita casi todo lo que se manda a hacer, no sólo lo vendido.
+      if (row.kind === 'item_photo' && row.item_status !== 'sold' && row.item_status !== 'retired') {
+        continue
       }
       if (row.balance_cents !== null && row.balance_cents > 0) {
         held.push({ ...entry, reason: 'El contrato todavía tiene saldo.' }); continue

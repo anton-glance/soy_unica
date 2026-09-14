@@ -608,11 +608,26 @@ app.post('/:id{[0-9]+}/sign', async (c) => {
   const dress = await one<{ item_id: number | null }>(
     c.env.DB, `SELECT item_id FROM contract_items WHERE contract_id = ? AND line_kind = 'dress'`, contract.id,
   )
+  const now = nowIso()
   const statements: D1PreparedStatement[] = [
     stmt(c.env.DB, `UPDATE contracts SET status = 'active', signed_at = ?, updated_at = ? WHERE id = ? AND status = 'draft'`,
-      nowIso(), nowIso(), contract.id),
+      now, now, contract.id),
     ...advance(c.env.DB, row, 'signed', contract.folio),
     auditStmt(c.env.DB, { session: s, entity: 'contract', entityId: contract.id, action: 'active', before: { status: 'draft' }, after: { status: 'active', folio: contract.folio } }),
+    /*
+     * Firmar es lo que cierra la sesión, no un paso más de por medio. Antes
+     * se quedaba abierta para siempre: la siguiente vendedora que intentaba
+     * abrir una sesión nueva en la sucursal se topaba con «ya hay una sesión
+     * abierta» por una que ya había terminado en venta hace rato. Se cierra
+     * aquí mismo, en el mismo lote que activa el contrato — nunca queda un
+     * instante en que el contrato ya esté activo y la sesión siga contando
+     * como abierta.
+     */
+    stmt(c.env.DB,
+      `UPDATE kiosk_sessions SET stage = 'closed', closed_at_stage = 'signed', closed_at = ?, outcome = 'won', reason = ? WHERE id = ?`,
+      now, 'Contrato firmado y activado', row.id),
+    stmt(c.env.DB, `INSERT INTO session_events (session_id, stage, detail) VALUES (?, 'closed', ?)`, row.id, `won: contrato firmado · folio ${contract.folio}`),
+    auditStmt(c.env.DB, { session: s, entity: 'kiosk_session', entityId: row.id, action: 'close', after: { outcome: 'won', reason: 'Contrato firmado y activado' } }),
   ]
 
   if (dress?.item_id) {

@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type ReactNode } from 'react'
 import { ApiError, UnauthorizedError, get, post } from '../lib/api'
 import { money } from '../lib/format'
 import { useSession } from '../lib/session'
@@ -8,6 +8,7 @@ import { PhotoCapture } from '../components/PhotoCapture'
 import { Dialog } from '../components/Dialog'
 import { GownArt } from '../components/GownArt'
 import { Brandmark } from '../components/Brandmark'
+import { IconButton } from '../components/IconButton'
 import { PinPad } from '../components/PinPad'
 import { PrintOverlay } from '../components/PrintOverlay'
 import { Screen } from '../components/Screen'
@@ -46,7 +47,11 @@ interface SessionState {
 const STAGE_TITLE: Record<Stage, string> = {
   browsing: '', fitting: '', selected: 'Datos de la novia',
   bride_data: 'Hoja de medidas', sheet_printed: 'Foto de la hoja firmada', sheet_signed: 'Plan de pago',
-  terms: 'Imprimir el contrato', contract_printed: 'Foto del contrato firmado',
+  // 'terms' comparte título con 'contract_printed': imprimir el contrato es
+  // ahora un diálogo que se abre sobre esta misma pantalla, no una pantalla
+  // aparte — así se ve como un solo paso, «Foto del contrato firmado», con el
+  // aviso de imprimir encima mientras la foto todavía no se puede tomar.
+  terms: 'Foto del contrato firmado', contract_printed: 'Foto del contrato firmado',
   // 'signed' y 'payment' no llegan a pintarse: el efecto de redirección los
   // manda a la ficha de la clienta antes de que este título se vea. Siguen
   // aquí porque `Stage` los exige, no porque alguien los vaya a leer.
@@ -58,7 +63,7 @@ const STAGE_HINT: Record<Stage, string> = {
   bride_data: '',
   sheet_printed: 'Las medidas no se capturan al sistema: la foto de la hoja firmada es la evidencia de la tienda.',
   sheet_signed: 'Sólo aparecen los planes que caben por precio, por meses y por la fecha del evento.',
-  terms: 'El contrato va impreso al reverso de las mismas dos hojas.',
+  terms: 'El contrato se activa sólo con las dos fotos: la hoja de medidas y el contrato.',
   contract_printed: 'El contrato se activa sólo con las dos fotos: la hoja de medidas y el contrato.',
   signed: '', payment: '', closed: '',
 }
@@ -128,22 +133,6 @@ export function SalesSession() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  /*
-   * No hay pantalla de «Anticipo»: en cuanto el contrato firma, se va derecho
-   * a la ficha de la clienta a registrar el abono ahí. El paso de antes no
-   * hacía nada —su «Actualizar» no cambiaba nada— y sólo era una parada de
-   * más entre firmar y cobrar.
-   */
-  const stageForRedirect = state?.session.stage
-  const folioForRedirect = state?.contract?.folio
-  // `useLayoutEffect`, no `useEffect`: corre antes de que el navegador pinte,
-  // así no alcanza a mostrarse ni un parpadeo de esta pantalla de por medio.
-  useLayoutEffect(() => {
-    if ((stageForRedirect === 'signed' || stageForRedirect === 'payment') && folioForRedirect) {
-      navigate(`/pagos?folio=${encodeURIComponent(folioForRedirect)}`, true)
-    }
-  }, [stageForRedirect, folioForRedirect, navigate])
-
   if (error) {
     return (
       <Screen title="No se pudo abrir la sesión" onBack={() => navigate('/')} backLabel="Regresar al inicio" center>
@@ -165,33 +154,27 @@ export function SalesSession() {
   if (stage === 'browsing' || stage === 'fitting') {
     return <Kiosk sessionId={sessionId} onChange={refresh} onClosed={onClosed} onLeave={() => navigate('/')} />
   }
-  // El efecto de arriba ya está redirigiendo a la ficha de la clienta; esto
-  // sólo se ve, si acaso, el instante entre el primer pintado y ese salto.
-  if (stage === 'signed' || stage === 'payment') {
-    return <Screen title="Sesión de venta" center><span className="spinner" aria-hidden="true" /></Screen>
-  }
+  // No hay pantalla de «Anticipo»: firmar cierra la sesión en el servidor y
+  // `SignContract` navega derecho a la ficha de la clienta con el folio que
+  // esa misma respuesta trae, así que `stage` nunca llega a valer 'signed' ni
+  // 'payment' aquí — la sesión ya está cerrada para cuando este componente
+  // volviera a pintar.
 
-  // «Datos de la novia» usa la (X) de arriba, como el resto de la aplicación;
-  // los demás pasos ya traen algo pegado abajo (imprimir, guardar el plan) y
-  // ahí «Cerrar sesión» se queda en el pie, con su propio texto. El control es
-  // el mismo NIP + motivo en los dos casos: sólo cambia de dónde se dispara.
-  const closeControl = (
-    <CloseControl
-      ref={closeRef}
-      sessionId={sessionId}
-      onClosed={onClosed}
-      trigger={stage === 'selected' ? () => null : undefined}
-    />
-  )
+  // Cada paso usa la (X) de arriba para cerrar la sesión, igual que el resto
+  // de la aplicación — antes sólo «Datos de la novia» lo hacía así y los demás
+  // pasos traían un botón «Cerrar sesión» de texto pegado al pie, que era el
+  // único ocupante del pie de pantalla. El control es el mismo NIP + motivo
+  // en todos los casos; sólo cambia de dónde se dispara, y ahora siempre se
+  // dispara desde la (X).
+  const closeControl = <CloseControl ref={closeRef} sessionId={sessionId} onClosed={onClosed} trigger={() => null} />
 
   return (
     <Screen
       title={STAGE_TITLE[stage]}
       onBack={() => navigate('/')}
       backLabel="Regresar al inicio"
-      onClose={stage === 'selected' ? () => closeRef.current?.open() : undefined}
+      onClose={() => closeRef.current?.open()}
       closeLabel="Cerrar sesión"
-      footer={stage === 'selected' ? undefined : closeControl}
     >
       <div className="wrap">
         {state.contract && (
@@ -208,7 +191,7 @@ export function SalesSession() {
         {/* 'signed' y 'payment' no dibujan nada aquí: el efecto de arriba ya
             mandó a la ficha de la clienta en cuanto el folio estuvo listo. */}
       </div>
-      {stage === 'selected' && closeControl}
+      {closeControl}
     </Screen>
   )
 }
@@ -238,6 +221,9 @@ function Kiosk({ sessionId, onChange, onClosed, onLeave }: {
   const [view, setView] = useState<KioskView>({ at: 'catalog' })
   const [pinError, setPinError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // El id del corazón que se acaba de agregar: le pone la animación una vez y
+  // se limpia solo cuando termina.
+  const [justAdded, setJustAdded] = useState<number | null>(null)
 
   const load = useCallback(async () => {
     const { data } = await get<{ items: KioskItem[]; show_prices: boolean }>(`/items/kiosk?session=${sessionId}`)
@@ -261,13 +247,17 @@ function Kiosk({ sessionId, onChange, onClosed, onLeave }: {
     const sizes = [...bySize.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([size]) => size)
     return [
       ['todos', 'Todos'] as const,
+      ['accesorios', 'Accesorios'] as const,
       ...cuts.map((c) => [c, /^corte/i.test(c) ? c : `Corte ${c.toLowerCase()}`] as const),
       ['-25000', 'Hasta $25,000'] as const,
       ...sizes.map((size) => [size, `Talla ${size}`] as const),
     ]
   }, [dresses])
 
-  const visible = dresses.filter((d) => {
+  // El chip «Accesorios» no filtra los vestidos por un dato suyo, como los
+  // demás: esconde el vestidor entero y deja sólo la sección de accesorios,
+  // que de por sí ya vive siempre debajo.
+  const visible = filter === 'accesorios' ? [] : dresses.filter((d) => {
     if (filter === 'todos') return true
     if (filter === '-25000') return d.price_cents <= 2_500_000
     if (d.size === filter) return true
@@ -281,8 +271,57 @@ function Kiosk({ sessionId, onChange, onClosed, onLeave }: {
   }
 
   async function toggleFavorite(item: KioskItem) {
+    const adding = !item.favorite
     await post(`/sessions/${sessionId}/favorites`, { item_id: item.id, remove: item.favorite })
+    if (adding) setJustAdded(item.id)
     await load()
+  }
+
+  // Vestidos y accesorios comparten la misma tarjeta: la misma foto grande, el
+  // mismo corazón y el mismo diálogo de detalle al tocarla.
+  function renderCard(item: KioskItem) {
+    return (
+      <div key={item.id} className={`card${item.held_by_other ? ' busy' : ''}${item.held_by_me ? ' mine' : ''}`}>
+        <button
+          type="button"
+          className="card-hit"
+          style={{ display: 'block', width: '100%', textAlign: 'left', padding: 0 }}
+          onClick={() => void openDetail(item)}
+          aria-label={`Ver ${item.name}`}
+        >
+          <GownArt seed={item.id} />
+          <span className="meta" style={{ display: 'block' }}>
+            <span className="name">{item.name}</span>
+            <span className="brand" style={{ display: 'block' }}>
+              {[item.brand, item.size && `talla ${item.size}`].filter(Boolean).join(' · ')}
+            </span>
+            {showPrices && <span className="price" style={{ display: 'block' }}>{money(item.price_cents)}</span>}
+          </span>
+        </button>
+        {item.held_by_other && <span className="tag">La está viendo otra clienta</span>}
+        {!item.held_by_other && item.held_by_me && <span className="tag">Lo estás viendo</span>}
+        {!item.held_by_other && !item.held_by_me && item.acquisition === 'pedido' && (
+          <span className="tag">Se manda a hacer</span>
+        )}
+        {/*
+          El corazón es su propio botón, hermano del que abre el detalle, no
+          un hijo suyo: tocarlo no debe encoger la tarjeta entera, sólo él
+          mismo (`.heart:active`, en base.css).
+        */}
+        <button
+          type="button"
+          className="heart"
+          aria-pressed={item.favorite}
+          aria-label={`Me gusta ${item.name}`}
+          onClick={() => void toggleFavorite(item)}
+        >
+          {item.favorite ? '♥' : '♡'}
+        </button>
+        {justAdded === item.id && (
+          <span className="heart-pop" aria-hidden="true" onAnimationEnd={() => setJustAdded(null)}>♥</span>
+        )}
+      </div>
+    )
   }
 
   // El NIP abre la pantalla de selección de la vendedora, o la saca del kiosco.
@@ -344,9 +383,15 @@ function Kiosk({ sessionId, onChange, onClosed, onLeave }: {
       // pie es donde vive «Ver mis favoritos» y tiene que verse siempre, no
       // sólo al llegar al final de la lista.
       right={
-        <div className="row" style={{ alignItems: 'center', flexWrap: 'nowrap' }}>
+        <div className="row" style={{ alignItems: 'center', flexWrap: 'nowrap', gap: 'var(--space-5)' }}>
           <span className="pill"><span className="dot" />Sesión abierta</span>
-          <CloseControl sessionId={sessionId} onClosed={onClosed} />
+          {/*
+            (X), no un botón de texto: «Cerrar sesión» junto a la píldora no
+            cabía en una sola línea en la tableta en vertical (1200 px de
+            ancho) y la píldora se cortaba a la mitad. La cruz libera el ancho
+            que la píldora necesita.
+          */}
+          <CloseControl sessionId={sessionId} onClosed={onClosed} trigger={(open) => <IconButton kind="close" label="Cerrar sesión" onClick={open} />} />
         </div>
       }
       footer={
@@ -372,42 +417,20 @@ function Kiosk({ sessionId, onChange, onClosed, onLeave }: {
 
       {error && <div className="wrap"><p className="err">{error}</p></div>}
 
-      <div className="grid">
-        {visible.map((item) => (
-          <div key={item.id} className={`card${item.held_by_other ? ' busy' : ''}${item.held_by_me ? ' mine' : ''}`}>
-            <button
-              type="button"
-              style={{ display: 'block', width: '100%', textAlign: 'left', padding: 0 }}
-              onClick={() => void openDetail(item)}
-              aria-label={`Ver ${item.name}`}
-            >
-              <GownArt seed={item.id} />
-              <span className="meta" style={{ display: 'block' }}>
-                <span className="name" style={{ display: 'block' }}>{item.name}</span>
-                <span className="brand" style={{ display: 'block' }}>
-                  {[item.brand, item.size && `talla ${item.size}`].filter(Boolean).join(' · ')}
-                </span>
-                {showPrices && <span className="price" style={{ display: 'block' }}>{money(item.price_cents)}</span>}
-              </span>
-            </button>
-            {item.held_by_other && <span className="tag">La está viendo otra clienta</span>}
-            {!item.held_by_other && item.held_by_me && <span className="tag">Lo estás viendo</span>}
-            {!item.held_by_other && !item.held_by_me && item.acquisition === 'pedido' && (
-              <span className="tag">Se manda a hacer</span>
-            )}
-            <button
-              type="button"
-              className="heart"
-              aria-pressed={item.favorite}
-              aria-label={`Me gusta ${item.name}`}
-              onClick={() => void toggleFavorite(item)}
-            >
-              {item.favorite ? '♥' : '♡'}
-            </button>
-          </div>
-        ))}
-        {visible.length === 0 && <p className="lede">Nada con ese filtro. Toca «Todos» para ver todo otra vez.</p>}
-      </div>
+      {filter !== 'accesorios' && (
+        <div className="grid">
+          {visible.map(renderCard)}
+          {visible.length === 0 && <p className="lede">Nada con ese filtro. Toca «Todos» para ver todo otra vez.</p>}
+        </div>
+      )}
+
+      {accessories.length > 0 && (
+        <div className="wrap" style={{ paddingTop: 0 }}>
+          <hr style={{ border: 0, borderTop: '1px solid var(--tape)', margin: '0 0 var(--space-11)' }} />
+          <h2 style={{ marginBottom: 'var(--space-9)' }}>Accesorios</h2>
+        </div>
+      )}
+      {accessories.length > 0 && <div className="grid">{accessories.map(renderCard)}</div>}
 
       {open && (
         <Dialog title={open.name} onCancel={() => setOpen(null)} big>
@@ -550,6 +573,7 @@ function SelectionScreen({ sessionId, pin, favorites, accessories, showPrices, o
   const [dress, setDress] = useState<number | null>(pickable.length === 1 ? (pickable[0] as KioskItem).id : null)
   const [picked, setPicked] = useState<number[]>([])
   const [catalogOpen, setCatalogOpen] = useState(false)
+  const [openAccessory, setOpenAccessory] = useState<KioskItem | null>(null)
   const [confirming, setConfirming] = useState(false)
 
   const chosenDress = favorites.find((f) => f.id === dress) ?? null
@@ -620,30 +644,65 @@ function SelectionScreen({ sessionId, pin, favorites, accessories, showPrices, o
         )}
       </div>
 
+      {/*
+        Misma vista que el catálogo del kiosco: retícula de foto grande, y el
+        detalle —foto más grande todavía, con la descripción— al tocar la
+        tarjeta, en vez de la fila chica de antes con un chip de «Agregar» de
+        un toque. Aquí la vendedora también quiere ver bien lo que ofrece.
+      */}
       {catalogOpen && (
         <Dialog title="Accesorios" onCancel={() => setCatalogOpen(false)} closeLabel="Listo" big>
           {accessories.length === 0 ? (
             <p className="lede">No hay accesorios en esta sucursal.</p>
           ) : (
-            <ScrollRail>
+            <div className="grid grid--tight">
               {accessories.map((a) => (
-                <figure key={a.id} className="fav-rail__item">
+                <button
+                  key={a.id}
+                  type="button"
+                  className={`pick-card${picked.includes(a.id) ? ' is-chosen' : ''}`}
+                  aria-pressed={picked.includes(a.id)}
+                  onClick={() => setOpenAccessory(a)}
+                >
                   <GownArt seed={a.id} />
-                  <figcaption>{a.name}</figcaption>
-                  <p className="muted" style={{ fontSize: 'var(--text-sm)' }}>{a.code} · {money(a.price_cents)}</p>
-                  <button
-                    type="button"
-                    className="chip"
-                    aria-pressed={picked.includes(a.id)}
-                    style={{ marginTop: 'var(--space-3)', width: '100%' }}
-                    onClick={() => setPicked((p) => (p.includes(a.id) ? p.filter((id) => id !== a.id) : [...p, a.id]))}
-                  >
-                    {picked.includes(a.id) ? 'Agregado' : 'Agregar'}
-                  </button>
-                </figure>
+                  <span className="meta" style={{ display: 'block' }}>
+                    <span className="name" style={{ display: 'block' }}>{a.name}</span>
+                    <span className="brand" style={{ display: 'block' }}>{a.code}</span>
+                    {showPrices && <span className="price" style={{ display: 'block' }}>{money(a.price_cents)}</span>}
+                    {picked.includes(a.id) && <span className="state">Agregado</span>}
+                  </span>
+                </button>
               ))}
-            </ScrollRail>
+            </div>
           )}
+        </Dialog>
+      )}
+
+      {openAccessory && (
+        <Dialog title={openAccessory.name} onCancel={() => setOpenAccessory(null)} big>
+          <div className="detail">
+            <div><GownArt seed={openAccessory.id} /></div>
+            <div>
+              <p style={{ color: 'var(--ink-faint)', margin: 0 }}>{openAccessory.brand}</p>
+              <dl>
+                {showPrices && <><dt>Precio</dt><dd>{money(openAccessory.price_cents)}</dd></>}
+                <dt>Código</dt><dd className="mono">{openAccessory.code}</dd>
+                <dt>Color</dt><dd>{openAccessory.color ?? '—'}</dd>
+              </dl>
+              <div className="row">
+                <button
+                  type="button"
+                  className="btn-main"
+                  onClick={() => {
+                    setPicked((p) => (p.includes(openAccessory.id) ? p.filter((id) => id !== openAccessory.id) : [...p, openAccessory.id]))
+                    setOpenAccessory(null)
+                  }}
+                >
+                  {picked.includes(openAccessory.id) ? 'Quitar accesorio' : 'Agregar accesorio'}
+                </button>
+              </div>
+            </div>
+          </div>
         </Dialog>
       )}
 
@@ -669,18 +728,26 @@ function SelectionScreen({ sessionId, pin, favorites, accessories, showPrices, o
           }
         >
           <div className="stack">
-            <p style={{ fontSize: 'var(--text-lg)' }}>
-              <b style={{ fontWeight: 'var(--weight-medium)' }}>{chosenDress.name}</b>
-              {chosenDress.color ? ` · ${chosenDress.color}` : ''} · <span className="mono">{chosenDress.code}</span>
-            </p>
-            {chosenAccessories.length > 0 ? (
-              <div className="hist">
-                {chosenAccessories.map((a) => (
-                  <div key={a.id}><span>{a.name}</span><span className="mono">{money(a.price_cents)}</span></div>
-                ))}
+            <div className="hist">
+              <div>
+                <span>
+                  <b style={{ fontWeight: 'var(--weight-medium)' }}>{chosenDress.name}</b>
+                  {chosenDress.color ? ` · ${chosenDress.color}` : ''} · <span className="mono">{chosenDress.code}</span>
+                </span>
+                {showPrices && <span className="mono">{money(chosenDress.price_cents)}</span>}
               </div>
-            ) : (
+              {chosenAccessories.map((a) => (
+                <div key={a.id}><span>{a.name}</span>{showPrices && <span className="mono">{money(a.price_cents)}</span>}</div>
+              ))}
+            </div>
+            {chosenAccessories.length === 0 && (
               <p className="state late">Asegúrate de haberle ofrecido los accesorios a la clienta.</p>
+            )}
+            {showPrices && (
+              <p className="inv-head" style={{ marginTop: 'var(--space-8)' }}>
+                <span style={{ fontWeight: 'var(--weight-medium)' }}>Total</span>
+                <span className="money">{money(chosenDress.price_cents + chosenAccessories.reduce((n, a) => n + a.price_cents, 0))}</span>
+              </p>
             )}
           </div>
         </Dialog>
@@ -739,46 +806,61 @@ function BrideForm({ sessionId, onDone }: { sessionId: number; onDone: () => Pro
           <input id="bride-apellido" name="apellido" type="text" autoComplete="family-name" />
         </div>
       </div>
-      <div className="two">
-        <div className="field">
-          <label htmlFor="bride-phone">Teléfono</label>
-          {/*
-            El «+52» es fijo: no se puede borrar, y no viaja con el número. Lo
-            que ve la vendedora es la máscara «+52 __ ____ ____»; lo que se
-            guarda —en el campo oculto que de verdad manda el formulario— son
-            sólo los 10 dígitos, sin prefijo y sin espacios, igual que antes.
-          */}
-          <input
-            id="bride-phone"
-            type="tel"
-            inputMode="numeric"
-            autoComplete="tel"
-            defaultValue={formatPhoneMask('')}
-            onFocus={(e) => {
-              // Si todavía no hay nada tecleado, el cursor arranca después del prefijo.
-              const el = e.currentTarget
-              const n = phoneDigitsFromMasked(el.value).length
-              if (n === 0) el.setSelectionRange(4, 4)
-            }}
-            onInput={(e) => {
-              const el = e.currentTarget
-              const digits = phoneDigitsFromMasked(el.value).slice(0, 10)
-              el.value = formatPhoneMask(digits)
-              const caret = phoneMaskCaret(digits.length)
-              el.setSelectionRange(caret, caret)
-              const hidden = el.form?.elements.namedItem('phone')
-              if (hidden instanceof HTMLInputElement) hidden.value = digits
-            }}
-          />
-          <input type="hidden" name="phone" defaultValue="" />
-          <p className="err" style={{ color: 'var(--ink-faint)' }}>10 dígitos</p>
-        </div>
-        <div className="field">
-          <label htmlFor="bride-wedding">Fecha del evento</label>
-          {/* No hay bodas en el pasado; el servidor lo vuelve a revisar. */}
-          <input id="bride-wedding" name="wedding_date" type="date" min={today} />
-          <p className="err" style={{ color: 'var(--ink-faint)' }}>Déjala vacía sólo si de verdad no hay fecha</p>
-        </div>
+      <div className="field">
+        <label htmlFor="bride-phone">Teléfono</label>
+        {/*
+          El «+52» es fijo: no se puede borrar, y no viaja con el número. Lo
+          que ve la vendedora es la máscara «+52 __ ____ ____»; lo que se
+          guarda —en el campo oculto que de verdad manda el formulario— son
+          sólo los 10 dígitos, sin prefijo y sin espacios, igual que antes.
+          La máscara arranca en gris (`mask-empty`): en negro se leía como si
+          ya hubiera un número tecleado.
+        */}
+        <input
+          id="bride-phone"
+          className="mask-empty"
+          type="tel"
+          inputMode="numeric"
+          autoComplete="tel"
+          defaultValue={formatPhoneMask('')}
+          onFocus={(e) => {
+            // Si todavía no hay nada tecleado, el cursor arranca después del prefijo.
+            const el = e.currentTarget
+            const n = phoneDigitsFromMasked(el.value).length
+            if (n === 0) el.setSelectionRange(4, 4)
+          }}
+          onInput={(e) => {
+            const el = e.currentTarget
+            const digits = phoneDigitsFromMasked(el.value).slice(0, 10)
+            el.value = formatPhoneMask(digits)
+            el.classList.toggle('mask-empty', digits.length === 0)
+            const caret = phoneMaskCaret(digits.length)
+            el.setSelectionRange(caret, caret)
+            const hidden = el.form?.elements.namedItem('phone')
+            if (hidden instanceof HTMLInputElement) hidden.value = digits
+          }}
+        />
+        <input type="hidden" name="phone" defaultValue="" />
+        <p className="err" style={{ color: 'var(--ink-faint)' }}>10 dígitos</p>
+      </div>
+      <div className="field">
+        <label htmlFor="bride-wedding">Fecha del evento</label>
+        {/*
+          En su propio renglón, a todo lo ancho: apretada en la columna
+          derecha del par de campos, el calendario nativo abría del lado
+          contrario al que se tocaba —pegado al borde de la pantalla, el
+          navegador lo volteaba para que cupiera—. Con todo el ancho libre
+          alrededor, abre junto al icono que se tocó.
+        */}
+        <input
+          id="bride-wedding"
+          className="mask-empty"
+          name="wedding_date"
+          type="date"
+          min={today}
+          onChange={(e) => e.currentTarget.classList.toggle('mask-empty', !e.currentTarget.value)}
+        />
+        <p className="err" style={{ color: 'var(--ink-faint)' }}>Déjala vacía sólo si de verdad no hay fecha</p>
       </div>
 
       <ActionButton
@@ -970,7 +1052,7 @@ function Terms({ sessionId, onDone }: { sessionId: number; onDone: () => Promise
               ))}
             </tbody>
           </table>
-          <span className="plan-card__mark">{chosen === offer.plan.id ? 'Plan escogido' : 'Tocar para escoger'}</span>
+          {chosen === offer.plan.id && <span className="plan-card__mark">Plan escogido</span>}
         </button>
       ))}
 
@@ -990,9 +1072,16 @@ function Terms({ sessionId, onDone }: { sessionId: number; onDone: () => Promise
   )
 }
 
+/*
+ * «Imprimir el contrato» ya no es su propia pantalla: es el mismo diálogo
+ * emergente que la hoja de medidas usa para el reimpreso, encima de la
+ * pantalla de «Foto del contrato firmado» — que se ve debajo, deshabilitada,
+ * porque todavía no hay nada que fotografiar.
+ */
 function ContractPrint({ sessionId, state, onDone }: { sessionId: number; state: SessionState; onDone: () => Promise<void> }) {
   const folio = state.contract?.folio ?? ''
   const [printing, setPrinting] = useState(false)
+  const [asking, setAsking] = useState(true)
 
   if (printing) {
     return (
@@ -1004,26 +1093,59 @@ function ContractPrint({ sessionId, state, onDone }: { sessionId: number; state:
 
   return (
     <div className="panel">
-      <p className="pill pill--brass" style={{ marginBottom: 'var(--space-9)' }}>
-        Vuelve a poner las 2 hojas en la bandeja, cara impresa hacia abajo.
-      </p>
-      {/* Imprimir es la acción principal, oscura; «ya lo tengo impreso» es la
-          salida secundaria y va a su izquierda, igual que en la hoja de medidas. */}
-      <div className="row">
-        <ActionButton
-          className="btn-quiet"
-          done="Listo"
-          onAction={async () => { await post(`/sessions/${sessionId}/contract-printed`); await onDone() }}
-        >
-          Ya lo tengo impreso
-        </ActionButton>
-        <button type="button" className="btn-main" onClick={() => setPrinting(true)}>Abrir el contrato para imprimir</button>
+      <div className="field">
+        <label>Contrato firmado</label>
+        <p className="muted">Imprime el contrato primero para poder tomarle la foto.</p>
       </div>
+      <button type="button" className="btn-main" disabled>Activar el contrato</button>
+
+      {!asking && (
+        <button type="button" className="btn-quiet" style={{ marginTop: 'var(--space-8)' }} onClick={() => setAsking(true)}>
+          Imprimir el contrato
+        </button>
+      )}
+
+      {asking && (
+        <Dialog
+          title="Imprimir el contrato"
+          onCancel={() => setAsking(false)}
+          narrow
+          actions={
+            <div className="row" style={{ justifyContent: 'center', width: '100%' }}>
+              {/* La misma llamada al servidor en los dos casos: lo único que
+                  cambia es si se abre la vista de impresión o se salta
+                  derecho a la foto del contrato firmado. */}
+              <ActionButton
+                className="btn-quiet"
+                done="Listo"
+                onAction={async () => { await post(`/sessions/${sessionId}/contract-printed`); await onDone() }}
+              >
+                Ya lo tengo impreso
+              </ActionButton>
+              <ActionButton
+                done="Impreso"
+                onAction={async () => {
+                  await post(`/sessions/${sessionId}/contract-printed`)
+                  setAsking(false)
+                  setPrinting(true)
+                }}
+              >
+                Imprimir
+              </ActionButton>
+            </div>
+          }
+        >
+          <p className="lede">
+            Vuelve a poner las 2 hojas en la bandeja, cara impresa hacia abajo, con el folio {folio}.
+          </p>
+        </Dialog>
+      )}
     </div>
   )
 }
 
 function SignContract({ sessionId, state, onDone }: { sessionId: number; state: SessionState; onDone: () => Promise<void> }) {
+  const navigate = useNavigate()
   const has = state.documents.some((d) => d.kind === 'contract')
   // ActionButton ya dibuja el mensaje del error; aquí sólo interesa si fue el
   // del calendario viejo, que es el único que ofrece una salida.
@@ -1035,13 +1157,21 @@ function SignContract({ sessionId, state, onDone }: { sessionId: number; state: 
         <label>Contrato firmado</label>
         <PhotoCapture kind="contract" contractId={state.contract?.id} label="Tomar foto del contrato" onUploaded={onDone} />
       </div>
+      {/* Antes se podía tocar sin foto: el servidor lo rechazaba, pero el
+          botón se veía activo mientras la pantalla decía que faltaba. */}
       <ActionButton
+        disabled={!has}
         done="Contrato activo"
         onAction={async () => {
           try {
-            await post(`/sessions/${sessionId}/sign`)
-            setStale(false)
-            await onDone()
+            // Firmar cierra la sesión en el servidor en el mismo instante:
+            // no hay ya ni una recarga de por medio a la que esperar. Se
+            // navega directo con el folio que la respuesta ya trae —volver a
+            // pedir el estado de una sesión que el propio servidor acaba de
+            // cerrar sólo la mandaría de regreso a los cuadros de entrada.
+            const { folio } = await post<{ folio: string }>(`/sessions/${sessionId}/sign`)
+            localStorage.removeItem(SESSION_KEY)
+            navigate(`/clientes?folio=${encodeURIComponent(folio)}`, true)
           } catch (err) {
             // El calendario impreso ya no es el de hoy: hay que reimprimir, no
             // corregir el papel ni la base a escondidas.
@@ -1073,7 +1203,7 @@ function SignContract({ sessionId, state, onDone }: { sessionId: number; state: 
 }
 
 // ─────────────────────────────────────────────────────────────── cierre ──
-const LOST_REASONS = [
+export const LOST_REASONS = [
   { value: 'precio', label: 'Precio' },
   { value: 'no le gustaron los modelos', label: 'No le gustaron los modelos' },
   { value: 'quiere pensarlo', label: 'Quiere pensarlo' },

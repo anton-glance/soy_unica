@@ -90,8 +90,15 @@ export function Inventory() {
   }
 
   return (
-    // El título vive en la barra de arriba y en ningún otro lado.
-    <Screen title="Inventario" onBack={() => navigate('/')} backLabel="Regresar al inicio">
+    // El título vive en la barra de arriba y en ningún otro lado. «Agregar al
+    // inventario» va en el hueco derecho de la barra: antes competía por
+    // espacio con la búsqueda y el filtro de tipo en la misma fila.
+    <Screen
+      title="Inventario"
+      onBack={() => navigate('/')}
+      backLabel="Regresar al inicio"
+      right={<button type="button" className="btn-main" onClick={() => setAdding(true)}>Agregar al inventario</button>}
+    >
       <div className="wrap">
         <p className="lede">
           Vestidos y accesorios de esta sucursal. Se busca por código, modelo, marca o corte.
@@ -114,7 +121,7 @@ export function Inventory() {
               <option value="accessory">Solo accesorios</option>
             </select>
           </div>
-          <button type="button" className="btn-main" onClick={() => setAdding(true)}>Agregar al inventario</button>
+          <a className="btn-quiet" href="/api/items/export">Exportar CSV</a>
         </div>
 
         <div className="row" style={{ marginBottom: 'var(--space-9)' }}>
@@ -278,7 +285,7 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
               : <GownArt seed={item.id} className="art" />}
             {isOwner ? (
               <div style={{ marginTop: 'var(--space-8)' }}>
-                <label>Fotos <span className="muted">· hasta 5</span></label>
+                <label>Fotos</label>
                 <PhotoSet
                   photos={photos}
                   primary={primary}
@@ -480,7 +487,7 @@ function AddItem({ isOwner, onClose, onAdded }: { isOwner: boolean; onClose: () 
         en cuanto queda dado de alta.
       */}
       <div className="field">
-        <label>Fotos <span className="muted">· hasta 5, la principal es la que se ve en el kiosco</span></label>
+        <label>Fotos <span className="muted">· la principal es la que se ve en el kiosco</span></label>
         <PhotoSet photos={photos} primary={primary} onChange={(next, mark) => { setPhotos(next); setPrimary(mark) }} />
       </div>
 

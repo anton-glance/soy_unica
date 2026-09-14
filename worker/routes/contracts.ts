@@ -42,15 +42,24 @@ export async function contractDetail(db: D1Database, store: string, contract: Co
     ? await one<{ id: number; name: string; apellido: string; phone: string; wedding_date: string | null }>(
         db, `SELECT id, name, apellido, phone, wedding_date FROM customers WHERE id = ?`, contract.customer_id)
     : null
-  const lines = await all<{ id: number; item_id: number | null; description: string; price_cents: number; line_kind: string }>(
-    db, `SELECT id, item_id, description, price_cents, line_kind FROM contract_items WHERE contract_id = ? ORDER BY sort, id`, contract.id)
+  const lines = await all<{ id: number; item_id: number | null; description: string; price_cents: number; line_kind: string; added_at: string | null }>(
+    db, `SELECT id, item_id, description, price_cents, line_kind, added_at FROM contract_items WHERE contract_id = ? ORDER BY sort, id`, contract.id)
   const installments = await all<InstallmentRow>(
     db, `SELECT id, seq, due_type, due_date, amount_cents FROM installments WHERE contract_id = ? ORDER BY seq`, contract.id)
   const payments = await all<PaymentRow & { method: string; receipt_folio: string | null; collected_by: number; void_reason: string | null }>(
     db, `SELECT id, paid_at, amount_cents, installment_id, voided_at, method, receipt_folio, collected_by, void_reason
          FROM payments WHERE contract_id = ? ORDER BY paid_at, id`, contract.id)
-  const documents = await all<{ id: string; kind: string; created_at: string }>(
-    db, `SELECT id, kind, created_at FROM files WHERE contract_id = ? ORDER BY created_at`, contract.id)
+  // El comprobante de un pago se guarda como un archivo más, atado al
+  // contrato (kind = 'receipt'); `payment_id` es cómo la ficha lo empareja
+  // con el abono al que pertenece, para el renglón «nota · fecha» de su
+  // tarjeta en Documentos.
+  const documents = await all<{ id: string; kind: string; created_at: string; payment_id: number | null }>(
+    db,
+    `SELECT f.id, f.kind, f.created_at, pf.payment_id
+       FROM files f
+       LEFT JOIN payment_files pf ON pf.file_id = f.id
+      WHERE f.contract_id = ? ORDER BY f.created_at`,
+    contract.id)
   // Por el renglón del contrato, no por items.contract_id: ese sólo se sella al
   // firmar, y la hoja de medidas se imprime antes. Si no, el modelo y el color
   // salían en blanco justo en la hoja que los necesita.
@@ -82,6 +91,39 @@ app.get('/:folio', async (c) => {
   const s = c.get('session')
   const contract = await loadContract(c.env.DB, s.store, c.req.param('folio'))
   return c.json(await contractDetail(c.env.DB, s.store, contract))
+})
+
+/**
+ * Una accesorio que la novia compra después de firmar: sin sesión, sin
+ * medidas, sin contrato nuevo — se agrega al que ya tiene y se suma a lo que
+ * debe. Sólo accesorios: un vestido siempre necesita sesión y medidas.
+ * (docs/NEXT.md, «Accesorios después del contrato».)
+ */
+app.post('/:folio/accessories', async (c) => {
+  const s = c.get('session')
+  const contract = await loadContract(c.env.DB, s.store, c.req.param('folio'))
+  if (!['active', 'paid', 'delivered'].includes(contract.status)) {
+    throw conflict('Sólo se pueden agregar accesorios a un contrato ya firmado.')
+  }
+  const body = await readJson<{ item_id?: number }>(c)
+  const item = await one<{ id: number; code: string; name: string; kind: string; price_cents: number; needs_review: number }>(
+    c.env.DB, `SELECT id, code, name, kind, price_cents, needs_review FROM items WHERE id = ? AND store_id = ?`, Number(body.item_id), s.store,
+  )
+  if (!item) throw notFound('No se encontró ese artículo.')
+  if (item.kind !== 'accessory') throw badRequest('Sólo se pueden agregar accesorios después de firmado el contrato.')
+  if (item.price_cents <= 0 || item.needs_review) {
+    throw conflict(`«${item.name}» no tiene precio o está por verificar. Complétalo en Inventario antes de agregarlo.`, 'needs_price')
+  }
+
+  const sortRow = await one<{ n: number }>(c.env.DB, `SELECT COUNT(*) AS n FROM contract_items WHERE contract_id = ?`, contract.id)
+  const now = nowIso()
+  await c.env.DB.batch([
+    stmt(c.env.DB, `INSERT INTO contract_items (contract_id, item_id, description, price_cents, line_kind, sort, added_at)
+                    VALUES (?,?,?,?, 'accessory', ?, ?)`, contract.id, item.id, `${item.name} (${item.code})`, item.price_cents, (sortRow?.n ?? 0) + 1, now),
+    stmt(c.env.DB, `UPDATE contracts SET total_cents = total_cents + ?, updated_at = ? WHERE id = ?`, item.price_cents, now, contract.id),
+    auditStmt(c.env.DB, { session: s, entity: 'contract', entityId: contract.id, action: 'accessory_added', after: { item: item.code, price_cents: item.price_cents } }),
+  ])
+  return c.json({ ok: true, total_cents: contract.total_cents + item.price_cents })
 })
 
 /** Datos ya armados para las dos hojas: medidas y contrato. */

@@ -313,6 +313,67 @@ rejected rows still need the owner's handwriting. Do not apply
 
 ---
 
+## 11. Locked out: manual PIN reset
+
+Ajustes → NIP now asks for the new PIN twice and refuses to submit on a
+mismatch, which is the usual way this happens: a typo nobody could see because
+the field is a password field. If everyone with an owner or seller PIN for a
+branch is still locked out anyway, there is no in-app recovery today — a
+recovery route for the owner is recorded as a design question in
+`docs/NEXT.md`, not built yet — so the fix is to reset that person's row by
+hand, from a machine with `wrangler` access to the remote database.
+
+This resets the PIN back to the **seeded demo value** for that row —
+`pin_hash`/`pin_salt` are copied straight from `db/migrations/0002_seed.sql`,
+which is the only PIN hash committed anywhere. Pick the row that's locked out:
+
+| store\_id | role   | PIN after reset | command |
+|---|---|---|---|
+| `mty`  | owner  | `4242` | see below |
+| `mty`  | seller | `1111` | see below |
+| `cdmx` | owner  | `4242` | see below |
+| `cdmx` | seller | `2222` | see below |
+
+```bash
+# Monterrey · Dueña → resets to 4242
+npx wrangler d1 execute soy-unica --remote --command "
+  UPDATE users SET pin_hash = 'SkFVTeXOgVOy9pQJT1IvGaNIXkUXEL0xU7ovJZ73BFQ',
+                    pin_salt = 'wR0Q2kSodfuvHHN1pBmysg',
+                    updated_at = strftime('%Y-%m-%dT%H:%M:%SZ','now')
+  WHERE store_id = 'mty' AND role = 'owner'"
+
+# Monterrey · Vendedora → resets to 1111
+npx wrangler d1 execute soy-unica --remote --command "
+  UPDATE users SET pin_hash = 'OwdzqDJgOZHgQd4KBcyUf3GbJP4-OZhTMEiUD-a3CJ0',
+                    pin_salt = 'JN8h-Hy1WN69sEvQLVvz2A',
+                    updated_at = strftime('%Y-%m-%dT%H:%M:%SZ','now')
+  WHERE store_id = 'mty' AND role = 'seller'"
+
+# CDMX · Dueña → resets to 4242
+npx wrangler d1 execute soy-unica --remote --command "
+  UPDATE users SET pin_hash = 'JtFw4VOoPYIkyLw48ujCJU09C3Yipx8c0XVUU9jhvec',
+                    pin_salt = 'V0Le6KrSK4fpIPw2QSkxvA',
+                    updated_at = strftime('%Y-%m-%dT%H:%M:%SZ','now')
+  WHERE store_id = 'cdmx' AND role = 'owner'"
+
+# CDMX · Vendedora → resets to 2222
+npx wrangler d1 execute soy-unica --remote --command "
+  UPDATE users SET pin_hash = 'hVXsO40w9eth6UZJ4RIqpFxRYianMmaAuUOpAP8RqsM',
+                    pin_salt = 'j_TWwCgS-EJs-Uxi4_3SzQ',
+                    updated_at = strftime('%Y-%m-%dT%H:%M:%SZ','now')
+  WHERE store_id = 'cdmx' AND role = 'seller'"
+```
+
+If a branch has more than one seller row (`role = 'seller'` matches all of
+them), add `AND name = '…'` to target one person instead of resetting
+everyone with that role.
+
+Log in with the reset PIN **immediately** and set a real one in Ajustes → NIP
+before anyone else finds the URL — these are the same public demo PINs called
+out in §10, committed in this repository.
+
+---
+
 ## Smoke test on the tablet
 
 Run this against the deployed URL, on the actual tablet, in this order. Each

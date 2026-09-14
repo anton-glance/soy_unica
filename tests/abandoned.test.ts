@@ -100,10 +100,11 @@ describe('una sesión fresca sobrevive al barrido', () => {
 
 describe('el reporte la distingue de una venta perdida', () => {
   it('la cuenta aparte y no la mezcla con los motivos de no-venta', async () => {
+    const today = new Date().toISOString().slice(0, 10)
     const w = await owner.get<{
       conversion: { abandoned: number }
       anonimas: { reasons: { reason: string; n: number }[] }
-    }>('/api/reports/weekly')
+    }>(`/api/reports/period?from=${today}&to=${today}`)
     expect(w.conversion.abandoned).toBeGreaterThanOrEqual(1)
     expect(w.anonimas.reasons.map((r) => r.reason)).toContain('abandonada (la tableta se quedó abierta)')
   })

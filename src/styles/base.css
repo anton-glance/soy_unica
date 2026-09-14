@@ -72,6 +72,13 @@ select {
 :root[data-theme='dark'] select {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%23C3B5B8' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
+/*
+ * Una máscara o un marcador de fecha vacío se leía tan oscuro como un dato ya
+ * tecleado, y una novia lo daba por hecho como si ya estuviera capturado.
+ * Gris mientras está vacío; en cuanto se teclea algo, JS quita esta clase.
+ */
+input.mask-empty { color: var(--ink-faint); }
+
 input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible, a:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
@@ -153,7 +160,10 @@ a.chip, a.btn-main, a.btn-quiet { text-decoration: none; }
   font-family: var(--font-display);
   font-weight: var(--weight-regular);
   font-size: var(--text-title);
-  line-height: 1.1;
+  /* 1.3, no 1.1: Prata dibuja acentos y astas más allá de la caja de 1.1 y se
+     recortaban contra el `overflow: hidden` de abajo, que hace falta para
+     los puntos suspensivos. */
+  line-height: 1.3;
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
@@ -265,10 +275,18 @@ a.chip, a.btn-main, a.btn-quiet { text-decoration: none; }
   padding: 0;
   transition: transform .12s ease;
 }
-.card:active { transform: scale(.985); }
+/*
+ * Sólo el botón que abre el detalle reacciona al toque, no la tarjeta entera:
+ * el corazón vive fuera de ese botón (es un hermano, no un hijo) precisamente
+ * para que tocarlo no encoja la tarjeta completa.
+ */
+.card .card-hit:active { transform: scale(.985); }
 .card .art { aspect-ratio: 3 / 4; display: block; width: 100%; object-fit: cover; background: var(--linen); }
 .card .meta { padding: var(--space-7) var(--space-8) var(--space-8); }
-.card .name { font-family: var(--font-display); font-size: var(--text-name); line-height: 1.2; }
+.card .name {
+  font-family: var(--font-display); font-size: var(--text-name); line-height: 1.2;
+  display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .card .brand { color: var(--ink-faint); font-size: var(--text-sm); margin-top: var(--space-1); }
 .card .price { margin-top: var(--space-4); font-size: var(--text-lg); color: var(--ink); }
 .card.busy .art { opacity: .5; }
@@ -283,8 +301,29 @@ a.chip, a.btn-main, a.btn-quiet { text-decoration: none; }
   display: grid; place-items: center;
   font-size: var(--text-key);
   color: var(--ink-faint);
+  transition: transform .15s ease;
 }
+.heart:active { transform: scale(.9); }
 .heart[aria-pressed='true'] { color: var(--wine); border-color: var(--wine); background: var(--paper); }
+
+/* Se agrega uno: un corazón de más se eleva y se desvanece, como un globo. */
+.heart-pop {
+  position: absolute; top: var(--space-5); right: var(--space-5);
+  width: var(--tap-chip); height: var(--tap-chip);
+  display: grid; place-items: center;
+  font-size: var(--text-key);
+  color: var(--wine);
+  pointer-events: none;
+  animation: heart-pop .65s ease-out forwards;
+}
+@keyframes heart-pop {
+  0%   { transform: scale(.85) translateY(0); opacity: 1; }
+  55%  { transform: scale(1.35) translateY(-10px); opacity: .95; }
+  100% { transform: scale(1.5) translateY(-30px); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .heart-pop { animation: none; opacity: 0; }
+}
 
 .tag { position: absolute; top: var(--space-6); left: var(--space-6); padding: 7px var(--space-5); border-radius: var(--radius-sm); font-size: var(--text-xs); background: var(--clay-soft); color: var(--clay); max-width: 78%; }
 
@@ -296,8 +335,16 @@ a.chip, a.btn-main, a.btn-quiet { text-decoration: none; }
 /* Por encima de la barra de pantalla (z-index 30): mientras hay un diálogo, la
    barra queda tapada y su hueco vacío no se come los toques de la (X). */
 .veil { position: fixed; inset: 0; background: var(--veil); display: flex; align-items: center; justify-content: center; padding: var(--space-12); z-index: 100; }
-.sheet { background: var(--paper); border-radius: var(--radius-lg); max-width: 940px; width: 100%; max-height: 100%; overflow: auto; padding: var(--space-12); }
+.sheet {
+  background: var(--paper); border-radius: var(--radius-lg); max-width: 940px; width: 100%;
+  max-height: 100%; padding: var(--space-12);
+  display: flex; flex-direction: column;
+}
 .sheet-narrow { max-width: 520px; }
+/* Sólo esto se desliza cuando el diálogo no cabe entero — el título y el
+   botón principal se quedan fijos, siempre a la vista. */
+.sheet-body { overflow: auto; min-height: 0; }
+.sheet-actions { margin-top: var(--space-11); flex: 0 0 auto; justify-content: center; }
 .veil.full { padding: 0; align-items: stretch; }
 .veil.full .sheet { max-width: 100%; border-radius: 0; padding: var(--space-13) 40px; }
 
@@ -331,21 +378,39 @@ a.chip, a.btn-main, a.btn-quiet { text-decoration: none; }
   text-align: center;
 }
 .fav-rail__item .art { aspect-ratio: 3 / 4; width: 100%; display: block; object-fit: cover; background: var(--linen); border-radius: var(--radius-md); border: 1px solid var(--tape); }
-.fav-rail__item figcaption { font-family: var(--font-display); font-size: var(--text-md); padding-top: var(--space-3); }
+/*
+ * Una sola línea, con puntos suspensivos: un nombre largo alargaba esa tarjeta
+ * y el botón «Quitar» de abajo dejaba de alinearse con el de sus vecinas.
+ */
+.fav-rail__item figcaption {
+  font-family: var(--font-display); font-size: var(--text-md); padding-top: var(--space-3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .fav-rail__item p { margin: var(--space-1) 0 0; }
 
 .rail { position: relative; }
-/* Centrada sobre la foto, no sobre la fila completa con su leyenda de abajo. */
+/*
+ * Bordes lisos, sin círculo: sólo la flecha. Un degradado hacia el fondo del
+ * diálogo se adelanta a la flecha, así el contenido de la foto ya se apagó
+ * antes de llegar a esa franja — la flecha nunca queda encima de la imagen.
+ */
+.rail::before, .rail::after {
+  content: ''; position: absolute; top: 0; bottom: var(--space-5); width: 44px; z-index: 1; pointer-events: none;
+}
+.rail::before { left: 0; background: linear-gradient(to right, var(--paper), transparent); }
+.rail::after { right: 0; background: linear-gradient(to left, var(--paper), transparent); }
 .rail__arrow {
   /* 168px de ancho, 3∶4 → 224px de foto; el punto medio es 112px. */
   position: absolute; top: 112px;
   transform: translateY(-50%);
-  background: var(--paper);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, .16);
+  width: 40px; height: 40px;
+  display: grid; place-items: center;
+  background: none; border: 0; color: var(--ink);
   z-index: 2;
 }
-.rail__arrow--prev { left: calc(-1 * var(--space-3)); }
-.rail__arrow--next { right: calc(-1 * var(--space-3)); }
+.rail__arrow svg { width: 28px; height: 28px; }
+.rail__arrow--prev { left: 0; }
+.rail__arrow--next { right: 0; }
 
 /* ── la retícula de la vendedora ───────────────────────────────────────── */
 /* Más apretada que el catálogo del kiosco: aquí se compara, no se pasea. */
@@ -363,7 +428,10 @@ a.chip, a.btn-main, a.btn-quiet { text-decoration: none; }
 }
 .pick-card .art { aspect-ratio: 3 / 4; width: 100%; display: block; object-fit: cover; background: var(--linen); }
 .pick-card .meta { padding: var(--space-6) var(--space-7) var(--space-7); }
-.pick-card .name { font-family: var(--font-display); font-size: var(--text-name); line-height: 1.2; }
+.pick-card .name {
+  font-family: var(--font-display); font-size: var(--text-name); line-height: 1.2;
+  display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .pick-card .brand { color: var(--ink-faint); font-size: var(--text-sm); margin-top: var(--space-1); }
 .pick-card .price { margin-top: var(--space-3); font-size: var(--text-lg); color: var(--ink); }
 .pick-card.is-taken { opacity: .55; }
@@ -399,11 +467,14 @@ a.chip, a.btn-main, a.btn-quiet { text-decoration: none; }
 }
 .plan-card.is-chosen .plan-card__mark { background: var(--brass-soft); color: var(--brass); }
 
-/* La acción se queda pegada al pie: escoger un plan nunca deja el botón
-   fuera de la vista. */
+/*
+ * La acción se queda pegada al pie: escoger un plan nunca deja el botón fuera
+ * de la vista. Ahora es el único pie de esta pantalla — «Cerrar sesión» ya no
+ * vive aparte, abajo, con su propio hueco reservado (item 11, ronda 6) — así
+ * que se pega al borde mismo, en 0, y no un hueco de --footer-h más arriba.
+ */
 .sticky-action {
-  /* Encima del pie de la pantalla, nunca debajo de él. */
-  position: sticky; bottom: var(--footer-h);
+  position: sticky; bottom: 0;
   display: flex; flex-direction: column; align-items: center; gap: var(--space-4);
   padding: var(--space-9) 0 var(--space-10);
   background: linear-gradient(to bottom, transparent, var(--ivory) 28%);
@@ -440,7 +511,10 @@ a.chip, a.btn-main, a.btn-quiet { text-decoration: none; }
 }
 .pin-anchor .pinpad { margin: 0; }
 /* Los puntos, el error y la pista cuelgan del teclado sin moverlo de su sitio. */
-.pin-anchor .pindots { position: absolute; bottom: calc(100% + var(--space-11)); left: 0; right: 0; }
+/* El hueco de arriba (los puntos a la raya) y el de abajo (la raya a las
+   teclas) miden lo mismo, 22px — antes eran 8px y 26px y los puntos se veían
+   pegados a la raya. */
+.pin-anchor .pindots { position: absolute; bottom: calc(100% + var(--space-10)); left: 0; right: 0; }
 .pin-anchor .err { position: absolute; bottom: calc(100% + var(--space-3)); left: 0; right: 0; text-align: center; margin: 0; }
 .pin-anchor__hint { position: absolute; top: calc(100% + var(--space-9)); left: 0; right: 0; text-align: center; color: var(--ink-soft); margin: 0; }
 
@@ -465,8 +539,7 @@ a.chip, a.btn-main, a.btn-quiet { text-decoration: none; }
   justify-content: center;
   align-items: flex-end;
   gap: var(--space-6);
-  height: 34px;
-  padding: 0 var(--space-3) var(--space-3);
+  padding: 0 var(--space-3) var(--space-10);
   border-bottom: 1px solid var(--tape);
 }
 .pindots span {
@@ -530,9 +603,12 @@ a.chip, a.btn-main, a.btn-quiet { text-decoration: none; }
   padding: var(--space-8); border: 1px solid var(--tape); border-radius: var(--radius-md);
   background: var(--paper); text-decoration: none; color: inherit; text-align: left;
 }
-.doc-card__status { font-size: var(--text-sm); color: var(--ink-faint); }
+.doc-card__status { font-size: var(--text-sm); color: var(--ink-faint); font-weight: var(--weight-medium); }
 .doc-card--done .doc-card__status { color: var(--sage); }
-.doc-card--pending .doc-card__status { color: var(--brass); }
+/* Rojizo, no neutro: falta una foto y eso es lo primero que se debe notar,
+   no algo que se confunda con el resto de las tarjetas en gris. */
+.doc-card--pending { background: var(--clay-soft); border-color: var(--clay); }
+.doc-card--pending .doc-card__status { color: var(--clay); }
 .doc-card__name { font-family: var(--font-display); font-size: var(--text-lg); }
 .doc-card__date { color: var(--ink-soft); font-size: var(--text-sm); }
 .doc-card--pending .shot { padding: var(--space-5); }
@@ -543,15 +619,35 @@ a.chip, a.btn-main, a.btn-quiet { text-decoration: none; }
 .toast { position: sticky; bottom: var(--space-9); margin: 0 var(--gutter); padding: var(--space-8) var(--space-11); border-radius: var(--radius); background: var(--sage); color: #fff; }
 .toast--clay { background: var(--clay); }
 
-/* ── reporte semanal ───────────────────────────────────────────────────── */
-/* El embudo de la semana: entraron, se probaron, compraron. */
+/* ── reporte ───────────────────────────────────────────────────────────── */
+/* El embudo del periodo: entraron, se probaron, compraron. */
 .funnel { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-9); margin-bottom: var(--space-13); }
+.funnel--2 { grid-template-columns: repeat(2, 1fr); }
 .funnel > div {
   background: var(--paper); border: 1px solid var(--tape); border-radius: var(--radius);
   padding: var(--space-10) var(--space-11);
 }
 .funnel b { display: block; font-family: var(--font-display); font-size: var(--text-title); font-weight: var(--weight-regular); line-height: 1; }
 .funnel span { display: block; margin-top: var(--space-4); color: var(--ink-soft); font-size: var(--text-label); }
+/* Dinero que entró (verde) y dinero que salió (rojizo): dos tarjetas con el
+   mismo trato que el embudo, pero coloreadas — nunca neutras, es dinero de
+   verdad entrando y saliendo de la caja. */
+.funnel__tile--in { background: var(--sage-soft); border-color: var(--sage); }
+.funnel__tile--in b { color: var(--sage); }
+.funnel__tile--out { background: var(--clay-soft); border-color: var(--clay); }
+.funnel__tile--out b { color: var(--clay); }
+
+.period-bar { display: flex; gap: var(--space-5); align-items: flex-end; flex-wrap: wrap; margin-bottom: var(--space-11); }
+
+/* La clienta colapsada de «Ventas»: un renglón, con una flecha a la
+   izquierda que gira al expandir el detalle completo. */
+.venta-row {
+  display: flex; align-items: center; gap: var(--space-7); width: 100%;
+  text-align: left; padding: var(--space-9) var(--space-10);
+}
+.venta-row__chevron { flex: 0 0 auto; transition: transform .15s ease; color: var(--ink-faint); }
+.venta-row__chevron.is-open { transform: rotate(90deg); }
+.venta-row__main { flex: 1; display: flex; justify-content: space-between; align-items: center; gap: var(--space-8); }
 
 .report-head { font-size: var(--text-panel); margin: var(--space-13) 0 var(--space-8); }
 .report-row { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-9); }
