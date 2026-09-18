@@ -496,7 +496,7 @@ function ContractView({ folio, onBack }: { folio: string; onBack: () => void }) 
   )
 }
 
-interface AccessoryItem { id: number; code: string; name: string; price_cents: number; needs_review: number }
+interface AccessoryItem { id: number; code: string; name: string; price_cents: number; needs_review: number; photos: string[] }
 
 /** Item 18: sólo accesorios después de firmado — ni sesión ni medidas hacen falta. */
 function AddAccessory({ folio, onClose, onAdded }: { folio: string; onClose: () => void; onAdded: () => Promise<void> }) {
@@ -517,7 +517,7 @@ function AddAccessory({ folio, onClose, onAdded }: { folio: string; onClose: () 
       <div className="grid grid--tight">
         {items.map((a) => (
           <div key={a.id} className="pick-card">
-            <GownArt seed={a.id} />
+            {a.photos[0] ? <img src={`/api/files/${a.photos[0]}`} alt="" className="art" /> : <GownArt seed={a.id} />}
             <span className="meta" style={{ display: 'block' }}>
               <span className="name" style={{ display: 'block' }}>{a.name}</span>
               <span className="brand" style={{ display: 'block' }}>{a.code}</span>

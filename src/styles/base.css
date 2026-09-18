@@ -78,6 +78,9 @@ select {
  * Gris mientras está vacío; en cuanto se teclea algo, JS quita esta clase.
  */
 input.mask-empty { color: var(--ink-faint); }
+/* El texto de ejemplo en un campo (placeholder) nunca debe leerse como si ya
+   hubiera algo tecleado — mismo gris que `mask-empty` usa para lo mismo. */
+input::placeholder, textarea::placeholder { color: var(--ink-faint); opacity: 1; }
 
 input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible, a:focus-visible {
   outline: 2px solid var(--brass);
@@ -133,6 +136,9 @@ label, legend { display: block; font-size: var(--text-label); color: var(--ink-s
 }
 .chip[aria-pressed='true'] { background: var(--brass-soft); border-color: var(--brass); color: var(--brass); }
 .chip--sm { min-height: 48px; font-size: var(--text-label); }
+/* Pide atención sin esperar a que se toque: «Por verificar» siempre en rojo,
+   tocado o no — no es un filtro más, es una alerta. */
+.chip--danger, .chip--danger[aria-pressed='true'] { background: var(--clay-soft); border-color: var(--clay); color: var(--clay); }
 a.chip, a.btn-main, a.btn-quiet { text-decoration: none; }
 
 
@@ -680,12 +686,6 @@ a.chip, a.btn-main, a.btn-quiet { text-decoration: none; }
 .tbl .mono { font-variant-numeric: tabular-nums; color: var(--ink-soft); }
 .tbl .model { font-family: var(--font-display); font-size: var(--text-lg); }
 
-/*
- * Rows the importer could not complete. A left rule rather than a filled row:
- * these are still ordinary stock, only missing something, and the table has to
- * stay readable when a hundred of them arrive at once.
- */
-.tbl tbody tr.rev td:first-child { box-shadow: inset 3px 0 0 var(--brass); }
 .tbl td .falta { font-family: var(--font-ui); font-size: var(--text-xs); color: var(--brass); }
 .field--falta input, .field--falta select, .field--falta textarea { border-color: var(--brass); background: var(--brass-soft); }
 .field--falta label .falta,
@@ -700,6 +700,40 @@ label .falta { margin-left: var(--space-4); font-size: var(--text-xs); color: va
 .inv-head { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-9); margin-bottom: var(--space-11); }
 .inv-head h2 { font-size: var(--text-inv); }
 .inv-grid { display: grid; grid-template-columns: 280px 1fr; gap: var(--space-14); }
+
+/*
+ * Una foto grande, miniaturas debajo si hay más de una, y a pantalla
+ * completa al tocar la grande. `min-width: 0` es lo que le faltaba a la
+ * versión anterior: dentro de una columna de grid, una imagen sin eso se
+ * pinta a su tamaño natural y se sale de su columna en vez de encogerse.
+ */
+.gallery { min-width: 0; display: flex; flex-direction: column; gap: var(--space-6); }
+.gallery__main {
+  display: block; width: 100%; padding: 0; margin: 0; min-width: 0;
+  border: 1px solid var(--tape); border-radius: var(--radius); overflow: hidden; background: var(--linen);
+  cursor: zoom-in;
+}
+.gallery__main img, .gallery__main .art { aspect-ratio: 3 / 4; width: 100%; display: block; object-fit: cover; }
+.gallery__thumbs { display: flex; gap: var(--space-4); overflow-x: auto; scrollbar-width: thin; }
+.gallery__thumb {
+  flex: 0 0 56px; padding: 0; border: 2px solid transparent; border-radius: var(--radius-sm);
+  overflow: hidden; opacity: .55; background: var(--linen);
+}
+.gallery__thumb.is-active { border-color: var(--brass); opacity: 1; }
+.gallery__thumb img { aspect-ratio: 3 / 4; width: 100%; display: block; object-fit: cover; }
+
+.lightbox {
+  position: fixed; inset: 0; z-index: 200; background: rgba(20,16,12,.94);
+  display: flex; align-items: center; justify-content: center; padding: var(--space-13);
+  cursor: zoom-out; border: 0;
+}
+.lightbox img { max-width: 100%; max-height: 100%; object-fit: contain; cursor: default; }
+.lightbox__close {
+  position: absolute; top: var(--space-9); right: var(--space-9);
+  width: 64px; height: 64px; border-radius: 50%;
+  background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.4); color: #fff;
+  font-size: 36px; line-height: 1; display: grid; place-items: center;
+}
 
 /* ── piezas que el prototipo no dibuja ─────────────────────────────────── */
 /* La entrada: sucursal, rol y NIP, cada una a pantalla completa. */

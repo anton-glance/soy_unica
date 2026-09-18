@@ -7,6 +7,7 @@ import { ActionButton } from '../components/ActionButton'
 import { PhotoCapture } from '../components/PhotoCapture'
 import { Dialog } from '../components/Dialog'
 import { GownArt } from '../components/GownArt'
+import { PhotoGallery } from '../components/PhotoGallery'
 import { Brandmark } from '../components/Brandmark'
 import { IconButton } from '../components/IconButton'
 import { PinPad } from '../components/PinPad'
@@ -34,6 +35,35 @@ export interface KioskItem {
   id: number; code: string; name: string; brand: string | null; kind: 'dress' | 'accessory'
   acquisition: 'unidad' | 'pedido'; size: string | null; cut: string | null; color: string | null
   price_cents: number; held_by_other: boolean; held_by_me: boolean; favorite: boolean
+  photos: string[]
+}
+
+/** La miniatura de una tarjeta: su foto principal, o el dibujo genérico si no tiene. */
+function ItemArt({ item, className = 'art' }: { item: KioskItem; className?: string }) {
+  const photo = item.photos[0]
+  return photo ? <img src={`/api/files/${photo}`} alt="" className={className} /> : <GownArt seed={item.id} className={className} />
+}
+
+/**
+ * El tipo de accesorio, para los chips rápidos de «Agregar accesorios» —
+ * mismas categorías que el desplegable «Accesorios» del sitio (mantillas,
+ * bolero, capa, tiaras, cintos). No hay un campo `type` en la base: se lee
+ * del nombre, igual que el importador del catálogo decide si algo es
+ * accesorio cuando el sitio no le dio categoría.
+ */
+const ACCESSORY_TYPES: [RegExp, string][] = [
+  [/mantilla/i, 'Mantillas'],
+  [/bolero/i, 'Bolero'],
+  [/\bcapa\b/i, 'Capa'],
+  [/tiara|tocado|corona/i, 'Tiaras'],
+  [/cint(?:o|ur[oó]n)/i, 'Cintos'],
+  [/velo/i, 'Velos'],
+  [/crinolina/i, 'Crinolina'],
+  [/liga/i, 'Ligas'],
+]
+function accessoryType(item: KioskItem): string {
+  const hay = `${item.name} ${item.code}`
+  return ACCESSORY_TYPES.find(([re]) => re.test(hay))?.[1] ?? 'Otros'
 }
 
 interface SessionState {
@@ -289,7 +319,7 @@ function Kiosk({ sessionId, onChange, onClosed, onLeave }: {
           onClick={() => void openDetail(item)}
           aria-label={`Ver ${item.name}`}
         >
-          <GownArt seed={item.id} />
+          <ItemArt item={item} />
           <span className="meta" style={{ display: 'block' }}>
             <span className="name">{item.name}</span>
             <span className="brand" style={{ display: 'block' }}>
@@ -300,9 +330,6 @@ function Kiosk({ sessionId, onChange, onClosed, onLeave }: {
         </button>
         {item.held_by_other && <span className="tag">La está viendo otra clienta</span>}
         {!item.held_by_other && item.held_by_me && <span className="tag">Lo estás viendo</span>}
-        {!item.held_by_other && !item.held_by_me && item.acquisition === 'pedido' && (
-          <span className="tag">Se manda a hacer</span>
-        )}
         {/*
           El corazón es su propio botón, hermano del que abre el detalle, no
           un hijo suyo: tocarlo no debe encoger la tarjeta entera, sólo él
@@ -435,7 +462,7 @@ function Kiosk({ sessionId, onChange, onClosed, onLeave }: {
       {open && (
         <Dialog title={open.name} onCancel={() => setOpen(null)} big>
           <div className="detail">
-            <div><GownArt seed={open.id} /></div>
+            <div><PhotoGallery photos={open.photos} itemId={open.id} alt={open.name} /></div>
             <div>
               <p style={{ color: 'var(--ink-faint)', margin: 0 }}>{open.brand}</p>
               <dl>
@@ -444,14 +471,7 @@ function Kiosk({ sessionId, onChange, onClosed, onLeave }: {
                 <dt>Talla</dt><dd>{open.size ?? '—'}</dd>
                 <dt>Corte</dt><dd>{open.cut ?? '—'}</dd>
                 <dt>Color</dt><dd>{open.color ?? '—'}</dd>
-                <dt>Disponibilidad</dt>
-                <dd>
-                  {open.acquisition === 'pedido'
-                    ? 'Se manda a hacer: otra novia puede encargarlo también'
-                    : open.held_by_other
-                      ? 'La está viendo otra clienta'
-                      : 'Disponible en esta sucursal'}
-                </dd>
+                {open.held_by_other && (<><dt>Disponibilidad</dt><dd>La está viendo otra clienta</dd></>)}
               </dl>
               <div className="row">
                 <button type="button" className="btn-main" onClick={() => { void toggleFavorite(open); setOpen(null) }}>
@@ -527,16 +547,18 @@ function FavoritesReview({ favs, showPrices, onClose, onRemove, onCall }: {
           : 'La vendedora traerá estos vestidos al probador.'}
       </p>
 
-      {/* Se desliza de lado: nunca empuja el botón fuera de la pantalla. */}
+      {/*
+        Se desliza de lado: nunca empuja el botón fuera de la pantalla. Cada
+        tarjeta es idéntica a sus vecinas — misma foto, luego el nombre, luego
+        el precio, nada más — así ninguna se ve más alta o más ancha que las
+        demás según cuánto texto le tocó.
+      */}
       <ScrollRail>
         {favs.map((d) => (
           <figure key={d.id} className="fav-rail__item">
-            <GownArt seed={d.id} />
+            <ItemArt item={d} />
             <figcaption>{d.name}</figcaption>
-            <p className="muted" style={{ fontSize: 'var(--text-sm)' }}>
-              {[d.acquisition === 'pedido' ? 'Se manda a hacer' : d.size && `talla ${d.size}`, showPrices && money(d.price_cents)]
-                .filter(Boolean).join(' · ')}
-            </p>
+            {showPrices && <p className="mono">{money(d.price_cents)}</p>}
             <button
               type="button"
               className="btn-quiet"
@@ -573,8 +595,15 @@ function SelectionScreen({ sessionId, pin, favorites, accessories, showPrices, o
   const [dress, setDress] = useState<number | null>(pickable.length === 1 ? (pickable[0] as KioskItem).id : null)
   const [picked, setPicked] = useState<number[]>([])
   const [catalogOpen, setCatalogOpen] = useState(false)
+  const [accType, setAccType] = useState('Todos')
   const [openAccessory, setOpenAccessory] = useState<KioskItem | null>(null)
   const [confirming, setConfirming] = useState(false)
+
+  const accessoryTypes = useMemo(
+    () => ['Todos', ...[...new Set(accessories.map(accessoryType))].sort()],
+    [accessories],
+  )
+  const visibleAccessories = accType === 'Todos' ? accessories : accessories.filter((a) => accessoryType(a) === accType)
 
   const chosenDress = favorites.find((f) => f.id === dress) ?? null
   const chosenAccessories = accessories.filter((a) => picked.includes(a.id))
@@ -611,7 +640,7 @@ function SelectionScreen({ sessionId, pin, favorites, accessories, showPrices, o
               disabled={d.held_by_other}
               onClick={() => setDress(d.id)}
             >
-              <GownArt seed={d.id} />
+              <ItemArt item={d} />
               <span className="meta" style={{ display: 'block' }}>
                 <span className="name" style={{ display: 'block' }}>{d.name}</span>
                 <span className="brand" style={{ display: 'block' }}>
@@ -645,35 +674,57 @@ function SelectionScreen({ sessionId, pin, favorites, accessories, showPrices, o
       </div>
 
       {/*
-        Misma vista que el catálogo del kiosco: retícula de foto grande, y el
-        detalle —foto más grande todavía, con la descripción— al tocar la
-        tarjeta, en vez de la fila chica de antes con un chip de «Agregar» de
-        un toque. Aquí la vendedora también quiere ver bien lo que ofrece.
+        Misma vista que el catálogo del kiosco: retícula de foto grande, el
+        corazón para marcarlo ahí mismo — no un marco alrededor de toda la
+        tarjeta, que se confundía con «se está cargando» — y el detalle,
+        con foto más grande y la descripción, al tocar la tarjeta.
       */}
       {catalogOpen && (
         <Dialog title="Accesorios" onCancel={() => setCatalogOpen(false)} closeLabel="Listo" big>
           {accessories.length === 0 ? (
             <p className="lede">No hay accesorios en esta sucursal.</p>
           ) : (
-            <div className="grid grid--tight">
-              {accessories.map((a) => (
-                <button
-                  key={a.id}
-                  type="button"
-                  className={`pick-card${picked.includes(a.id) ? ' is-chosen' : ''}`}
-                  aria-pressed={picked.includes(a.id)}
-                  onClick={() => setOpenAccessory(a)}
-                >
-                  <GownArt seed={a.id} />
-                  <span className="meta" style={{ display: 'block' }}>
-                    <span className="name" style={{ display: 'block' }}>{a.name}</span>
-                    <span className="brand" style={{ display: 'block' }}>{a.code}</span>
-                    {showPrices && <span className="price" style={{ display: 'block' }}>{money(a.price_cents)}</span>}
-                    {picked.includes(a.id) && <span className="state">Agregado</span>}
-                  </span>
-                </button>
-              ))}
-            </div>
+            <>
+              {accessoryTypes.length > 2 && (
+                <div className="k-filters" style={{ padding: '0 0 var(--space-8)' }}>
+                  {accessoryTypes.map((t) => (
+                    <button key={t} type="button" className="chip" aria-pressed={accType === t} onClick={() => setAccType(t)}>
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className="grid grid--tight">
+                {visibleAccessories.map((a) => (
+                  <div key={a.id} className="card">
+                    <button
+                      type="button"
+                      className="card-hit"
+                      style={{ display: 'block', width: '100%', textAlign: 'left', padding: 0 }}
+                      onClick={() => setOpenAccessory(a)}
+                      aria-label={`Ver ${a.name}`}
+                    >
+                      <ItemArt item={a} />
+                      <span className="meta" style={{ display: 'block' }}>
+                        <span className="name">{a.name}</span>
+                        <span className="brand" style={{ display: 'block' }}>{a.code}</span>
+                        {showPrices && <span className="price" style={{ display: 'block' }}>{money(a.price_cents)}</span>}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      className="heart"
+                      aria-pressed={picked.includes(a.id)}
+                      aria-label={`Agregar ${a.name}`}
+                      onClick={() => setPicked((p) => (p.includes(a.id) ? p.filter((id) => id !== a.id) : [...p, a.id]))}
+                    >
+                      {picked.includes(a.id) ? '♥' : '♡'}
+                    </button>
+                  </div>
+                ))}
+                {visibleAccessories.length === 0 && <p className="lede">Nada con ese filtro.</p>}
+              </div>
+            </>
           )}
         </Dialog>
       )}
@@ -681,7 +732,7 @@ function SelectionScreen({ sessionId, pin, favorites, accessories, showPrices, o
       {openAccessory && (
         <Dialog title={openAccessory.name} onCancel={() => setOpenAccessory(null)} big>
           <div className="detail">
-            <div><GownArt seed={openAccessory.id} /></div>
+            <div><PhotoGallery photos={openAccessory.photos} itemId={openAccessory.id} alt={openAccessory.name} /></div>
             <div>
               <p style={{ color: 'var(--ink-faint)', margin: 0 }}>{openAccessory.brand}</p>
               <dl>

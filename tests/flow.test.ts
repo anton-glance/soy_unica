@@ -9,7 +9,7 @@ import { Kiosk } from './helpers/client'
 
 interface KioskItem {
   id: number; code: string; name: string; acquisition: 'unidad' | 'pedido'; kind: string
-  status: string; price_cents: number; held_by_other: boolean; held_by_me: boolean
+  status: string; price_cents: number; held_by_other: boolean; held_by_me: boolean; photos: string[]
 }
 interface Coverage { seq: number; amount_cents: number; applied_cents: number; remaining_cents: number; status: string }
 interface Ledger { balance_cents: number; paid_cents: number; total_cents: number; coverage: Coverage[] }
@@ -402,5 +402,35 @@ describe('sesión perdida: las hojas y el folio', () => {
     expect(chosen.folio).not.toBe(lostFolio)
     expect(chosen.folio).not.toBe(folio)
     expect(Number(chosen.folio.split('-')[1])).toBeGreaterThan(Number(lostFolio.split('-')[1]))
+  })
+})
+
+/**
+ * El catálogo del kiosko antes sólo dibujaba la silueta genérica para todo:
+ * nunca cargaba la foto real, aunque el artículo sí la tuviera. Esto fija que
+ * `photos` viaje en la respuesta, con la principal al frente.
+ */
+describe('las fotos reales llegan al catálogo del kiosko', () => {
+  it('un artículo sin fotos trae `photos: []`', async () => {
+    const session = (await tabletA.post<{ id: number }>('/api/sessions', {})).id
+    const items = await kioskItems(tabletA, session)
+    expect(items.length).toBeGreaterThan(0)
+    for (const item of items) expect(Array.isArray(item.photos)).toBe(true)
+  })
+
+  it('la foto marcada como principal viaja primero', async () => {
+    const session = (await tabletA.post<{ id: number }>('/api/sessions', {})).id
+    const items = await kioskItems(tabletA, session)
+    const target = items[0] as KioskItem
+
+    const secondary = await owner.upload('item_photo')
+    const primary = await owner.upload('item_photo')
+    await owner.put(`/api/items/${target.id}/photos`, {
+      photos: [{ file_id: secondary, is_primary: false }, { file_id: primary, is_primary: true }],
+    })
+
+    const after = await kioskItems(tabletA, session)
+    const updated = after.find((i) => i.id === target.id) as KioskItem
+    expect(updated.photos).toEqual([primary, secondary])
   })
 })

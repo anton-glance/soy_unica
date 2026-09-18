@@ -4,11 +4,11 @@ import { dateMX, money, parseMoney } from '../lib/format'
 import { useSession } from '../lib/session'
 import { useNavigate } from '../lib/router'
 import { ActionButton } from '../components/ActionButton'
-import { GownArt } from '../components/GownArt'
 import { Field } from '../components/Field'
 import { Screen } from '../components/Screen'
 import { Dialog } from '../components/Dialog'
 import { PhotoSet, type Shot } from '../components/PhotoSet'
+import { PhotoGallery } from '../components/PhotoGallery'
 
 interface Item {
   id: number; code: string; name: string; brand: string | null; size: string | null
@@ -40,7 +40,7 @@ const ST: Record<string, [string, string]> = {
 }
 
 const COLS = [
-  ['code', 'Código'], ['name', 'Modelo'], ['brand', 'Marca'],
+  ['code', 'Código'], ['name', 'Modelo'], ['kind', 'Tipo'], ['brand', 'Marca'],
   ['size', 'Talla'], ['price', 'Precio'], ['status', 'Estado'], ['intake', 'Ingreso'],
 ] as const
 
@@ -126,7 +126,7 @@ export function Inventory() {
 
         <div className="row" style={{ marginBottom: 'var(--space-9)' }}>
           {reviewCount > 0 && (
-            <button type="button" className="chip chip--sm" aria-pressed={review} onClick={() => setReview(!review)}>
+            <button type="button" className="chip chip--sm chip--danger" aria-pressed={review} onClick={() => setReview(!review)}>
               Por verificar ({reviewCount})
             </button>
           )}
@@ -173,18 +173,20 @@ export function Inventory() {
               {items.map((item) => {
                 const missing = missingOf(item)
                 return (
-                <tr key={item.id} className={item.needs_review ? 'rev' : undefined} onClick={() => setOpen(item)}>
+                <tr key={item.id} onClick={() => setOpen(item)}>
                   <td className="mono">{item.code}</td>
                   <td className="model">
                     {item.name}
-                    {item.kind === 'accessory' && (
-                      <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-xs)', color: 'var(--ink-faint)' }}> accesorio</span>
-                    )}
                     {[...missing].some((f) => !HAS_COLUMN.has(f)) && (
                       <span className="falta" style={{ display: 'block' }}>
                         falta {[...missing].filter((f) => !HAS_COLUMN.has(f)).map((f) => FALTA[f] ?? f).join(', ')}
                       </span>
                     )}
+                  </td>
+                  <td>
+                    <span className={`bdg ${item.kind === 'accessory' ? 'clay' : 'ok'}`}>
+                      {item.kind === 'accessory' ? 'Accesorio' : 'Vestido'}
+                    </span>
                   </td>
                   <td>{item.brand ?? '—'}</td>
                   <td>{missing.has('size') ? <span className="falta">falta</span> : (item.size ?? '—')}</td>
@@ -199,7 +201,7 @@ export function Inventory() {
               })}
               {items.length === 0 && (
                 <tr>
-                  <td colSpan={isOwner ? 8 : 7} style={{ padding: 40, textAlign: 'center', color: 'var(--ink-faint)' }}>
+                  <td colSpan={isOwner ? 9 : 8} style={{ padding: 40, textAlign: 'center', color: 'var(--ink-faint)' }}>
                     Nada coincide con esa búsqueda. Borra el filtro o agrega el artículo.
                   </td>
                 </tr>
@@ -280,9 +282,11 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
 
       <div className="inv-grid">
           <div>
-            {primary
-              ? <img src={`/api/files/${primary}`} alt="" className="art" />
-              : <GownArt seed={item.id} className="art" />}
+            <PhotoGallery
+              photos={primary ? [primary, ...photos.map((p) => p.file_id).filter((id) => id !== primary)] : photos.map((p) => p.file_id)}
+              itemId={item.id}
+              alt={item.name}
+            />
             {isOwner ? (
               <div style={{ marginTop: 'var(--space-8)' }}>
                 <label>Fotos</label>
