@@ -182,7 +182,7 @@ export function SalesSession() {
   const onClosed = () => { localStorage.removeItem(SESSION_KEY); navigate('/') }
 
   if (stage === 'browsing' || stage === 'fitting') {
-    return <Kiosk sessionId={sessionId} onChange={refresh} onClosed={onClosed} onLeave={() => navigate('/')} />
+    return <Kiosk sessionId={sessionId} onChange={refresh} onClosed={onClosed} />
   }
   // No hay pantalla de «Anticipo»: firmar cierra la sesión en el servidor y
   // `SignContract` navega derecho a la ficha de la clienta con el folio que
@@ -230,8 +230,8 @@ export function SalesSession() {
 type KioskView =
   | { at: 'catalog' }
   | { at: 'favorites' }
-  | { at: 'handover'; then: 'select' | 'leave' }
-  | { at: 'pin'; then: 'select' | 'leave' }
+  | { at: 'handover' }
+  | { at: 'pin' }
   | { at: 'selection'; pin: string }
 
 /**
@@ -240,10 +240,11 @@ type KioskView =
  * vestido, sus datos, el contrato— pasa por el NIP de la vendedora, que además
  * se vuelve a comprobar en el servidor al crear el contrato.
  */
-function Kiosk({ sessionId, onChange, onClosed, onLeave }: {
-  sessionId: number; onChange: () => Promise<void>; onClosed: () => void; onLeave: () => void
+function Kiosk({ sessionId, onChange, onClosed }: {
+  sessionId: number; onChange: () => Promise<void>; onClosed: () => void
 }) {
   const { signOutToEntry } = useSession()
+  const closeRef = useRef<CloseControlHandle>(null)
   const [items, setItems] = useState<KioskItem[]>([])
   const [showPrices, setShowPrices] = useState(true)
   const [filter, setFilter] = useState('todos')
@@ -265,7 +266,11 @@ function Kiosk({ sessionId, onChange, onClosed, onLeave }: {
 
   const dresses = useMemo(() => items.filter((i) => i.kind === 'dress'), [items])
   const accessories = useMemo(() => items.filter((i) => i.kind === 'accessory'), [items])
-  const favs = dresses.filter((d) => d.favorite)
+  // «Favoritos» son todo lo que se marcó con el corazón, vestidos y
+  // accesorios juntos: antes sólo contaba vestidos y un accesorio marcado
+  // desaparecía sin dejar rastro — no en «Mis favoritos», no como accesorio
+  // ya elegido al llegar a «Elige el vestido».
+  const favs = items.filter((i) => i.favorite)
 
   const filters = useMemo(() => {
     const cuts = [...new Set(dresses.map((d) => d.cut).filter(Boolean))] as string[]
@@ -364,14 +369,7 @@ function Kiosk({ sessionId, onChange, onClosed, onLeave }: {
           onSubmit={async (pin) => {
             setPinError(null)
             try {
-              if (view.then === 'leave') {
-                // Salir del kiosco no es un traspaso: sólo comprueba el NIP.
-                await post('/auth/verify-pin', { pin })
-                onLeave()
-                return
-              }
-              // Esto sí es el traspaso, y queda escrito en la sesión con los
-              // favoritos que se van al probador.
+              // Queda escrito en la sesión con los favoritos que se van al probador.
               await post(`/sessions/${sessionId}/handover`, { pin })
               await onChange()
               setView({ at: 'selection', pin })
@@ -390,7 +388,7 @@ function Kiosk({ sessionId, onChange, onClosed, onLeave }: {
       <SelectionScreen
         sessionId={sessionId}
         pin={view.pin}
-        favorites={favs}
+        favorites={favs.filter((f) => f.kind === 'dress')}
         accessories={accessories}
         showPrices={showPrices}
         onBack={() => setView({ at: 'catalog' })}
@@ -402,10 +400,12 @@ function Kiosk({ sessionId, onChange, onClosed, onLeave }: {
   return (
     <Screen
       title={<Brandmark />}
-      // La novia trae la tableta: para salir del kiosco también hace falta el
-      // NIP, si no bastaría un toque para llegar a los contratos.
-      onBack={() => setView({ at: 'handover', then: 'leave' })}
-      backLabel="Salir del kiosco"
+      // Antes esto abría «Pásale la tablet a la vendedora» — un camino
+      // completamente distinto de la (X), que cierra la sesión. Los dos
+      // deben llevar al mismo lugar: cerrar la sesión es la única forma de
+      // salir de aquí, sea por dónde se toque.
+      onBack={() => closeRef.current?.open()}
+      backLabel="Cerrar sesión"
       // Del kiosco, no del sistema: van en la barra, no en el pie, porque el
       // pie es donde vive «Ver mis favoritos» y tiene que verse siempre, no
       // sólo al llegar al final de la lista.
@@ -418,15 +418,15 @@ function Kiosk({ sessionId, onChange, onClosed, onLeave }: {
             ancho) y la píldora se cortaba a la mitad. La cruz libera el ancho
             que la píldora necesita.
           */}
-          <CloseControl sessionId={sessionId} onClosed={onClosed} trigger={(open) => <IconButton kind="close" label="Cerrar sesión" onClick={open} />} />
+          <CloseControl ref={closeRef} sessionId={sessionId} onClosed={onClosed} askBride trigger={(open) => <IconButton kind="close" label="Cerrar sesión" onClick={open} />} />
         </div>
       }
       footer={
         <div className="tray">
           <p>
             {favs.length === 0
-              ? 'Toca el corazón de los vestidos que te gusten. La vendedora los traerá para probar.'
-              : `${favs.length} ${favs.length === 1 ? 'vestido guardado' : 'vestidos guardados'}. Muéstrale la lista a la vendedora cuando quieras probártelos.`}
+              ? 'Toca el corazón de lo que te guste. La vendedora lo traerá para probar.'
+              : `${favs.length} ${favs.length === 1 ? 'favorito guardado' : 'favoritos guardados'}. Muéstrale la lista a la vendedora cuando quieras probártelos.`}
           </p>
           <button type="button" className="btn-main" disabled={favs.length === 0} onClick={() => setView({ at: 'favorites' })}>
             {favs.length === 0 ? 'Ver mis favoritos' : `Ver mis favoritos (${favs.length})`}
@@ -489,7 +489,7 @@ function Kiosk({ sessionId, onChange, onClosed, onLeave }: {
           showPrices={showPrices}
           onClose={() => setView({ at: 'catalog' })}
           onRemove={toggleFavorite}
-          onCall={() => setView({ at: 'handover', then: 'select' })}
+          onCall={() => setView({ at: 'handover' })}
         />
       )}
 
@@ -504,7 +504,7 @@ function Kiosk({ sessionId, onChange, onClosed, onLeave }: {
               <button type="button" className="btn-quiet" style={{ flex: 1 }} onClick={() => setView({ at: 'catalog' })}>
                 De acuerdo
               </button>
-              <button type="button" className="btn-main" style={{ flex: 1 }} onClick={() => setView({ at: 'pin', then: view.then })}>
+              <button type="button" className="btn-main" style={{ flex: 1 }} onClick={() => setView({ at: 'pin' })}>
                 Soy la vendedora
               </button>
             </div>
@@ -543,20 +543,25 @@ function FavoritesReview({ favs, showPrices, onClose, onRemove, onCall }: {
     >
       <p style={{ color: 'var(--ink-soft)', margin: '0 0 var(--space-11)' }}>
         {favs.length === 1
-          ? 'La vendedora traerá este vestido al probador.'
-          : 'La vendedora traerá estos vestidos al probador.'}
+          ? 'La vendedora lo traerá al probador.'
+          : 'La vendedora traerá todo esto al probador.'}
       </p>
 
       {/*
         Se desliza de lado: nunca empuja el botón fuera de la pantalla. Cada
         tarjeta es idéntica a sus vecinas — misma foto, luego el nombre, luego
         el precio, nada más — así ninguna se ve más alta o más ancha que las
-        demás según cuánto texto le tocó.
+        demás según cuánto texto le tocó. Los accesorios llevan su propia
+        etiqueta: en esta fila viven junto a los vestidos y sin ella no se
+        distinguían.
       */}
       <ScrollRail>
         {favs.map((d) => (
           <figure key={d.id} className="fav-rail__item">
-            <ItemArt item={d} />
+            <div style={{ position: 'relative' }}>
+              <ItemArt item={d} />
+              {d.kind === 'accessory' && <span className="tag tag--right">Accesorio</span>}
+            </div>
             <figcaption>{d.name}</figcaption>
             {showPrices && <p className="mono">{money(d.price_cents)}</p>}
             <button
@@ -593,7 +598,10 @@ function SelectionScreen({ sessionId, pin, favorites, accessories, showPrices, o
   // Se marca aquí, antes de que lo toque.
   const pickable = favorites.filter((f) => !f.held_by_other)
   const [dress, setDress] = useState<number | null>(pickable.length === 1 ? (pickable[0] as KioskItem).id : null)
-  const [picked, setPicked] = useState<number[]>([])
+  // Los accesorios que la novia ya marcó con el corazón en el catálogo llegan
+  // aquí preseleccionados: no hace falta que la vendedora los vuelva a buscar
+  // y marcar uno por uno.
+  const [picked, setPicked] = useState<number[]>(() => accessories.filter((a) => a.favorite).map((a) => a.id))
   const [catalogOpen, setCatalogOpen] = useState(false)
   const [accType, setAccType] = useState('Todos')
   const [openAccessory, setOpenAccessory] = useState<KioskItem | null>(null)
@@ -686,7 +694,7 @@ function SelectionScreen({ sessionId, pin, favorites, accessories, showPrices, o
           ) : (
             <>
               {accessoryTypes.length > 2 && (
-                <div className="k-filters" style={{ padding: '0 0 var(--space-8)' }}>
+                <div className="k-filters k-filters--sheet" style={{ padding: '0 0 var(--space-8)' }}>
                   {accessoryTypes.map((t) => (
                     <button key={t} type="button" className="chip" aria-pressed={accType === t} onClick={() => setAccType(t)}>
                       {t}
@@ -1275,7 +1283,14 @@ export const CloseControl = forwardRef<CloseControlHandle, {
   sessionId: number
   onClosed: () => void
   trigger?: (open: () => void) => ReactNode
-}>(function CloseControl({ sessionId, onClosed, trigger }, ref) {
+  /**
+   * Sólo el cierre desde el kiosco: es el único punto donde la sesión puede
+   * llegar a cerrarse sin que nadie haya pasado por «Datos de la novia»
+   * todavía — nunca hay un nombre ni un teléfono guardados. En cualquier otro
+   * paso, ya se capturaron y volver a pedirlos sería repetir el trabajo.
+   */
+  askBride?: boolean
+}>(function CloseControl({ sessionId, onClosed, trigger, askBride }, ref) {
   const [step, setStep] = useState<'closed' | 'pin' | 'reason'>('closed')
   const [pin, setPin] = useState('')
   const [outcome, setOutcome] = useState<'won' | 'lost' | null>(null)
@@ -1284,12 +1299,19 @@ export const CloseControl = forwardRef<CloseControlHandle, {
   const [disposed, setDisposed] = useState(false)
   const [needsDisposal, setNeedsDisposal] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [name, setName] = useState('')
+  const [apellido, setApellido] = useState('')
+  const [phone, setPhone] = useState('')
+  const [triedBride, setTriedBride] = useState(false)
 
   function reset() { setStep('closed'); setPin(''); setError(null) }
 
   useImperativeHandle(ref, () => ({ open: () => setStep('pin') }), [])
 
   const detail = outcome === 'won' ? reason : note
+  // No entra en `ready`: a diferencia del resto, este par se marca en rojo al
+  // primer intento en vez de dejar el botón apagado sin decir por qué.
+  const brideOk = !askBride || (name.trim().length > 0 && phone.replace(/\D/g, '').length >= 10)
   const ready = Boolean(outcome) && Boolean(reason.trim()) && Boolean(detail.trim()) && (!needsDisposal || disposed)
 
   return (
@@ -1312,6 +1334,27 @@ export const CloseControl = forwardRef<CloseControlHandle, {
 
       {step === 'reason' && (
         <Dialog title="¿Cómo terminó?" onCancel={reset} closeLabel="Cancelar" narrow>
+          {/*
+            Sólo aquí: en el resto de los pasos ya se sabe quién es. Sin esto
+            una sesión cerrada desde el kiosco no dejaba ni nombre ni teléfono
+            — no había forma de encontrarla después en Clientes.
+          */}
+          {askBride && (
+            <>
+              <div className="two">
+                <Field label="Nombre de la novia" invalid={triedBride && !name.trim()}>
+                  {(id) => <input id={id} type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ana" />}
+                </Field>
+                <Field label="Apellido">
+                  {(id) => <input id={id} type="text" value={apellido} onChange={(e) => setApellido(e.target.value)} placeholder="García" />}
+                </Field>
+              </div>
+              <Field label="Teléfono" invalid={triedBride && phone.replace(/\D/g, '').length < 10}>
+                {(id) => <input id={id} type="tel" inputMode="numeric" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="10 dígitos" />}
+              </Field>
+            </>
+          )}
+
           <Chips
             label="Resultado"
             options={[{ value: 'won' as const, label: 'Se vendió' }, { value: 'lost' as const, label: 'No se vendió' }]}
@@ -1349,10 +1392,15 @@ export const CloseControl = forwardRef<CloseControlHandle, {
             <ActionButton
               disabled={!ready}
               onAction={async () => {
+                if (askBride && !brideOk) {
+                  setTriedBride(true)
+                  throw new ApiError('Falta el nombre o el teléfono de la novia.', 400, 'incomplete')
+                }
                 try {
                   await post(`/sessions/${sessionId}/close`, {
                     outcome, reason: reason.trim(), note: note.trim() || undefined, pin,
                     sheets_disposed: disposed || undefined,
+                    ...(askBride ? { name: name.trim(), apellido: apellido.trim() || undefined, phone: phone.trim() } : {}),
                   })
                   onClosed()
                 } catch (err) {

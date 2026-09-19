@@ -55,7 +55,8 @@ function forRole<T extends { cost_cents?: number }>(row: T, role: string): T {
 export async function markReview(db: D1Database, id: number): Promise<string[]> {
   const item = await one<ItemRow>(db, `SELECT * FROM items WHERE id = ?`, id)
   if (!item) return []
-  const missing = reviewFields(item)
+  const photo = await one<{ n: number }>(db, `SELECT COUNT(*) AS n FROM item_photos WHERE item_id = ?`, id)
+  const missing = reviewFields({ ...item, has_photo: (photo?.n ?? 0) > 0 })
   await run(
     db, `UPDATE items SET needs_review = ?, review_fields = ? WHERE id = ?`,
     missing.length > 0 ? 1 : 0, missing.length > 0 ? missing.join(',') : null, id,
@@ -319,6 +320,7 @@ app.put('/:id{[0-9]+}/photos', async (c) => {
   })
   writes.push(auditStmt(c.env.DB, { session: s, entity: 'item', entityId: item.id, action: 'photos', after: { photos: ids.length } }))
   await c.env.DB.batch(writes)
+  await markReview(c.env.DB, item.id)
 
   return c.json({ photos: ids.length })
 })

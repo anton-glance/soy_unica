@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { GownArt } from './GownArt'
+import { IconButton } from './IconButton'
 
 /**
  * Una foto grande y, si hay más de una, una tira de miniaturas debajo para
@@ -46,7 +47,11 @@ export function PhotoGallery({ photos, itemId, alt = '' }: { photos: string[]; i
 
       {open && current && (
         <div className="lightbox" onClick={() => setOpen(false)}>
-          <button type="button" className="lightbox__close" aria-label="Cerrar" onClick={() => setOpen(false)}>×</button>
+          {/* La misma (X) redonda de siempre — sólo con un fondo desenfocado
+              propio, porque aquí atrás puede haber cualquier color. */}
+          <div className="lightbox__close">
+            <IconButton kind="close" label="Cerrar" onClick={() => setOpen(false)} tone="dark" size="lg" />
+          </div>
           <img src={`/api/files/${current}`} alt={alt} onClick={(e) => e.stopPropagation()} />
         </div>
       )}

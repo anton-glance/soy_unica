@@ -3,6 +3,7 @@ import { get } from '../lib/api'
 import { dateMX, money } from '../lib/format'
 import { useNavigate } from '../lib/router'
 import { Screen } from '../components/Screen'
+import { PERIODS, rangeFor, todayLocal, type PeriodKey } from '../lib/period'
 
 interface Pick { code: string; name: string }
 interface AddedAfter { description: string; price_cents: number; added_at: string }
@@ -43,35 +44,6 @@ const STAGE_ES: Record<string, string> = {
   signed: 'Contrato firmado',
   payment: 'Primer abono',
   closed: 'Cerrada',
-}
-
-// ─────────────────────────────────────────────────────────── periodos ──
-const toUTC = (d: string) => new Date(`${d}T00:00:00Z`)
-const fromUTC = (d: Date) => d.toISOString().slice(0, 10)
-const addDaysStr = (d: string, n: number) => { const x = toUTC(d); x.setUTCDate(x.getUTCDate() + n); return fromUTC(x) }
-const mondayOf = (d: string) => addDaysStr(d, -((toUTC(d).getUTCDay() + 6) % 7))
-const monthRange = (d: string, offset: number): [string, string] => {
-  const x = toUTC(d)
-  const first = new Date(Date.UTC(x.getUTCFullYear(), x.getUTCMonth() + offset, 1))
-  const last = new Date(Date.UTC(x.getUTCFullYear(), x.getUTCMonth() + offset + 1, 0))
-  return [fromUTC(first), fromUTC(last)]
-}
-
-type PeriodKey = 'week' | 'last_week' | 'month' | 'last_month' | 'custom'
-const PERIODS: { key: PeriodKey; label: string }[] = [
-  { key: 'week', label: 'Esta semana' },
-  { key: 'last_week', label: 'Semana pasada' },
-  { key: 'month', label: 'Este mes' },
-  { key: 'last_month', label: 'Mes pasado' },
-  { key: 'custom', label: 'Personalizado' },
-]
-
-function rangeFor(key: PeriodKey, today: string): [string, string] {
-  if (key === 'week') { const from = mondayOf(today); const to = addDaysStr(from, 6); return [from, to > today ? today : to] }
-  if (key === 'last_week') { const from = mondayOf(addDaysStr(today, -7)); return [from, addDaysStr(from, 6)] }
-  if (key === 'month') { const [from, to] = monthRange(today, 0); return [from, to > today ? today : to] }
-  if (key === 'last_month') return monthRange(today, -1)
-  return [today, today]
 }
 
 export function Reports() {
@@ -146,9 +118,10 @@ export function Reports() {
 
         {/* Item 24: el dinero de verdad, arriba de las tres del embudo. */}
         <h3 className="report-head" style={{ marginTop: 0 }}>Finanzas</h3>
-        <div className="funnel funnel--2">
+        <div className="funnel funnel--3">
           <div className="funnel__tile--in"><b>{money(data.finance.received_cents)}</b><span>recibido</span></div>
           <div className="funnel__tile--out"><b>{money(data.finance.spent_cents)}</b><span>gastado</span></div>
+          <div className="funnel__tile--balance"><b>{money(data.finance.received_cents - data.finance.spent_cents)}</b><span>balance</span></div>
         </div>
 
         <h3 className="report-head">Ventas</h3>
@@ -272,8 +245,4 @@ export function Reports() {
       </div>
     </Screen>
   )
-}
-
-function todayLocal(): string {
-  return new Date().toISOString().slice(0, 10)
 }

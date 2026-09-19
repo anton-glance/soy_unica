@@ -232,6 +232,32 @@ describe('abonos', () => {
   })
 })
 
+describe('el rollo de todos los pagos, para la dueña', () => {
+  const today = new Date().toISOString().slice(0, 10)
+
+  it('una vendedora no puede verlo', async () => {
+    const refusal = await tabletA.refusal(`/api/payments?from=${today}&to=${today}`, undefined, 'GET')
+    expect(refusal.status).toBe(403)
+  })
+
+  it('trae el abono de esta sesión, con la clienta y el folio', async () => {
+    const { payments, total_cents } = await owner.get<{
+      payments: { folio: string; bride: string; amount_cents: number; voided_at: string | null }[]
+      total_cents: number
+    }>(`/api/payments?from=${today}&to=${today}`)
+    const mine = payments.find((p) => p.folio === folio)
+    expect(mine).toBeTruthy()
+    expect(mine?.amount_cents).toBe(500_000)
+    expect(mine?.voided_at).toBeNull()
+    expect(total_cents).toBeGreaterThanOrEqual(500_000)
+  })
+
+  it('un periodo sin nada trae la lista vacía', async () => {
+    const { payments } = await owner.get<{ payments: unknown[] }>('/api/payments?from=2020-01-01&to=2020-01-02')
+    expect(payments).toEqual([])
+  })
+})
+
 describe('firmar cierra la sesión sola', () => {
   // Round 6: firmar y subir las dos fotos dejaba el contrato activo pero la
   // sesión seguía «abierta» para siempre — la siguiente vendedora que

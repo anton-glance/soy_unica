@@ -37,7 +37,10 @@ export function ScrollRail({ children, className }: { children: ReactNode; class
   }
 
   return (
-    <div className="rail">
+    // El desvanecido de cada lado sólo se ve si de verdad hay más tarjetas
+    // para ese lado: al llegar al principio o al final, esa foto ya no tiene
+    // por qué verse apagada — no hay nada más detrás de ella.
+    <div className={`rail${atStart ? ' rail--start' : ''}${atEnd ? ' rail--end' : ''}`}>
       <div className={className ? `fav-rail ${className}` : 'fav-rail'} ref={ref}>
         {children}
       </div>
