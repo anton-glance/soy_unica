@@ -5,6 +5,8 @@
  * mapping is the half that can be checked without going out to the internet.
  */
 
+import { normalizePermalink } from './swoof.mjs'
+
 const strip = (html) => String(html ?? '').replace(/<[^>]*>/g, ' ').replace(/&[a-z]+;/g, ' ').replace(/\s+/g, ' ').trim()
 
 /**
@@ -144,4 +146,39 @@ export function toItem(product) {
     problems,
     excluded,
   }
+}
+
+/**
+ * One mapped product becomes one row per branch the site's own SWOOF
+ * listings actually placed it in — two, independent from the moment
+ * they're written, when it's in both. A product neither listing ever named
+ * is held out rather than guessed into one, and reported on its own.
+ *
+ * The code stays unique per branch, not globally: the whole point of a
+ * shared model is that it carries the exact same code in both stores, so
+ * two rows for it are expected, not a collision.
+ *
+ * @param {ReturnType<typeof toItem>[]} candidates
+ * @param {Map<string, Set<string>>} locationSets  store key -> its permalink set
+ */
+export function assignStores(candidates, locationSets) {
+  const rows = []
+  const collisions = []
+  const noLocation = []
+  const seen = new Map()
+  for (const product of candidates) {
+    const normalized = normalizePermalink(product.permalink)
+    const stores = normalized
+      ? [...locationSets.entries()].filter(([, set]) => set.has(normalized)).map(([key]) => key)
+      : []
+    if (stores.length === 0) { noLocation.push(product); continue }
+    for (const store of stores) {
+      const key = `${store}|${product.code}`
+      if (seen.has(key)) { collisions.push({ product, store, first: seen.get(key) }); continue }
+      const row = { ...product, store, shared: stores.length === 2 }
+      seen.set(key, row)
+      rows.push(row)
+    }
+  }
+  return { rows, collisions, noLocation }
 }
