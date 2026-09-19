@@ -276,6 +276,26 @@ describe('el rollo de todos los pagos, para la dueña', () => {
   })
 })
 
+describe('comisiones de esta semana, en el reporte', () => {
+  const today = new Date().toISOString().slice(0, 10)
+
+  it('trae un total fijo por vendedora, sin importar qué periodo pidió la pantalla', async () => {
+    // El abono de esta misma suite ($5,000, con la regla sembrada de 3% sobre
+    // lo cobrado) ya debería contar, aunque se pida el reporte de un día
+    // cualquiera — «esta semana» de comisiones no depende de `from`/`to`.
+    const week = await owner.get<{
+      commissions_this_week: {
+        from: string; to: string; total_cents: number
+        by_seller: { seller_id: number; seller_name: string; cents: number }[]
+        excluded_monthly_rules: number
+      }
+    }>(`/api/reports/period?from=${today}&to=${today}`)
+    expect(week.commissions_this_week.total_cents).toBeGreaterThan(0)
+    expect(week.commissions_this_week.by_seller.length).toBeGreaterThan(0)
+    expect(week.commissions_this_week.excluded_monthly_rules).toBe(0)
+  })
+})
+
 describe('firmar cierra la sesión sola', () => {
   // Round 6: firmar y subir las dos fotos dejaba el contrato activo pero la
   // sesión seguía «abierta» para siempre — la siguiente vendedora que

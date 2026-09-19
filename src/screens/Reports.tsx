@@ -29,6 +29,11 @@ interface Period {
   ventas: Venta[]
   sin_venta: SinVenta[]
   anonimas: { count: number; reasons: { reason: string; n: number }[] }
+  commissions_this_week: {
+    from: string; to: string; total_cents: number
+    by_seller: { seller_id: number; seller_name: string; cents: number }[]
+    excluded_monthly_rules: number
+  }
 }
 
 /** Las etapas como se llaman en la tienda, no como se llaman en la base. */
@@ -122,6 +127,35 @@ export function Reports() {
           <div className="funnel__tile--in"><b>{money(data.finance.received_cents)}</b><span>recibido</span></div>
           <div className="funnel__tile--out"><b>{money(data.finance.spent_cents)}</b><span>gastado</span></div>
           <div className="funnel__tile--balance"><b>{money(data.finance.received_cents - data.finance.spent_cents)}</b><span>balance</span></div>
+        </div>
+
+        {/*
+          Fija a la semana en curso (lunes a hoy), sin importar el periodo
+          escogido arriba: «cuánto se debe pagar» no es una cifra que cambie
+          según qué filtro se esté viendo en ese momento.
+        */}
+        <h3 className="report-head">
+          Comisiones de esta semana <span className="muted">· {dateMX(data.commissions_this_week.from)} a {dateMX(data.commissions_this_week.to)}</span>
+        </h3>
+        <div className="panel">
+          <p style={{ fontSize: 'var(--text-h2)', fontWeight: 'var(--weight-medium)', margin: 0 }}>
+            {money(data.commissions_this_week.total_cents)}
+          </p>
+          {data.commissions_this_week.by_seller.length === 0 ? (
+            <p className="muted" style={{ margin: 'var(--space-4) 0 0' }}>Nada que pagar todavía esta semana.</p>
+          ) : (
+            <div className="hist" style={{ marginTop: 'var(--space-6)' }}>
+              {data.commissions_this_week.by_seller.map((s) => (
+                <div key={s.seller_id}><span>{s.seller_name}</span><span className="mono">{money(s.cents)}</span></div>
+              ))}
+            </div>
+          )}
+          {data.commissions_this_week.excluded_monthly_rules > 0 && (
+            <p className="muted" style={{ margin: 'var(--space-8) 0 0', fontSize: 'var(--text-label)' }}>
+              No incluye {data.commissions_this_week.excluded_monthly_rules === 1 ? 'la regla mensual' : 'las reglas mensuales'} de
+              Comisiones — ésas se cuentan por mes, no por semana.
+            </p>
+          )}
         </div>
 
         <h3 className="report-head">Ventas</h3>

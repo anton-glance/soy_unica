@@ -24,10 +24,9 @@ app.get('/', async (c) => {
   const store = await one(c.env.DB, `SELECT * FROM stores WHERE id = ?`, s.store)
   const users = await all(c.env.DB, `SELECT id, name, role, active FROM users WHERE store_id = ? ORDER BY role, name`, s.store)
   const plans = await all(c.env.DB, `SELECT * FROM plans WHERE store_id = ? ORDER BY sort, id`, s.store)
-  const surcharges = await all(c.env.DB, `SELECT * FROM surcharges WHERE store_id = ? ORDER BY sort, id`, s.store)
   const commissions = await all(c.env.DB, `SELECT * FROM commission_rules WHERE store_id = ? ORDER BY priority, id`, s.store)
   const categories = await all(c.env.DB, `SELECT * FROM expense_categories WHERE store_id = ? ORDER BY sort, name`, s.store)
-  return c.json({ store, users, plans, surcharges, commissions, categories, retention_floors: RETENTION_FLOORS })
+  return c.json({ store, users, plans, commissions, categories, retention_floors: RETENTION_FLOORS })
 })
 
 const NUMERIC = [
@@ -120,7 +119,7 @@ app.patch('/users/:id{[0-9]+}/pin', async (c) => {
 })
 
 /** Alta y baja de renglones de configuración, todo auditado. */
-function crud(resource: 'plans' | 'surcharges' | 'commission_rules' | 'expense_categories', columns: readonly string[]) {
+function crud(resource: 'plans' | 'commission_rules' | 'expense_categories', columns: readonly string[]) {
   app.post(`/${resource}`, async (c) => {
     const s = c.get('session')
     const body = await readJson<Record<string, unknown>>(c)
@@ -154,7 +153,6 @@ function crud(resource: 'plans' | 'surcharges' | 'commission_rules' | 'expense_c
 }
 
 crud('plans', ['name', 'splits', 'min_price_cents', 'max_price_cents', 'max_months', 'discount_pct', 'active', 'sort'])
-crud('surcharges', ['name', 'kind', 'applies_to', 'amount_cents', 'pct', 'active', 'sort'])
 crud('commission_rules', ['priority', 'min_price_cents', 'max_price_cents', 'sold_at_or_above_list', 'rate_pct', 'basis', 'period', 'active'])
 crud('expense_categories', ['name', 'sort', 'active'])
 

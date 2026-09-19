@@ -3,7 +3,9 @@ import type { AppEnv } from '../lib/env'
 import { all, one } from '../lib/db'
 import { badRequest } from '../lib/errors'
 import { requireOwner } from '../lib/auth'
-import { isDate, todayISO } from '../lib/dates'
+import { isDate, todayISO, weekStart } from '../lib/dates'
+import { weeklyCommissions, type CommissionContract, type CommissionRule } from '../lib/commissions'
+import type { InstallmentRow, PaymentRow } from '../lib/payments'
 
 const app = new Hono<AppEnv>()
 
@@ -239,6 +241,53 @@ app.get('/period', requireOwner, async (c) => {
 
   const reachedFitting = sessions.filter((row) => rank(reached(row)) >= rank('fitting')).length
 
+  // Comisiones de esta semana: fija, no la que pidió esta pantalla — «cuánto
+  // se le debe a cada vendedora» no espera a que alguien elija el filtro
+  // correcto, así que su semana es siempre lunes a hoy, sin importar `from`/`to`.
+  const weekFrom = weekStart(today)
+  const commissionRules = await all<CommissionRule>(
+    c.env.DB,
+    `SELECT id, priority, min_price_cents, max_price_cents, sold_at_or_above_list, rate_pct, basis, period
+       FROM commission_rules WHERE store_id = ? AND active = 1`,
+    s.store,
+  )
+  const commissionContracts = await all<CommissionContract>(
+    c.env.DB,
+    `SELECT co.id, co.seller_id, u.name AS seller_name, co.total_cents, co.list_total_cents, co.signed_at
+       FROM contracts co JOIN users u ON u.id = co.seller_id
+      WHERE co.store_id = ? AND co.status IN ('active','paid','delivered')`,
+    s.store,
+  )
+  const commissionContractIds = commissionContracts.map((row) => row.id)
+  const commissionInList = commissionContractIds.length ? commissionContractIds.map(() => '?').join(',') : 'NULL'
+  const commissionPayments = commissionContractIds.length
+    ? await all<PaymentRow & { contract_id: number }>(
+        c.env.DB,
+        `SELECT id, contract_id, paid_at, amount_cents, installment_id, voided_at FROM payments WHERE contract_id IN (${commissionInList})`,
+        ...commissionContractIds,
+      )
+    : []
+  const commissionInstallments = commissionContractIds.length
+    ? await all<InstallmentRow & { contract_id: number }>(
+        c.env.DB,
+        `SELECT id, contract_id, seq, due_type, due_date, amount_cents FROM installments WHERE contract_id IN (${commissionInList})`,
+        ...commissionContractIds,
+      )
+    : []
+  const paymentsByContract = new Map<number, PaymentRow[]>()
+  for (const p of commissionPayments) paymentsByContract.set(p.contract_id, [...(paymentsByContract.get(p.contract_id) ?? []), p])
+  const installmentsByContract = new Map<number, InstallmentRow[]>()
+  for (const i of commissionInstallments) installmentsByContract.set(i.contract_id, [...(installmentsByContract.get(i.contract_id) ?? []), i])
+
+  const commissions = weeklyCommissions(
+    commissionRules, commissionContracts, paymentsByContract, installmentsByContract, weekFrom, today, today)
+  const commissionsBySeller = new Map<number, { seller_id: number; seller_name: string; cents: number }>()
+  for (const line of commissions.lines) {
+    const row = commissionsBySeller.get(line.seller_id) ?? { seller_id: line.seller_id, seller_name: line.seller_name, cents: 0 }
+    row.cents += line.cents
+    commissionsBySeller.set(line.seller_id, row)
+  }
+
   return c.json({
     from,
     to,
@@ -255,6 +304,13 @@ app.get('/period', requireOwner, async (c) => {
     anonimas: {
       count: anonimas.length,
       reasons: [...motivos.entries()].map(([reason, n]) => ({ reason, n })).sort((a, b) => b.n - a.n),
+    },
+    commissions_this_week: {
+      from: weekFrom,
+      to: today,
+      total_cents: commissions.total_cents,
+      by_seller: [...commissionsBySeller.values()].sort((a, b) => b.cents - a.cents),
+      excluded_monthly_rules: commissions.excluded_monthly_rules,
     },
   })
 })

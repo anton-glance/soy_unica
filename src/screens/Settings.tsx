@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { get, patch, post } from '../lib/api'
-import { bytes, money, parseMoney } from '../lib/format'
+import { bytes, parseMoney } from '../lib/format'
 import { useNavigate } from '../lib/router'
 import { ActionButton } from '../components/ActionButton'
 import { Field } from '../components/Field'
@@ -19,7 +19,6 @@ interface SettingsData {
   store: Store
   users: { id: number; name: string; role: string; active: number }[]
   plans: { id: number; name: string; splits: string; max_months: number; discount_pct: number; min_price_cents: number; active: number }[]
-  surcharges: { id: number; name: string; kind: string; amount_cents: number; pct: number; active: number }[]
   commissions: {
     id: number; priority: number; min_price_cents: number; max_price_cents: number | null
     rate_pct: number; basis: string; period: string; active: number
@@ -393,37 +392,6 @@ function Catalogs({ data, onSaved }: { data: SettingsData; onSaved: () => Promis
           meses.
         </p>
         {data.plans.map((plan) => <PlanRow key={plan.id} plan={plan} onSaved={onSaved} />)}
-      </div>
-
-      <div className="panel">
-        <h3 style={{ marginBottom: 'var(--space-6)' }}>Cargos</h3>
-        <p className="lede">
-          No son artículos del inventario: son cobros de servicio que el contrato menciona en su
-          punto 9 («Pagos extra») y que nunca tienen su propio código ni su propia foto — envío según
-          la marca del vestido, recargo por talla grande, un ajuste de costura, coser el cinto, porta
-          traje. Cada uno es un monto fijo o un porcentaje del precio del vestido.
-        </p>
-        <p className="pill pill--brass" style={{ marginBottom: 'var(--space-9)' }}>
-          Esta lista todavía no hace nada: ninguna pantalla de venta ofrece marcarlos, así que
-          activar o desactivar uno aquí no cambia ningún contrato. Es sólo el catálogo, guardado para
-          cuando exista esa pantalla — si no la vas a construir pronto, se puede quitar esta sección.
-        </p>
-        <div className="hist">
-          {data.surcharges.map((s) => (
-            <div key={s.id} style={{ opacity: s.active ? 1 : .5 }}>
-              <span>{s.name}</span>
-              <span className="row" style={{ alignItems: 'center' }}>
-                <span className="mono">{s.pct > 0 ? `${s.pct}%` : money(s.amount_cents)}</span>
-                <ActionButton
-                  className="btn-quiet"
-                  onAction={async () => { await patch(`/settings/surcharges/${s.id}`, { active: s.active ? 0 : 1 }); await onSaved() }}
-                >
-                  {s.active ? 'Desactivar' : 'Activar'}
-                </ActionButton>
-              </span>
-            </div>
-          ))}
-        </div>
       </div>
 
       <div className="panel">
