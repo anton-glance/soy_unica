@@ -9,7 +9,10 @@ dist/
 tmp/
 docs/import/pagos.json
 docs/import/catalog-raw.json
+docs/import/locations-raw.json
 docs/import/catalog-images/
 docs/import/catalog.md
 docs/import/catalog.sql
 docs/import/catalog-r2.tsv
+docs/import/fix-mty-cdmx-only.md
+docs/import/fix-mty-cdmx-only.sql

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 // @ts-expect-error — the importer is an untyped .mjs script, on purpose.
-import { toItem } from '../scripts/import/map-product.mjs'
+import { toItem, assignStores } from '../scripts/import/map-product.mjs'
 
 /**
  * C1 — one WooCommerce Store API product to one inventory item.
@@ -11,18 +11,18 @@ import { toItem } from '../scripts/import/map-product.mjs'
  * is downloading the real catalog — the network policy only allows the package
  * registries out.
  *
- * There is no branch split here. The real category census (`--categories`
- * against the actual site) came back with 200 products, 14 categories, and
- * none of them naming a branch — no `tags`, no branch in the permalink, nothing
- * to split on. Everything this importer produces goes into Monterrey; CDMX's
- * catalog has to come from somewhere else.
+ * `toItem()` itself carries no branch: checked directly against the raw JSON,
+ * `tags` is empty on every product and none of the categories names a branch
+ * either — no signal on the product at all. The branch comes from a second,
+ * separate source (the site's own SWOOF-filtered listing pages) and is applied
+ * afterward, by `assignStores()`, covered in its own block below.
  */
 
 interface Mapped {
   code: string; code_from: string; name: string; brand: string | null; color: string | null
   kind: string; cut: string | null; condition: string; promo: boolean; acquisition: string
   price_cents: number; review: string[]; problems: string[]; excluded: string | null
-  images: { src: string }[]
+  images: { src: string }[]; permalink: string | null
 }
 
 const fixture = JSON.parse(readFileSync('tests/fixtures/woo-products.json', 'utf8')) as unknown[]
@@ -75,12 +75,59 @@ describe('the price', () => {
   })
 })
 
-describe('there is no branch split', () => {
-  it('toItem never mentions a store or branch', () => {
+describe('toItem itself never mentions a store or branch', () => {
+  it('the branch is a separate concern, applied afterward by assignStores', () => {
     // @ts-expect-error — intentionally checking the shape has no such field.
     expect(byId(101).store).toBeUndefined()
     // @ts-expect-error — intentionally checking the shape has no such field.
     expect(byId(101).stores).toBeUndefined()
+  })
+})
+
+describe('assignStores — one product, one row per branch it is actually listed under', () => {
+  const sets = (mty: (string | null)[], cdmx: (string | null)[]) =>
+    new Map([['mty', new Set(mty.filter((p): p is string => p !== null))], ['cdmx', new Set(cdmx.filter((p): p is string => p !== null))]])
+  const madelyn = byId(101) // permalink: .../producto/vestidos-de-novia/corte-princesa/madelyn/
+  const mantilla = byId(102) // permalink: .../producto/accesorios/mantillas/mantilla-larga-bordada/
+
+  it('one branch only → one row, not marked shared', () => {
+    const { rows } = assignStores([madelyn], sets([madelyn.permalink], []))
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({ store: 'mty', shared: false, code: madelyn.code })
+  })
+
+  it('both branches → two independent rows, each marked shared, same code', () => {
+    const { rows } = assignStores([madelyn], sets([madelyn.permalink], [madelyn.permalink]))
+    expect(rows).toHaveLength(2)
+    expect(rows.map((r: { store: string }) => r.store).sort()).toEqual(['cdmx', 'mty'])
+    expect(rows.every((r: { shared: boolean; code: string }) => r.shared && r.code === madelyn.code)).toBe(true)
+  })
+
+  it('neither listing ever named it → held out, not guessed into either branch', () => {
+    const { rows, noLocation } = assignStores([madelyn], sets([], []))
+    expect(rows).toHaveLength(0)
+    expect(noLocation).toEqual([madelyn])
+  })
+
+  it('two different products in two different branches stay independent', () => {
+    const { rows } = assignStores([madelyn, mantilla], sets([madelyn.permalink], [mantilla.permalink]))
+    expect(rows).toHaveLength(2)
+    expect(rows.find((r: { code: string }) => r.code === madelyn.code)).toMatchObject({ store: 'mty', shared: false })
+    expect(rows.find((r: { code: string }) => r.code === mantilla.code)).toMatchObject({ store: 'cdmx', shared: false })
+  })
+
+  it('a duplicate code within the same branch collides; the same code in two branches does not', () => {
+    // byId(105) is "Madelyn repetida", which carries the same SKU as byId(101) in this fixture.
+    const repeated = byId(105)
+    expect(repeated.code).toBe(madelyn.code)
+    const { rows, collisions } = assignStores(
+      [madelyn, repeated],
+      sets([madelyn.permalink, repeated.permalink], [madelyn.permalink]),
+    )
+    // mty: both listed, first kept, second collides. cdmx: only madelyn listed, one row, no collision.
+    expect(rows).toHaveLength(2)
+    expect(collisions).toHaveLength(1)
+    expect(collisions[0]).toMatchObject({ store: 'mty' })
   })
 })
 

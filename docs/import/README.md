@@ -19,29 +19,58 @@ came from the real spreadsheet and were reviewed row by row in the repository.
 ### Downloading it
 
 ```
-node scripts/import/catalog.mjs --fetch
+node scripts/import/catalog.mjs --fetch --fetch-locations
 ```
 
-Needs outbound access to `soyunicanovias.com`.
+Needs outbound access to `soyunicanovias.com`. The two flags can be run
+separately (`--fetch` alone, then `--fetch-locations` alone later, or vice
+versa) or together in one invocation — either way both files need to exist
+before a plain `node scripts/import/catalog.mjs` will produce a report.
 
 **The flags**
 
 | flag | what it does |
 | --- | --- |
 | `--fetch` | pages `/wp-json/wc/store/v1/products?per_page=100&page=N` to the end and saves the raw JSON |
+| `--fetch-locations` | pages every `tienda/swoof/location-X/` and `tienda/swoof/location-X/product_cat-Y/` listing, for both branches and every category, and saves which permalinks each one names |
 | `--categories` | prints the site's category census and what each one is used for, then stops |
 | `--images` | also downloads each image and re-encodes it: 1600 px, WebP, <=300 KB, the same limits as the tablet. Images already on disk are left alone, so a re-run is cheap |
-| *(no flags)* | re-reads the JSON already downloaded and regenerates the report and the `.sql`, asking the site for nothing |
+| *(no flags)* | re-reads both JSON files already downloaded and regenerates the report and the `.sql`, asking the site for nothing |
 
-### This catalog is Monterrey's alone
+### Both branches, from two different sources
 
-Checked directly against the site's raw JSON: `tags` is empty on every product,
-permalinks encode category rather than branch
-(`producto/vestidos-de-novia/corte-princesa/hanna`), and none of the 14
-categories names a branch. There is no signal anywhere in this endpoint to split
-a catalog on, so every row this importer produces goes into `mty`. **CDMX starts
-empty** — its catalog is not in here and has to be built from wherever CDMX's
-actual data lives.
+The Store API itself carries no branch at all — checked directly against the
+raw JSON, `tags` is empty on every product, permalinks encode category rather
+than branch (`producto/vestidos-de-novia/corte-princesa/hanna`), and none of
+the categories names one either. The only place the branch shows up is the
+site's own **SWOOF-filtered listing pages** — the same filter a bride uses to
+pick her city. `--fetch-locations` pages through those, for both branches, and
+matches the permalinks it finds there against each product's own permalink
+from the Store API.
+
+A product the site lists for only one branch produces one row, there. A
+product it lists for **both** produces **two independent rows**, one per
+store — this is deliberate duplication, the owner's own decided architecture:
+the two branches are physically separate, and from the moment they're
+written neither row is linked back to the other. An edit to the Monterrey row
+— price, status, photos — never touches the CDMX one.
+
+That duplication is also why the site hides the price on a shared model in
+the first place: so a bride in one city can't compare it against the other.
+The importer follows the same rule. Where the site *does* publish a price, both
+branches get that same number; where it publishes none, both come in flagged
+at zero and the owner sets each branch's real price by hand — from there the
+two are allowed to differ.
+
+A product **neither** listing ever names is not guessed into a branch: it's
+held out of the `.sql` entirely and listed in its own section of the report,
+for a person to place by hand.
+
+Two independent checks run per branch: the un-filtered `location-X/` listing
+on its own, and the sum of every `location-X/product_cat-Y/` listing. They
+should describe exactly the same set of products; the report says so, and
+when they disagree neither side is trusted over the other — both go into the
+union, and the disagreement is called out so it can be looked into.
 
 What the categories *do* carry reliably: whether something is a dress or an
 accessory, its cut, whether it's on liquidation, the "Bridal Sale -20%"
@@ -63,38 +92,51 @@ look before assuming it doesn't matter.
 
 | file | what it is |
 | --- | --- |
-| `docs/import/catalog-raw.json` | the site's raw response, untouched |
+| `docs/import/catalog-raw.json` | the site's raw Store API response, untouched |
+| `docs/import/locations-raw.json` | every SWOOF listing fetched, per branch and per category, with the site's own reported count next to what was actually found |
 | `docs/import/catalog.md` | **the report to read** |
-| `docs/import/catalog.sql` | the `INSERT`s, to apply |
-| `docs/import/catalog-images/` | the re-encoded `.webp` images |
-| `docs/import/catalog-r2.tsv` | `localpath<TAB>r2key`, one line per upload |
+| `docs/import/catalog.sql` | the `INSERT`s, to apply — rows for both branches in one file |
+| `docs/import/catalog-images/` | the re-encoded `.webp` images, one copy regardless of how many branches a product lands in |
+| `docs/import/catalog-r2.tsv` | `localpath<TAB>r2key`, one line per upload — a shared model's photos appear twice, once per branch's own copy |
 
 ### What to check in the report before applying
 
-1. **What the categories are used for.** The site's current census against
+1. **Where the branch comes from.** Per branch: what the direct listing found
+   against what the site itself claims, and whether it agrees with the sum
+   of every category. A branch showing "site says" much higher than "found"
+   means pagination stopped early — a real bug, not a rounding difference.
+2. **Per branch.** Rows, how many are shared with the other branch, how many
+   are flagged for a missing price, and the catalog value — each broken out
+   separately for Monterrey and CDMX.
+3. **No branch found.** Products neither SWOOF listing ever named. Not
+   imported into either store; check these by hand and re-run once the site
+   itself says where they belong.
+4. **What the categories are used for.** The site's current census against
    kind/cut/condition/note/exclusion. A category reading `— not used` that
    looks like it should mean something is worth a second look.
-2. **Excluded — rentals.** Out of scope for this shop's inventory, listed so
+5. **Excluded — rentals.** Out of scope for this shop's inventory, listed so
    nobody wonders where they went.
-3. **Flagged for review.** Rows missing a price, a code, or with no category at
+6. **Flagged for review.** Rows missing a price, a code, or with no category at
    all to read kind/cut/condition off. These are *not* rejections: they are
    imported with everything the site does give and land under the **Por
    verificar** chip in Inventario with the missing fields marked. Nothing is
-   guessed. The `category` reason gets special mention: it is not one of the
-   fields the app's own `needs_review` recompute tracks, so check those rows by
-   hand before anyone edits and saves them — see below.
-4. **Rejected.** Only products the site gives no name for. If this list is long,
+   guessed. A missing price is not broken data here — see above. The
+   `category` reason gets special mention: it is not one of the fields the
+   app's own `needs_review` recompute tracks, so check those rows by hand
+   before anyone edits and saves them — see below.
+7. **Rejected.** Only products the site gives no name for. If this list is long,
    something changed on the site and is worth looking at first.
-5. **Duplicate codes.** Only the first of each clash is written. Check the one
-   that stays is the right one: that is what the seller will type to search.
-6. **Codes.** How many codes came from the SKU, from the model name, and from a
-   `s/n-` placeholder. The SKU count should land near 11 — that is how many of
-   this site's 200 products carry the owner's own numbering, matching the codes
+8. **Duplicate codes.** The code is unique per branch, not globally — a shared
+   model colliding with itself across branches is expected and not listed
+   here. Only a genuine collision *within* one branch shows up, and only the
+   first row for that branch is written.
+9. **Codes.** How many codes came from the SKU, from the model name, and from a
+   `s/n-` placeholder. The SKU count should land near the owner's own numbering
    already in the payment ledger. A large placeholder count means the site lost
    its SKUs.
-7. **Promotion note.** How many rows carry "Bridal Sale -20%". It never touches
-   price or condition — only a note, for the owner to act on or ignore.
-8. **Images that could not be downloaded**, with the reason.
+10. **Promotion note.** How many rows carry "Bridal Sale -20%". It never touches
+    price or condition — only a note, for the owner to act on or ignore.
+11. **Images that could not be downloaded**, with the reason.
 
 ### Applying it
 
@@ -114,12 +156,60 @@ while IFS=$'\t' read -r local key; do
 done < docs/import/catalog-r2.tsv
 ```
 
-Items come in with `INSERT OR IGNORE`: **a code that already exists is left
-alone.** It can be re-applied without duplicating anything, and without undoing
-an edit she has since made.
+Items come in with `INSERT OR IGNORE`: **a code that already exists, in that
+branch, is left alone.** It can be re-applied without duplicating anything,
+and without undoing an edit she has since made.
 
 For the production run, see **[docs/DEPLOY.md](../DEPLOY.md) §6 and §7**, which
 has the same steps with `--remote` and without `--local`.
+
+---
+
+## 1a · Fixing the mty-only mistake already on production
+
+The very first version of this importer had no branch signal at all and put
+every product it found into `mty` — including everything the site only ever
+listed for CDMX. That already shipped. This is a **one-time cleanup**, not
+part of the regular importer:
+
+```
+node scripts/import/fix-mty-cdmx-only.mjs
+```
+
+Needs `docs/import/catalog-raw.json` and `docs/import/locations-raw.json`
+already fetched (§1 above — run `--fetch --fetch-locations` first if this is
+the first time). Writes `docs/import/fix-mty-cdmx-only.md` (the report) and
+`docs/import/fix-mty-cdmx-only.sql` (two `SELECT` previews and a guarded
+`DELETE`, in that order).
+
+**Never touches:**
+
+- any of the 16 rows `db/migrations/0002_seed.sql` ships with, by their exact
+  code, whatever the location data says about them;
+- any row this importer didn't write (matched on its own `importado del
+  sitio` marker in `notes`);
+- any row currently held by a kiosk session, currently attached to a
+  contract, or that ever appeared in `contract_items`, `session_selections`
+  or `session_favorites` — a catalog mistake is not a reason to unwrite a
+  real sale or a real bride's favorites.
+
+Run the first `SELECT` in the `.sql` file to see exactly what the `DELETE`
+below it would remove, and the second to see what matched the CDMX-only list
+but is being left alone, and why — read both before running the `DELETE`.
+
+### Applying it
+
+Same rule as everything else here — **local first, always:**
+
+```
+npx wrangler d1 execute soy-unica --local --persist-to .wrangler/state \
+  --file docs/import/fix-mty-cdmx-only.sql
+```
+
+The output shows both `SELECT` results before the `DELETE` runs. For the
+production run, `--remote` in place of `--local --persist-to .wrangler/state`
+— see **[docs/DEPLOY.md](../DEPLOY.md)** for the account this needs to be run
+under.
 
 ---
 
@@ -201,9 +291,13 @@ The catalog goes **first**. The ledger import ties each product fragment —
 the seed's placeholder catalog almost none of them find their item.
 
 ```
-1. catalog  --categories → --fetch --images  → review → apply
-2. pagos    --items="$ITEMS"                 → review → apply
+1. catalog  --categories → --fetch --fetch-locations --images  → review → apply
+2. pagos    --items="$ITEMS"                                   → review → apply
 ```
+
+`fix-mty-cdmx-only.mjs` (§1a) is separate from this order: it's a one-time
+correction for what's already live, not a step in a fresh import, and can be
+run whenever `catalog-raw.json` and `locations-raw.json` are on disk.
 
 The ledger report says, under "Fragmentos de producto", how many tied and how
 many stayed as text. That pair of numbers is how you check the order was kept.
@@ -212,10 +306,11 @@ many stayed as text. That pair of numbers is how you check the order was kept.
 
 ## Production
 
-None of this is applied to a remote database until both reports have been
+None of this is applied to a remote database until the reports have been
 reviewed. When they have, it is the same command with `--remote` in place of
 `--local --persist-to`:
 
 ```
 npx wrangler d1 execute soy-unica --remote --file docs/import/catalog.sql
+npx wrangler d1 execute soy-unica --remote --file docs/import/fix-mty-cdmx-only.sql
 ```
