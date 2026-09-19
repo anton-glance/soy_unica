@@ -23,6 +23,7 @@ interface ClientRow {
   wedding_date: string | null
   session_id: number | null
   session_stage: string | null
+  closed_at_stage: string | null
   outcome: string | null
   closed_at: string | null
   folio: string | null
@@ -46,7 +47,7 @@ app.get('/', async (c) => {
   const rows = await all<ClientRow>(
     c.env.DB,
     `SELECT cu.id AS customer_id, cu.name, cu.apellido, cu.phone, cu.created_at AS registrada, cu.wedding_date,
-            k.id AS session_id, k.stage AS session_stage, k.outcome, k.closed_at,
+            k.id AS session_id, k.stage AS session_stage, k.closed_at_stage, k.outcome, k.closed_at,
             c.folio, c.status AS contract_status, c.total_cents,
             IFNULL((SELECT SUM(p.amount_cents) FROM payments p WHERE p.contract_id = c.id AND p.voided_at IS NULL), 0) AS paid_cents
        FROM customers cu
@@ -68,7 +69,7 @@ app.get('/export', async (c) => {
   const rows = await all<ClientRow>(
     c.env.DB,
     `SELECT cu.id AS customer_id, cu.name, cu.apellido, cu.phone, cu.created_at AS registrada, cu.wedding_date,
-            k.id AS session_id, k.stage AS session_stage, k.outcome, k.closed_at,
+            k.id AS session_id, k.stage AS session_stage, k.closed_at_stage, k.outcome, k.closed_at,
             c.folio, c.status AS contract_status, c.total_cents,
             IFNULL((SELECT SUM(p.amount_cents) FROM payments p WHERE p.contract_id = c.id AND p.voided_at IS NULL), 0) AS paid_cents
        FROM customers cu
@@ -81,7 +82,7 @@ app.get('/export', async (c) => {
   const withBalance = rows.map((r) => ({ ...r, total_cents: r.total_cents ?? 0, balance_cents: (r.total_cents ?? 0) - r.paid_cents }))
   const columns = [
     'customer_id', 'name', 'apellido', 'phone', 'registrada', 'wedding_date',
-    'folio', 'contract_status', 'session_stage', 'outcome', 'total_cents', 'paid_cents', 'balance_cents',
+    'folio', 'contract_status', 'session_stage', 'closed_at_stage', 'outcome', 'total_cents', 'paid_cents', 'balance_cents',
   ]
   return csvResponse('clientes.csv', toCsv(columns, withBalance))
 })

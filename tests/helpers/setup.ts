@@ -61,12 +61,54 @@ export async function setup(): Promise<void> {
   for (;;) {
     try {
       const res = await fetch(`${base}/api/health`)
-      if (res.ok) return
+      if (res.ok) break
     } catch {
       // todavía no levanta
     }
     if (Date.now() > deadline) throw new Error('El Worker de pruebas no levantó a tiempo.')
     await new Promise((r) => setTimeout(r, 500))
+  }
+
+  await seedItemPhotos(base)
+}
+
+/**
+ * `reviewFields()` ahora exige una foto; sin ninguna, los vestidos de la
+ * semilla quedarían marcados «por verificar» y el resto de las pruebas —que
+ * dan por hecho un catálogo listo para vender, no uno a medio llenar— no
+ * podrían elegirlos. No se usa `sql()` para esto (existe para una sola cosa,
+ * ver más abajo en client.ts): se sube y se amarra por la misma API que usaría
+ * la dueña, una vez, aquí, antes de que arranque cualquier prueba.
+ */
+async function seedItemPhotos(base: string): Promise<void> {
+  let cookie = ''
+  async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
+    const headers = new Headers(init.headers)
+    if (cookie) headers.set('Cookie', cookie)
+    if (init.body && typeof init.body === 'string') headers.set('Content-Type', 'application/json')
+    const res = await fetch(`${base}${path}`, { ...init, headers })
+    const setCookie = res.headers.get('set-cookie')
+    if (setCookie) cookie = setCookie.split(';')[0] as string
+    const text = await res.text()
+    if (!res.ok) throw new Error(`${res.status} ${path}: ${text}`)
+    return text ? (JSON.parse(text) as T) : (undefined as T)
+  }
+
+  await call('/api/auth/pin', { method: 'POST', body: JSON.stringify({ store: 'mty', role: 'owner', pin: '4242' }) })
+  const { items } = await call<{ items: { id: number }[] }>('/api/items')
+
+  for (const item of items) {
+    const form = new FormData()
+    form.set('file', new Blob([new Uint8Array([0x52, 0x49, 0x46, 0x46, 1, 2, 3, 4])], { type: 'image/webp' }), 'foto.webp')
+    form.set('kind', 'item_photo')
+    const headers = new Headers()
+    if (cookie) headers.set('Cookie', cookie)
+    const uploadRes = await fetch(`${base}/api/uploads`, { method: 'POST', body: form, headers })
+    if (!uploadRes.ok) throw new Error(`${uploadRes.status} /api/uploads: ${await uploadRes.text()}`)
+    const { id: fileId } = (await uploadRes.json()) as { id: string }
+    await call(`/api/items/${item.id}/photos`, {
+      method: 'PUT', body: JSON.stringify({ photos: [{ file_id: fileId, is_primary: true }] }),
+    })
   }
 }
 

@@ -78,6 +78,9 @@ select {
  * Gris mientras está vacío; en cuanto se teclea algo, JS quita esta clase.
  */
 input.mask-empty { color: var(--ink-faint); }
+/* El texto de ejemplo en un campo (placeholder) nunca debe leerse como si ya
+   hubiera algo tecleado — mismo gris que `mask-empty` usa para lo mismo. */
+input::placeholder, textarea::placeholder { color: var(--ink-faint); opacity: 1; }
 
 input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible, a:focus-visible {
   outline: 2px solid var(--brass);
@@ -133,6 +136,9 @@ label, legend { display: block; font-size: var(--text-label); color: var(--ink-s
 }
 .chip[aria-pressed='true'] { background: var(--brass-soft); border-color: var(--brass); color: var(--brass); }
 .chip--sm { min-height: 48px; font-size: var(--text-label); }
+/* Pide atención sin esperar a que se toque: «Por verificar» siempre en rojo,
+   tocado o no — no es un filtro más, es una alerta. */
+.chip--danger, .chip--danger[aria-pressed='true'] { background: var(--clay-soft); border-color: var(--clay); color: var(--clay); }
 a.chip, a.btn-main, a.btn-quiet { text-decoration: none; }
 
 
@@ -260,8 +266,17 @@ a.chip, a.btn-main, a.btn-quiet { text-decoration: none; }
 .pill--clay { background: var(--clay-soft); color: var(--clay); }
 .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 
-.k-filters { display: flex; gap: var(--space-5); padding: var(--space-2) var(--gutter) var(--space-8); overflow-x: auto; scrollbar-width: none; }
+/* Pegados bajo la barra fija: al bajar por el catálogo, los filtros nunca se
+   quedan atrás — no hay que subir hasta arriba para cambiar uno. */
+.k-filters {
+  display: flex; gap: var(--space-5); padding: var(--space-2) var(--gutter) var(--space-8);
+  overflow-x: auto; scrollbar-width: none;
+  position: sticky; top: var(--bar-h); z-index: 20; background: var(--ivory);
+}
 .k-filters::-webkit-scrollbar { display: none; }
+/* Dentro de un diálogo el que se desplaza es `.sheet-body`, no la página: no
+   hay barra fija arriba de la que despegarse. */
+.k-filters--sheet { top: 0; background: var(--paper); }
 
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--card-min), 1fr)); gap: var(--grid-gap); padding: 0 var(--gutter) 150px; }
 
@@ -326,6 +341,7 @@ a.chip, a.btn-main, a.btn-quiet { text-decoration: none; }
 }
 
 .tag { position: absolute; top: var(--space-6); left: var(--space-6); padding: 7px var(--space-5); border-radius: var(--radius-sm); font-size: var(--text-xs); background: var(--clay-soft); color: var(--clay); max-width: 78%; }
+.tag--right { left: auto; right: var(--space-6); }
 
 /* Vive dentro de `.screen__footer`, que ya es quien fija el pie a la vista. */
 .tray { display: flex; align-items: center; justify-content: space-between; gap: var(--space-8); width: 100%; }
@@ -399,6 +415,9 @@ a.chip, a.btn-main, a.btn-quiet { text-decoration: none; }
 }
 .rail::before { left: 0; background: linear-gradient(to right, var(--paper), transparent); }
 .rail::after { right: 0; background: linear-gradient(to left, var(--paper), transparent); }
+/* Al principio o al final del riel no hay nada apagándose de ese lado. */
+.rail.rail--start::before { display: none; }
+.rail.rail--end::after { display: none; }
 .rail__arrow {
   /* 168px de ancho, 3∶4 → 224px de foto; el punto medio es 112px. */
   position: absolute; top: 112px;
@@ -515,7 +534,9 @@ a.chip, a.btn-main, a.btn-quiet { text-decoration: none; }
    teclas) miden lo mismo, 22px — antes eran 8px y 26px y los puntos se veían
    pegados a la raya. */
 .pin-anchor .pindots { position: absolute; bottom: calc(100% + var(--space-10)); left: 0; right: 0; }
-.pin-anchor .err { position: absolute; bottom: calc(100% + var(--space-3)); left: 0; right: 0; text-align: center; margin: 0; }
+/* Sólo el de «escribe tu NIP», que cuelga directo de aquí. El de «incorrecto»
+   vive dentro de `.pindots` y se acomoda con ella, no por separado. */
+.pin-anchor > .err { position: absolute; bottom: calc(100% + var(--space-3)); left: 0; right: 0; text-align: center; margin: 0; }
 .pin-anchor__hint { position: absolute; top: calc(100% + var(--space-9)); left: 0; right: 0; text-align: center; color: var(--ink-soft); margin: 0; }
 
 .pinpad { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-5); margin: var(--space-10) 0; }
@@ -548,6 +569,9 @@ a.chip, a.btn-main, a.btn-quiet { text-decoration: none; }
   flex: none;
 }
 .err { color: var(--clay); font-size: var(--text-label); min-height: 22px; margin: var(--space-1) 0 0; }
+/* El «NIP incorrecto»: grande, no un aviso chico al pie — es lo primero que
+   tiene que leer antes de volver a intentar. */
+.pindots .pin-error { font-size: var(--text-h2); font-weight: var(--weight-medium); margin: 0; }
 
 /* ── formularios ───────────────────────────────────────────────────────── */
 .wrap { max-width: var(--wrap-max); margin: 0 auto; padding: var(--space-13) var(--gutter) 90px; }
@@ -623,6 +647,7 @@ a.chip, a.btn-main, a.btn-quiet { text-decoration: none; }
 /* El embudo del periodo: entraron, se probaron, compraron. */
 .funnel { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-9); margin-bottom: var(--space-13); }
 .funnel--2 { grid-template-columns: repeat(2, 1fr); }
+.funnel--3 { grid-template-columns: repeat(3, 1fr); }
 .funnel > div {
   background: var(--paper); border: 1px solid var(--tape); border-radius: var(--radius);
   padding: var(--space-10) var(--space-11);
@@ -636,6 +661,9 @@ a.chip, a.btn-main, a.btn-quiet { text-decoration: none; }
 .funnel__tile--in b { color: var(--sage); }
 .funnel__tile--out { background: var(--clay-soft); border-color: var(--clay); }
 .funnel__tile--out b { color: var(--clay); }
+/* El neto no es ni ingreso ni gasto por sí solo: se calcula, no se cuenta. */
+.funnel__tile--balance { background: var(--brass-soft); border-color: var(--brass); }
+.funnel__tile--balance b { color: var(--brass); }
 
 .period-bar { display: flex; gap: var(--space-5); align-items: flex-end; flex-wrap: wrap; margin-bottom: var(--space-11); }
 
@@ -680,16 +708,15 @@ a.chip, a.btn-main, a.btn-quiet { text-decoration: none; }
 .tbl .mono { font-variant-numeric: tabular-nums; color: var(--ink-soft); }
 .tbl .model { font-family: var(--font-display); font-size: var(--text-lg); }
 
-/*
- * Rows the importer could not complete. A left rule rather than a filled row:
- * these are still ordinary stock, only missing something, and the table has to
- * stay readable when a hundred of them arrive at once.
- */
-.tbl tbody tr.rev td:first-child { box-shadow: inset 3px 0 0 var(--brass); }
 .tbl td .falta { font-family: var(--font-ui); font-size: var(--text-xs); color: var(--brass); }
 .field--falta input, .field--falta select, .field--falta textarea { border-color: var(--brass); background: var(--brass-soft); }
 .field--falta label .falta,
 label .falta { margin-left: var(--space-4); font-size: var(--text-xs); color: var(--brass); text-transform: uppercase; letter-spacing: .08em; }
+/* Distinto de `.field--falta`: eso es un pendiente del catálogo importado,
+   esto es un campo obligatorio vacío al intentar guardar — bloquea, no
+   espera. Mismo rojo que «Por verificar». */
+.field--invalid input, .field--invalid select, .field--invalid textarea { border-color: var(--clay); background: var(--clay-soft); }
+.field--invalid label .falta--invalid { color: var(--clay); }
 
 .bdg { font-size: var(--text-sm); padding: var(--space-2) 11px; border-radius: var(--radius-sm); white-space: nowrap; display: inline-block; }
 .bdg.ok { background: var(--sage-soft); color: var(--sage); }
@@ -700,6 +727,38 @@ label .falta { margin-left: var(--space-4); font-size: var(--text-xs); color: va
 .inv-head { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-9); margin-bottom: var(--space-11); }
 .inv-head h2 { font-size: var(--text-inv); }
 .inv-grid { display: grid; grid-template-columns: 280px 1fr; gap: var(--space-14); }
+
+/*
+ * Una foto grande, miniaturas debajo si hay más de una, y a pantalla
+ * completa al tocar la grande. `min-width: 0` es lo que le faltaba a la
+ * versión anterior: dentro de una columna de grid, una imagen sin eso se
+ * pinta a su tamaño natural y se sale de su columna en vez de encogerse.
+ */
+.gallery { min-width: 0; display: flex; flex-direction: column; gap: var(--space-6); }
+.gallery__main {
+  display: block; width: 100%; padding: 0; margin: 0; min-width: 0;
+  border: 1px solid var(--tape); border-radius: var(--radius); overflow: hidden; background: var(--linen);
+  cursor: zoom-in;
+}
+.gallery__main img, .gallery__main .art { aspect-ratio: 3 / 4; width: 100%; display: block; object-fit: cover; }
+.gallery__thumbs { display: flex; gap: var(--space-4); overflow-x: auto; scrollbar-width: thin; }
+.gallery__thumb {
+  flex: 0 0 56px; padding: 0; border: 2px solid transparent; border-radius: var(--radius-sm);
+  overflow: hidden; opacity: .55; background: var(--linen);
+}
+.gallery__thumb.is-active { border-color: var(--brass); opacity: 1; }
+.gallery__thumb img { aspect-ratio: 3 / 4; width: 100%; display: block; object-fit: cover; }
+
+.lightbox {
+  position: fixed; inset: 0; z-index: 200; background: rgba(20,16,12,.94);
+  display: flex; align-items: center; justify-content: center; padding: var(--space-13);
+  cursor: zoom-out; border: 0;
+}
+.lightbox img { max-width: 100%; max-height: 100%; object-fit: contain; cursor: default; }
+/* Sólo posiciona la misma (X) redonda de siempre; el desenfoque es lo único
+   propio de aquí, porque atrás puede haber cualquier color de foto. */
+.lightbox__close { position: absolute; top: var(--space-9); right: var(--space-9); }
+.lightbox__close .icon-btn { backdrop-filter: blur(6px); background: rgba(20,16,12,.4); }
 
 /* ── piezas que el prototipo no dibuja ─────────────────────────────────── */
 /* La entrada: sucursal, rol y NIP, cada una a pantalla completa. */

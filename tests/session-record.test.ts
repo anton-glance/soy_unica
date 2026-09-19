@@ -116,6 +116,37 @@ describe('lo que queda de una sesión que se va antes de dar sus datos', () => {
   })
 })
 
+/**
+ * El diálogo de cierre del kiosco puede pedir nombre y teléfono ahí mismo —
+ * es la única oportunidad, porque «Datos de la novia» nunca se alcanzó. Sin
+ * esto, esa sesión se perdía como la de arriba: sin ninguna persona ligada.
+ */
+describe('el cierre del kiosco puede dejar una persona ligada sin haber llegado a la hoja', () => {
+  it('crea la clienta con lo que trae el cierre', async () => {
+    const id = (await tablet.post<{ id: number }>('/api/sessions', { device_label: 'Tableta 3' })).id
+    await tablet.post(`/api/sessions/${id}/close`, {
+      outcome: 'lost', reason: 'precio', pin: '1111',
+      name: 'Renata', apellido: 'Cruz', phone: '8111234567',
+    })
+
+    const { session } = await state(id)
+    expect(session.customer_id).not.toBeNull()
+    expect(session.closed_at_stage).toBe('browsing')
+
+    const { customer } = await owner.get<{ customer: { name: string; apellido: string; phone: string } }>(`/api/clients/${session.customer_id}`)
+    expect(customer.name).toBe('Renata')
+    expect(customer.apellido).toBe('Cruz')
+    expect(customer.phone).toBe('8111234567')
+  })
+
+  it('sin nombre o sin 10 dígitos de teléfono, no crea a nadie — sigue siendo una sesión anónima', async () => {
+    const id = (await tablet.post<{ id: number }>('/api/sessions', { device_label: 'Tableta 4' })).id
+    await tablet.post(`/api/sessions/${id}/close`, { outcome: 'lost', reason: 'precio', pin: '1111', name: 'Sin teléfono' })
+    const { session } = await state(id)
+    expect(session.customer_id).toBeNull()
+  })
+})
+
 describe('el reporte semanal de sesiones', () => {
   interface Week {
     from: string; to: string

@@ -18,17 +18,47 @@ const LOST_LABEL: Record<string, string> = Object.fromEntries(LOST_REASONS.map((
 interface ClientRow {
   customer_id: number; name: string; apellido: string; phone: string
   registrada: string; wedding_date: string | null
-  session_id: number | null; session_stage: string | null; outcome: string | null; closed_at: string | null
+  session_id: number | null; session_stage: string | null; closed_at_stage: string | null
+  outcome: string | null; closed_at: string | null
   folio: string | null; contract_status: string | null
   total_cents: number; paid_cents: number; balance_cents: number
 }
 
 const SOLD_STATUSES = new Set(['active', 'paid', 'delivered'])
 
+/**
+ * Un solo estado por clienta, de principio a fin — antes la tabla sólo decía
+ * la fecha de la boda, que no dice nada de dónde va la venta. La etapa de la
+ * sesión cuenta hasta dónde llegó; el contrato y lo pagado, de ahí en
+ * adelante. Es el avance real, no si al final compró o no: una sesión perdida
+ * que sí llegó a la hoja de medidas se sigue viendo como «Hoja de medidas».
+ */
+type ClientStatus = 'pendiente' | 'medidas' | 'firmado' | 'parcial' | 'completo' | 'entregado'
+const STATUS_LABEL: Record<ClientStatus, string> = {
+  pendiente: 'Pendiente', medidas: 'Hoja de medidas', firmado: 'Contrato firmado',
+  parcial: 'Pago parcial', completo: 'Pago completo', entregado: 'Entregado',
+}
+const STATUS_TONE: Record<ClientStatus, string> = {
+  pendiente: 'mute', medidas: 'warn', firmado: 'warn', parcial: 'warn', completo: 'ok', entregado: 'ok',
+}
+// De aquí en adelante la hoja de medidas ya se firmó, sea cual sea cómo terminó.
+const MEASURED_STAGES = new Set(['sheet_signed', 'terms', 'contract_printed', 'signed', 'payment', 'closed'])
+
+function clientStatus(row: ClientRow): ClientStatus {
+  if (row.contract_status === 'delivered') return 'entregado'
+  if (row.contract_status === 'active' || row.contract_status === 'paid') {
+    if (row.balance_cents <= 0) return 'completo'
+    if (row.paid_cents > 0) return 'parcial'
+    return 'firmado'
+  }
+  const stage = row.session_stage === 'closed' ? row.closed_at_stage : row.session_stage
+  return stage && MEASURED_STAGES.has(stage) ? 'medidas' : 'pendiente'
+}
+
 /** Columns sortable client-side: the list is capped at a few hundred rows. */
 const COLS = [
   ['name', 'Nombre'], ['phone', 'Teléfono'], ['registrada', 'Registrada'],
-  ['wedding_date', 'Boda'], ['total_cents', 'Total'], ['balance_cents', 'Saldo'],
+  ['status', 'Estado'], ['total_cents', 'Total'], ['balance_cents', 'Saldo'],
 ] as const
 
 export function ClientsModule() {
@@ -56,9 +86,11 @@ export function ClientsModule() {
   )
 }
 
+const STATUS_ORDER: ClientStatus[] = ['pendiente', 'medidas', 'firmado', 'parcial', 'completo', 'entregado']
+
 function ClientList({ onBack, onOpen }: { onBack: () => void; onOpen: (row: ClientRow) => void }) {
   const [q, setQ] = useState('')
-  const [chip, setChip] = useState<'todas' | 'compraron' | 'sin_venta' | 'saldo'>('todas')
+  const [chip, setChip] = useState<'todas' | ClientStatus>('todas')
   const [sort, setSort] = useState<string>('registrada')
   const [dir, setDir] = useState<'asc' | 'desc'>('desc')
   const [results, setResults] = useState<ClientRow[]>([])
@@ -73,17 +105,14 @@ function ClientList({ onBack, onOpen }: { onBack: () => void; onOpen: (row: Clie
     return () => window.clearTimeout(timer)
   }, [q])
 
-  const sold = results.filter((r) => SOLD_STATUSES.has(r.contract_status ?? '')).length
-  const noSale = results.filter((r) => !SOLD_STATUSES.has(r.contract_status ?? '')).length
-  const owing = results.filter((r) => r.balance_cents > 0).length
+  const counts = Object.fromEntries(STATUS_ORDER.map((st) => [st, results.filter((r) => clientStatus(r) === st).length])) as Record<ClientStatus, number>
 
-  const filtered = results.filter((r) => {
-    if (chip === 'compraron') return SOLD_STATUSES.has(r.contract_status ?? '')
-    if (chip === 'sin_venta') return !SOLD_STATUSES.has(r.contract_status ?? '')
-    if (chip === 'saldo') return r.balance_cents > 0
-    return true
-  })
+  const filtered = chip === 'todas' ? results : results.filter((r) => clientStatus(r) === chip)
   const sorted = [...filtered].sort((a, b) => {
+    if (sort === 'status') {
+      const cmp = STATUS_ORDER.indexOf(clientStatus(a)) - STATUS_ORDER.indexOf(clientStatus(b))
+      return dir === 'asc' ? cmp : -cmp
+    }
     const va = a[sort as keyof ClientRow] ?? ''
     const vb = b[sort as keyof ClientRow] ?? ''
     const cmp = typeof va === 'number' && typeof vb === 'number' ? va - vb : String(va).localeCompare(String(vb))
@@ -112,15 +141,11 @@ function ClientList({ onBack, onOpen }: { onBack: () => void; onOpen: (row: Clie
           <button type="button" className="chip chip--sm" aria-pressed={chip === 'todas'} onClick={() => setChip('todas')}>
             Todas ({results.length})
           </button>
-          <button type="button" className="chip chip--sm" aria-pressed={chip === 'compraron'} onClick={() => setChip('compraron')}>
-            Compraron ({sold})
-          </button>
-          <button type="button" className="chip chip--sm" aria-pressed={chip === 'sin_venta'} onClick={() => setChip('sin_venta')}>
-            Sin venta ({noSale})
-          </button>
-          <button type="button" className="chip chip--sm" aria-pressed={chip === 'saldo'} onClick={() => setChip('saldo')}>
-            Saldo pendiente ({owing})
-          </button>
+          {STATUS_ORDER.map((st) => (
+            <button key={st} type="button" className="chip chip--sm" aria-pressed={chip === st} onClick={() => setChip(st)}>
+              {STATUS_LABEL[st]} ({counts[st]})
+            </button>
+          ))}
         </div>
 
         <div style={{ overflowX: 'auto' }}>
@@ -138,23 +163,19 @@ function ClientList({ onBack, onOpen }: { onBack: () => void; onOpen: (row: Clie
               </tr>
             </thead>
             <tbody>
-              {sorted.map((row) => (
+              {sorted.map((row) => {
+                const status = clientStatus(row)
+                return (
                 <tr key={row.customer_id} onClick={() => onOpen(row)}>
-                  <td className="model">
-                    {[row.name, row.apellido].filter(Boolean).join(' ') || 'Sin nombre'}
-                    {!SOLD_STATUSES.has(row.contract_status ?? '') && (
-                      <span style={{ display: 'block', fontFamily: 'var(--font-ui)', fontSize: 'var(--text-xs)', color: 'var(--ink-faint)' }}>
-                        {row.closed_at ? `sin venta · ${STAGE_LABEL[row.session_stage ?? ''] ?? row.session_stage}` : 'sesión abierta'}
-                      </span>
-                    )}
-                  </td>
+                  <td className="model">{[row.name, row.apellido].filter(Boolean).join(' ') || 'Sin nombre'}</td>
                   <td className="mono">{formatPhoneMX(row.phone)}</td>
                   <td className="mono">{dateMX(row.registrada.slice(0, 10))}</td>
-                  <td className="mono">{row.wedding_date ? dateMX(row.wedding_date) : '—'}</td>
+                  <td><span className={`bdg ${STATUS_TONE[status]}`}>{STATUS_LABEL[status]}</span></td>
                   <td className="mono">{row.total_cents > 0 ? money(row.total_cents) : '—'}</td>
                   <td className="mono">{row.balance_cents > 0 ? money(row.balance_cents) : row.total_cents > 0 ? 'liquidado' : '—'}</td>
                 </tr>
-              ))}
+                )
+              })}
               {sorted.length === 0 && (
                 <tr>
                   <td colSpan={COLS.length} style={{ padding: 40, textAlign: 'center', color: 'var(--ink-faint)' }}>
@@ -496,7 +517,7 @@ function ContractView({ folio, onBack }: { folio: string; onBack: () => void }) 
   )
 }
 
-interface AccessoryItem { id: number; code: string; name: string; price_cents: number; needs_review: number }
+interface AccessoryItem { id: number; code: string; name: string; price_cents: number; needs_review: number; photos: string[] }
 
 /** Item 18: sólo accesorios después de firmado — ni sesión ni medidas hacen falta. */
 function AddAccessory({ folio, onClose, onAdded }: { folio: string; onClose: () => void; onAdded: () => Promise<void> }) {
@@ -517,7 +538,7 @@ function AddAccessory({ folio, onClose, onAdded }: { folio: string; onClose: () 
       <div className="grid grid--tight">
         {items.map((a) => (
           <div key={a.id} className="pick-card">
-            <GownArt seed={a.id} />
+            {a.photos[0] ? <img src={`/api/files/${a.photos[0]}`} alt="" className="art" /> : <GownArt seed={a.id} />}
             <span className="meta" style={{ display: 'block' }}>
               <span className="name" style={{ display: 'block' }}>{a.name}</span>
               <span className="brand" style={{ display: 'block' }}>{a.code}</span>

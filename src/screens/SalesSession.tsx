@@ -7,6 +7,7 @@ import { ActionButton } from '../components/ActionButton'
 import { PhotoCapture } from '../components/PhotoCapture'
 import { Dialog } from '../components/Dialog'
 import { GownArt } from '../components/GownArt'
+import { PhotoGallery } from '../components/PhotoGallery'
 import { Brandmark } from '../components/Brandmark'
 import { IconButton } from '../components/IconButton'
 import { PinPad } from '../components/PinPad'
@@ -34,6 +35,35 @@ export interface KioskItem {
   id: number; code: string; name: string; brand: string | null; kind: 'dress' | 'accessory'
   acquisition: 'unidad' | 'pedido'; size: string | null; cut: string | null; color: string | null
   price_cents: number; held_by_other: boolean; held_by_me: boolean; favorite: boolean
+  photos: string[]
+}
+
+/** La miniatura de una tarjeta: su foto principal, o el dibujo genérico si no tiene. */
+function ItemArt({ item, className = 'art' }: { item: KioskItem; className?: string }) {
+  const photo = item.photos[0]
+  return photo ? <img src={`/api/files/${photo}`} alt="" className={className} /> : <GownArt seed={item.id} className={className} />
+}
+
+/**
+ * El tipo de accesorio, para los chips rápidos de «Agregar accesorios» —
+ * mismas categorías que el desplegable «Accesorios» del sitio (mantillas,
+ * bolero, capa, tiaras, cintos). No hay un campo `type` en la base: se lee
+ * del nombre, igual que el importador del catálogo decide si algo es
+ * accesorio cuando el sitio no le dio categoría.
+ */
+const ACCESSORY_TYPES: [RegExp, string][] = [
+  [/mantilla/i, 'Mantillas'],
+  [/bolero/i, 'Bolero'],
+  [/\bcapa\b/i, 'Capa'],
+  [/tiara|tocado|corona/i, 'Tiaras'],
+  [/cint(?:o|ur[oó]n)/i, 'Cintos'],
+  [/velo/i, 'Velos'],
+  [/crinolina/i, 'Crinolina'],
+  [/liga/i, 'Ligas'],
+]
+function accessoryType(item: KioskItem): string {
+  const hay = `${item.name} ${item.code}`
+  return ACCESSORY_TYPES.find(([re]) => re.test(hay))?.[1] ?? 'Otros'
 }
 
 interface SessionState {
@@ -152,7 +182,7 @@ export function SalesSession() {
   const onClosed = () => { localStorage.removeItem(SESSION_KEY); navigate('/') }
 
   if (stage === 'browsing' || stage === 'fitting') {
-    return <Kiosk sessionId={sessionId} onChange={refresh} onClosed={onClosed} onLeave={() => navigate('/')} />
+    return <Kiosk sessionId={sessionId} onChange={refresh} onClosed={onClosed} />
   }
   // No hay pantalla de «Anticipo»: firmar cierra la sesión en el servidor y
   // `SignContract` navega derecho a la ficha de la clienta con el folio que
@@ -200,8 +230,8 @@ export function SalesSession() {
 type KioskView =
   | { at: 'catalog' }
   | { at: 'favorites' }
-  | { at: 'handover'; then: 'select' | 'leave' }
-  | { at: 'pin'; then: 'select' | 'leave' }
+  | { at: 'handover' }
+  | { at: 'pin' }
   | { at: 'selection'; pin: string }
 
 /**
@@ -210,10 +240,11 @@ type KioskView =
  * vestido, sus datos, el contrato— pasa por el NIP de la vendedora, que además
  * se vuelve a comprobar en el servidor al crear el contrato.
  */
-function Kiosk({ sessionId, onChange, onClosed, onLeave }: {
-  sessionId: number; onChange: () => Promise<void>; onClosed: () => void; onLeave: () => void
+function Kiosk({ sessionId, onChange, onClosed }: {
+  sessionId: number; onChange: () => Promise<void>; onClosed: () => void
 }) {
   const { signOutToEntry } = useSession()
+  const closeRef = useRef<CloseControlHandle>(null)
   const [items, setItems] = useState<KioskItem[]>([])
   const [showPrices, setShowPrices] = useState(true)
   const [filter, setFilter] = useState('todos')
@@ -235,7 +266,11 @@ function Kiosk({ sessionId, onChange, onClosed, onLeave }: {
 
   const dresses = useMemo(() => items.filter((i) => i.kind === 'dress'), [items])
   const accessories = useMemo(() => items.filter((i) => i.kind === 'accessory'), [items])
-  const favs = dresses.filter((d) => d.favorite)
+  // «Favoritos» son todo lo que se marcó con el corazón, vestidos y
+  // accesorios juntos: antes sólo contaba vestidos y un accesorio marcado
+  // desaparecía sin dejar rastro — no en «Mis favoritos», no como accesorio
+  // ya elegido al llegar a «Elige el vestido».
+  const favs = items.filter((i) => i.favorite)
 
   const filters = useMemo(() => {
     const cuts = [...new Set(dresses.map((d) => d.cut).filter(Boolean))] as string[]
@@ -289,7 +324,7 @@ function Kiosk({ sessionId, onChange, onClosed, onLeave }: {
           onClick={() => void openDetail(item)}
           aria-label={`Ver ${item.name}`}
         >
-          <GownArt seed={item.id} />
+          <ItemArt item={item} />
           <span className="meta" style={{ display: 'block' }}>
             <span className="name">{item.name}</span>
             <span className="brand" style={{ display: 'block' }}>
@@ -300,9 +335,6 @@ function Kiosk({ sessionId, onChange, onClosed, onLeave }: {
         </button>
         {item.held_by_other && <span className="tag">La está viendo otra clienta</span>}
         {!item.held_by_other && item.held_by_me && <span className="tag">Lo estás viendo</span>}
-        {!item.held_by_other && !item.held_by_me && item.acquisition === 'pedido' && (
-          <span className="tag">Se manda a hacer</span>
-        )}
         {/*
           El corazón es su propio botón, hermano del que abre el detalle, no
           un hijo suyo: tocarlo no debe encoger la tarjeta entera, sólo él
@@ -337,14 +369,7 @@ function Kiosk({ sessionId, onChange, onClosed, onLeave }: {
           onSubmit={async (pin) => {
             setPinError(null)
             try {
-              if (view.then === 'leave') {
-                // Salir del kiosco no es un traspaso: sólo comprueba el NIP.
-                await post('/auth/verify-pin', { pin })
-                onLeave()
-                return
-              }
-              // Esto sí es el traspaso, y queda escrito en la sesión con los
-              // favoritos que se van al probador.
+              // Queda escrito en la sesión con los favoritos que se van al probador.
               await post(`/sessions/${sessionId}/handover`, { pin })
               await onChange()
               setView({ at: 'selection', pin })
@@ -363,7 +388,7 @@ function Kiosk({ sessionId, onChange, onClosed, onLeave }: {
       <SelectionScreen
         sessionId={sessionId}
         pin={view.pin}
-        favorites={favs}
+        favorites={favs.filter((f) => f.kind === 'dress')}
         accessories={accessories}
         showPrices={showPrices}
         onBack={() => setView({ at: 'catalog' })}
@@ -375,10 +400,12 @@ function Kiosk({ sessionId, onChange, onClosed, onLeave }: {
   return (
     <Screen
       title={<Brandmark />}
-      // La novia trae la tableta: para salir del kiosco también hace falta el
-      // NIP, si no bastaría un toque para llegar a los contratos.
-      onBack={() => setView({ at: 'handover', then: 'leave' })}
-      backLabel="Salir del kiosco"
+      // Antes esto abría «Pásale la tablet a la vendedora» — un camino
+      // completamente distinto de la (X), que cierra la sesión. Los dos
+      // deben llevar al mismo lugar: cerrar la sesión es la única forma de
+      // salir de aquí, sea por dónde se toque.
+      onBack={() => closeRef.current?.open()}
+      backLabel="Cerrar sesión"
       // Del kiosco, no del sistema: van en la barra, no en el pie, porque el
       // pie es donde vive «Ver mis favoritos» y tiene que verse siempre, no
       // sólo al llegar al final de la lista.
@@ -391,15 +418,15 @@ function Kiosk({ sessionId, onChange, onClosed, onLeave }: {
             ancho) y la píldora se cortaba a la mitad. La cruz libera el ancho
             que la píldora necesita.
           */}
-          <CloseControl sessionId={sessionId} onClosed={onClosed} trigger={(open) => <IconButton kind="close" label="Cerrar sesión" onClick={open} />} />
+          <CloseControl ref={closeRef} sessionId={sessionId} onClosed={onClosed} askBride trigger={(open) => <IconButton kind="close" label="Cerrar sesión" onClick={open} />} />
         </div>
       }
       footer={
         <div className="tray">
           <p>
             {favs.length === 0
-              ? 'Toca el corazón de los vestidos que te gusten. La vendedora los traerá para probar.'
-              : `${favs.length} ${favs.length === 1 ? 'vestido guardado' : 'vestidos guardados'}. Muéstrale la lista a la vendedora cuando quieras probártelos.`}
+              ? 'Toca el corazón de lo que te guste. La vendedora lo traerá para probar.'
+              : `${favs.length} ${favs.length === 1 ? 'favorito guardado' : 'favoritos guardados'}. Muéstrale la lista a la vendedora cuando quieras probártelos.`}
           </p>
           <button type="button" className="btn-main" disabled={favs.length === 0} onClick={() => setView({ at: 'favorites' })}>
             {favs.length === 0 ? 'Ver mis favoritos' : `Ver mis favoritos (${favs.length})`}
@@ -435,7 +462,7 @@ function Kiosk({ sessionId, onChange, onClosed, onLeave }: {
       {open && (
         <Dialog title={open.name} onCancel={() => setOpen(null)} big>
           <div className="detail">
-            <div><GownArt seed={open.id} /></div>
+            <div><PhotoGallery photos={open.photos} itemId={open.id} alt={open.name} /></div>
             <div>
               <p style={{ color: 'var(--ink-faint)', margin: 0 }}>{open.brand}</p>
               <dl>
@@ -444,14 +471,7 @@ function Kiosk({ sessionId, onChange, onClosed, onLeave }: {
                 <dt>Talla</dt><dd>{open.size ?? '—'}</dd>
                 <dt>Corte</dt><dd>{open.cut ?? '—'}</dd>
                 <dt>Color</dt><dd>{open.color ?? '—'}</dd>
-                <dt>Disponibilidad</dt>
-                <dd>
-                  {open.acquisition === 'pedido'
-                    ? 'Se manda a hacer: otra novia puede encargarlo también'
-                    : open.held_by_other
-                      ? 'La está viendo otra clienta'
-                      : 'Disponible en esta sucursal'}
-                </dd>
+                {open.held_by_other && (<><dt>Disponibilidad</dt><dd>La está viendo otra clienta</dd></>)}
               </dl>
               <div className="row">
                 <button type="button" className="btn-main" onClick={() => { void toggleFavorite(open); setOpen(null) }}>
@@ -469,7 +489,7 @@ function Kiosk({ sessionId, onChange, onClosed, onLeave }: {
           showPrices={showPrices}
           onClose={() => setView({ at: 'catalog' })}
           onRemove={toggleFavorite}
-          onCall={() => setView({ at: 'handover', then: 'select' })}
+          onCall={() => setView({ at: 'handover' })}
         />
       )}
 
@@ -484,7 +504,7 @@ function Kiosk({ sessionId, onChange, onClosed, onLeave }: {
               <button type="button" className="btn-quiet" style={{ flex: 1 }} onClick={() => setView({ at: 'catalog' })}>
                 De acuerdo
               </button>
-              <button type="button" className="btn-main" style={{ flex: 1 }} onClick={() => setView({ at: 'pin', then: view.then })}>
+              <button type="button" className="btn-main" style={{ flex: 1 }} onClick={() => setView({ at: 'pin' })}>
                 Soy la vendedora
               </button>
             </div>
@@ -523,20 +543,27 @@ function FavoritesReview({ favs, showPrices, onClose, onRemove, onCall }: {
     >
       <p style={{ color: 'var(--ink-soft)', margin: '0 0 var(--space-11)' }}>
         {favs.length === 1
-          ? 'La vendedora traerá este vestido al probador.'
-          : 'La vendedora traerá estos vestidos al probador.'}
+          ? 'La vendedora lo traerá al probador.'
+          : 'La vendedora traerá todo esto al probador.'}
       </p>
 
-      {/* Se desliza de lado: nunca empuja el botón fuera de la pantalla. */}
+      {/*
+        Se desliza de lado: nunca empuja el botón fuera de la pantalla. Cada
+        tarjeta es idéntica a sus vecinas — misma foto, luego el nombre, luego
+        el precio, nada más — así ninguna se ve más alta o más ancha que las
+        demás según cuánto texto le tocó. Los accesorios llevan su propia
+        etiqueta: en esta fila viven junto a los vestidos y sin ella no se
+        distinguían.
+      */}
       <ScrollRail>
         {favs.map((d) => (
           <figure key={d.id} className="fav-rail__item">
-            <GownArt seed={d.id} />
+            <div style={{ position: 'relative' }}>
+              <ItemArt item={d} />
+              {d.kind === 'accessory' && <span className="tag tag--right">Accesorio</span>}
+            </div>
             <figcaption>{d.name}</figcaption>
-            <p className="muted" style={{ fontSize: 'var(--text-sm)' }}>
-              {[d.acquisition === 'pedido' ? 'Se manda a hacer' : d.size && `talla ${d.size}`, showPrices && money(d.price_cents)]
-                .filter(Boolean).join(' · ')}
-            </p>
+            {showPrices && <p className="mono">{money(d.price_cents)}</p>}
             <button
               type="button"
               className="btn-quiet"
@@ -571,10 +598,20 @@ function SelectionScreen({ sessionId, pin, favorites, accessories, showPrices, o
   // Se marca aquí, antes de que lo toque.
   const pickable = favorites.filter((f) => !f.held_by_other)
   const [dress, setDress] = useState<number | null>(pickable.length === 1 ? (pickable[0] as KioskItem).id : null)
-  const [picked, setPicked] = useState<number[]>([])
+  // Los accesorios que la novia ya marcó con el corazón en el catálogo llegan
+  // aquí preseleccionados: no hace falta que la vendedora los vuelva a buscar
+  // y marcar uno por uno.
+  const [picked, setPicked] = useState<number[]>(() => accessories.filter((a) => a.favorite).map((a) => a.id))
   const [catalogOpen, setCatalogOpen] = useState(false)
+  const [accType, setAccType] = useState('Todos')
   const [openAccessory, setOpenAccessory] = useState<KioskItem | null>(null)
   const [confirming, setConfirming] = useState(false)
+
+  const accessoryTypes = useMemo(
+    () => ['Todos', ...[...new Set(accessories.map(accessoryType))].sort()],
+    [accessories],
+  )
+  const visibleAccessories = accType === 'Todos' ? accessories : accessories.filter((a) => accessoryType(a) === accType)
 
   const chosenDress = favorites.find((f) => f.id === dress) ?? null
   const chosenAccessories = accessories.filter((a) => picked.includes(a.id))
@@ -611,7 +648,7 @@ function SelectionScreen({ sessionId, pin, favorites, accessories, showPrices, o
               disabled={d.held_by_other}
               onClick={() => setDress(d.id)}
             >
-              <GownArt seed={d.id} />
+              <ItemArt item={d} />
               <span className="meta" style={{ display: 'block' }}>
                 <span className="name" style={{ display: 'block' }}>{d.name}</span>
                 <span className="brand" style={{ display: 'block' }}>
@@ -645,35 +682,57 @@ function SelectionScreen({ sessionId, pin, favorites, accessories, showPrices, o
       </div>
 
       {/*
-        Misma vista que el catálogo del kiosco: retícula de foto grande, y el
-        detalle —foto más grande todavía, con la descripción— al tocar la
-        tarjeta, en vez de la fila chica de antes con un chip de «Agregar» de
-        un toque. Aquí la vendedora también quiere ver bien lo que ofrece.
+        Misma vista que el catálogo del kiosco: retícula de foto grande, el
+        corazón para marcarlo ahí mismo — no un marco alrededor de toda la
+        tarjeta, que se confundía con «se está cargando» — y el detalle,
+        con foto más grande y la descripción, al tocar la tarjeta.
       */}
       {catalogOpen && (
         <Dialog title="Accesorios" onCancel={() => setCatalogOpen(false)} closeLabel="Listo" big>
           {accessories.length === 0 ? (
             <p className="lede">No hay accesorios en esta sucursal.</p>
           ) : (
-            <div className="grid grid--tight">
-              {accessories.map((a) => (
-                <button
-                  key={a.id}
-                  type="button"
-                  className={`pick-card${picked.includes(a.id) ? ' is-chosen' : ''}`}
-                  aria-pressed={picked.includes(a.id)}
-                  onClick={() => setOpenAccessory(a)}
-                >
-                  <GownArt seed={a.id} />
-                  <span className="meta" style={{ display: 'block' }}>
-                    <span className="name" style={{ display: 'block' }}>{a.name}</span>
-                    <span className="brand" style={{ display: 'block' }}>{a.code}</span>
-                    {showPrices && <span className="price" style={{ display: 'block' }}>{money(a.price_cents)}</span>}
-                    {picked.includes(a.id) && <span className="state">Agregado</span>}
-                  </span>
-                </button>
-              ))}
-            </div>
+            <>
+              {accessoryTypes.length > 2 && (
+                <div className="k-filters k-filters--sheet" style={{ padding: '0 0 var(--space-8)' }}>
+                  {accessoryTypes.map((t) => (
+                    <button key={t} type="button" className="chip" aria-pressed={accType === t} onClick={() => setAccType(t)}>
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className="grid grid--tight">
+                {visibleAccessories.map((a) => (
+                  <div key={a.id} className="card">
+                    <button
+                      type="button"
+                      className="card-hit"
+                      style={{ display: 'block', width: '100%', textAlign: 'left', padding: 0 }}
+                      onClick={() => setOpenAccessory(a)}
+                      aria-label={`Ver ${a.name}`}
+                    >
+                      <ItemArt item={a} />
+                      <span className="meta" style={{ display: 'block' }}>
+                        <span className="name">{a.name}</span>
+                        <span className="brand" style={{ display: 'block' }}>{a.code}</span>
+                        {showPrices && <span className="price" style={{ display: 'block' }}>{money(a.price_cents)}</span>}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      className="heart"
+                      aria-pressed={picked.includes(a.id)}
+                      aria-label={`Agregar ${a.name}`}
+                      onClick={() => setPicked((p) => (p.includes(a.id) ? p.filter((id) => id !== a.id) : [...p, a.id]))}
+                    >
+                      {picked.includes(a.id) ? '♥' : '♡'}
+                    </button>
+                  </div>
+                ))}
+                {visibleAccessories.length === 0 && <p className="lede">Nada con ese filtro.</p>}
+              </div>
+            </>
           )}
         </Dialog>
       )}
@@ -681,7 +740,7 @@ function SelectionScreen({ sessionId, pin, favorites, accessories, showPrices, o
       {openAccessory && (
         <Dialog title={openAccessory.name} onCancel={() => setOpenAccessory(null)} big>
           <div className="detail">
-            <div><GownArt seed={openAccessory.id} /></div>
+            <div><PhotoGallery photos={openAccessory.photos} itemId={openAccessory.id} alt={openAccessory.name} /></div>
             <div>
               <p style={{ color: 'var(--ink-faint)', margin: 0 }}>{openAccessory.brand}</p>
               <dl>
@@ -1224,7 +1283,14 @@ export const CloseControl = forwardRef<CloseControlHandle, {
   sessionId: number
   onClosed: () => void
   trigger?: (open: () => void) => ReactNode
-}>(function CloseControl({ sessionId, onClosed, trigger }, ref) {
+  /**
+   * Sólo el cierre desde el kiosco: es el único punto donde la sesión puede
+   * llegar a cerrarse sin que nadie haya pasado por «Datos de la novia»
+   * todavía — nunca hay un nombre ni un teléfono guardados. En cualquier otro
+   * paso, ya se capturaron y volver a pedirlos sería repetir el trabajo.
+   */
+  askBride?: boolean
+}>(function CloseControl({ sessionId, onClosed, trigger, askBride }, ref) {
   const [step, setStep] = useState<'closed' | 'pin' | 'reason'>('closed')
   const [pin, setPin] = useState('')
   const [outcome, setOutcome] = useState<'won' | 'lost' | null>(null)
@@ -1233,12 +1299,19 @@ export const CloseControl = forwardRef<CloseControlHandle, {
   const [disposed, setDisposed] = useState(false)
   const [needsDisposal, setNeedsDisposal] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [name, setName] = useState('')
+  const [apellido, setApellido] = useState('')
+  const [phone, setPhone] = useState('')
+  const [triedBride, setTriedBride] = useState(false)
 
   function reset() { setStep('closed'); setPin(''); setError(null) }
 
   useImperativeHandle(ref, () => ({ open: () => setStep('pin') }), [])
 
   const detail = outcome === 'won' ? reason : note
+  // No entra en `ready`: a diferencia del resto, este par se marca en rojo al
+  // primer intento en vez de dejar el botón apagado sin decir por qué.
+  const brideOk = !askBride || (name.trim().length > 0 && phone.replace(/\D/g, '').length >= 10)
   const ready = Boolean(outcome) && Boolean(reason.trim()) && Boolean(detail.trim()) && (!needsDisposal || disposed)
 
   return (
@@ -1261,6 +1334,27 @@ export const CloseControl = forwardRef<CloseControlHandle, {
 
       {step === 'reason' && (
         <Dialog title="¿Cómo terminó?" onCancel={reset} closeLabel="Cancelar" narrow>
+          {/*
+            Sólo aquí: en el resto de los pasos ya se sabe quién es. Sin esto
+            una sesión cerrada desde el kiosco no dejaba ni nombre ni teléfono
+            — no había forma de encontrarla después en Clientes.
+          */}
+          {askBride && (
+            <>
+              <div className="two">
+                <Field label="Nombre de la novia" invalid={triedBride && !name.trim()}>
+                  {(id) => <input id={id} type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ana" />}
+                </Field>
+                <Field label="Apellido">
+                  {(id) => <input id={id} type="text" value={apellido} onChange={(e) => setApellido(e.target.value)} placeholder="García" />}
+                </Field>
+              </div>
+              <Field label="Teléfono" invalid={triedBride && phone.replace(/\D/g, '').length < 10}>
+                {(id) => <input id={id} type="tel" inputMode="numeric" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="10 dígitos" />}
+              </Field>
+            </>
+          )}
+
           <Chips
             label="Resultado"
             options={[{ value: 'won' as const, label: 'Se vendió' }, { value: 'lost' as const, label: 'No se vendió' }]}
@@ -1298,10 +1392,15 @@ export const CloseControl = forwardRef<CloseControlHandle, {
             <ActionButton
               disabled={!ready}
               onAction={async () => {
+                if (askBride && !brideOk) {
+                  setTriedBride(true)
+                  throw new ApiError('Falta el nombre o el teléfono de la novia.', 400, 'incomplete')
+                }
                 try {
                   await post(`/sessions/${sessionId}/close`, {
                     outcome, reason: reason.trim(), note: note.trim() || undefined, pin,
                     sheets_disposed: disposed || undefined,
+                    ...(askBride ? { name: name.trim(), apellido: apellido.trim() || undefined, phone: phone.trim() } : {}),
                   })
                   onClosed()
                 } catch (err) {

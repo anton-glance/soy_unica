@@ -1,18 +1,58 @@
-import { Hono } from 'hono'
+import { Hono, type Context } from 'hono'
 import { readJson } from '../lib/http'
 import type { AppEnv } from '../lib/env'
 import { all, one, run } from '../lib/db'
 import { auditStmt } from '../lib/audit'
 import { badRequest, notFound } from '../lib/errors'
+import { requireOwner } from '../lib/auth'
 import { addDays, isDate, todayISO, weekStart } from '../lib/dates'
+import { csvResponse, toCsv } from '../lib/csv'
 
 const app = new Hono<AppEnv>()
+
+interface ExpenseRow { id: number; spent_at: string; category: string; amount_cents: number; vendor: string | null; note: string | null; file_id: string | null }
 
 app.get('/categories', async (c) => {
   const s = c.get('session')
   const rows = await all<{ id: number; name: string }>(
     c.env.DB, `SELECT id, name FROM expense_categories WHERE store_id = ? AND active = 1 ORDER BY sort, name`, s.store)
   return c.json({ categories: rows })
+})
+
+function periodRange(c: Context<AppEnv>): [string, string] {
+  const from = c.req.query('from') ?? ''
+  const to = c.req.query('to') ?? ''
+  if (!isDate(from) || !isDate(to)) throw badRequest('Faltan las fechas del periodo.')
+  if (from > to) throw badRequest('«Desde» no puede ser posterior a «hasta».')
+  return [from, to]
+}
+
+/** El rollo completo: todos los gastos de la sucursal en el periodo, sin agrupar por día. */
+app.get('/period', requireOwner, async (c) => {
+  const s = c.get('session')
+  const [from, to] = periodRange(c)
+  const rows = await all<ExpenseRow>(
+    c.env.DB,
+    `SELECT id, spent_at, category, amount_cents, vendor, note, file_id
+     FROM expenses WHERE store_id = ? AND spent_at BETWEEN ? AND ?
+     ORDER BY spent_at DESC, id DESC`,
+    s.store, from, to,
+  )
+  return c.json({ from, to, expenses: rows, total_cents: rows.reduce((sum, r) => sum + r.amount_cents, 0) })
+})
+
+app.get('/export', requireOwner, async (c) => {
+  const s = c.get('session')
+  const [from, to] = periodRange(c)
+  const rows = await all<ExpenseRow>(
+    c.env.DB,
+    `SELECT id, spent_at, category, amount_cents, vendor, note, file_id
+     FROM expenses WHERE store_id = ? AND spent_at BETWEEN ? AND ?
+     ORDER BY spent_at DESC, id DESC`,
+    s.store, from, to,
+  )
+  const columns = ['id', 'spent_at', 'category', 'amount_cents', 'vendor', 'note']
+  return csvResponse('gastos.csv', toCsv(columns, rows))
 })
 
 /**

@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
-import { del, get, patch, post, put } from '../lib/api'
+import { ApiError, del, get, patch, post, put } from '../lib/api'
 import { dateMX, money, parseMoney } from '../lib/format'
 import { useSession } from '../lib/session'
 import { useNavigate } from '../lib/router'
 import { ActionButton } from '../components/ActionButton'
-import { GownArt } from '../components/GownArt'
 import { Field } from '../components/Field'
 import { Screen } from '../components/Screen'
 import { Dialog } from '../components/Dialog'
 import { PhotoSet, type Shot } from '../components/PhotoSet'
+import { PhotoGallery } from '../components/PhotoGallery'
 
 interface Item {
   id: number; code: string; name: string; brand: string | null; size: string | null
@@ -22,7 +22,7 @@ interface Item {
 
 /** What the record sheet calls each field the importer left empty. */
 const FALTA: Record<string, string> = {
-  price: 'precio', code: 'código', size: 'talla', cost: 'costo', condition: 'condición',
+  price: 'precio', code: 'código', size: 'talla', cost: 'costo', condition: 'condición', photo: 'foto',
 }
 
 function missingOf(item: Item): Set<string> {
@@ -30,7 +30,7 @@ function missingOf(item: Item): Set<string> {
 }
 
 /** These have a column of their own in the table, marked there instead. */
-const HAS_COLUMN = new Set(['size', 'price', 'cost'])
+const HAS_COLUMN = new Set(['size', 'price', 'cost', 'photo'])
 
 /** Etiqueta y color de cada estado, como en el prototipo. */
 const ST: Record<string, [string, string]> = {
@@ -40,7 +40,7 @@ const ST: Record<string, [string, string]> = {
 }
 
 const COLS = [
-  ['code', 'Código'], ['name', 'Modelo'], ['brand', 'Marca'],
+  ['photo', 'Fotos'], ['code', 'Código'], ['name', 'Modelo'], ['kind', 'Tipo'], ['brand', 'Marca'],
   ['size', 'Talla'], ['price', 'Precio'], ['status', 'Estado'], ['intake', 'Ingreso'],
 ] as const
 
@@ -126,7 +126,7 @@ export function Inventory() {
 
         <div className="row" style={{ marginBottom: 'var(--space-9)' }}>
           {reviewCount > 0 && (
-            <button type="button" className="chip chip--sm" aria-pressed={review} onClick={() => setReview(!review)}>
+            <button type="button" className="chip chip--sm chip--danger" aria-pressed={review} onClick={() => setReview(!review)}>
               Por verificar ({reviewCount})
             </button>
           )}
@@ -173,18 +173,25 @@ export function Inventory() {
               {items.map((item) => {
                 const missing = missingOf(item)
                 return (
-                <tr key={item.id} className={item.needs_review ? 'rev' : undefined} onClick={() => setOpen(item)}>
+                <tr key={item.id} onClick={() => setOpen(item)}>
+                  <td style={{ textAlign: 'center' }}>
+                    {missing.has('photo')
+                      ? <span aria-label="Sin foto" style={{ color: 'var(--clay)', fontSize: '20px', fontWeight: 'var(--weight-medium)' }}>✗</span>
+                      : <span aria-label="Con foto" style={{ color: 'var(--sage)', fontSize: '20px', fontWeight: 'var(--weight-medium)' }}>✓</span>}
+                  </td>
                   <td className="mono">{item.code}</td>
                   <td className="model">
                     {item.name}
-                    {item.kind === 'accessory' && (
-                      <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-xs)', color: 'var(--ink-faint)' }}> accesorio</span>
-                    )}
                     {[...missing].some((f) => !HAS_COLUMN.has(f)) && (
                       <span className="falta" style={{ display: 'block' }}>
                         falta {[...missing].filter((f) => !HAS_COLUMN.has(f)).map((f) => FALTA[f] ?? f).join(', ')}
                       </span>
                     )}
+                  </td>
+                  <td>
+                    <span className={`bdg ${item.kind === 'accessory' ? 'clay' : 'ok'}`}>
+                      {item.kind === 'accessory' ? 'Accesorio' : 'Vestido'}
+                    </span>
                   </td>
                   <td>{item.brand ?? '—'}</td>
                   <td>{missing.has('size') ? <span className="falta">falta</span> : (item.size ?? '—')}</td>
@@ -199,7 +206,7 @@ export function Inventory() {
               })}
               {items.length === 0 && (
                 <tr>
-                  <td colSpan={isOwner ? 8 : 7} style={{ padding: 40, textAlign: 'center', color: 'var(--ink-faint)' }}>
+                  <td colSpan={isOwner ? 10 : 9} style={{ padding: 40, textAlign: 'center', color: 'var(--ink-faint)' }}>
                     Nada coincide con esa búsqueda. Borra el filtro o agrega el artículo.
                   </td>
                 </tr>
@@ -280,9 +287,11 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
 
       <div className="inv-grid">
           <div>
-            {primary
-              ? <img src={`/api/files/${primary}`} alt="" className="art" />
-              : <GownArt seed={item.id} className="art" />}
+            <PhotoGallery
+              photos={primary ? [primary, ...photos.map((p) => p.file_id).filter((id) => id !== primary)] : photos.map((p) => p.file_id)}
+              itemId={item.id}
+              alt={item.name}
+            />
             {isOwner ? (
               <div style={{ marginTop: 'var(--space-8)' }}>
                 <label>Fotos</label>
@@ -321,7 +330,6 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
                 <div className="f3">
                   <Field label="Precio de venta" marked={missing.has('price')}>{(id) => <input id={id} type="text" inputMode="decimal" value={form.price} onChange={set('price')} />}</Field>
                   <Field label="Costo" marked={missing.has('cost')}>{(id) => <input id={id} type="text" inputMode="decimal" value={form.cost} onChange={set('cost')} />}</Field>
-                  <Field label="Estado">{(id) => <input id={id} type="text" value={ST[item.status]?.[0] ?? item.status} disabled style={{ opacity: .6 }} />}</Field>
                 </div>
                 <div className="f3">
                   <Field label="Condición" marked={missing.has('condition')}>{(id) => (
@@ -355,7 +363,9 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
 
             {!isOwner && item.notes && <p className="lede">{item.notes}</p>}
 
-            {item.acquisition === 'pedido' ? (
+            {/* El estado y su transición son cosa de la vendedora, que trae el
+                vestido en las manos; la dueña no necesita tocarlo aquí. */}
+            {!isOwner && (item.acquisition === 'pedido' ? (
               <p className="state">Los modelos por pedido no cambian de estado: se mandan a hacer.</p>
             ) : (
               <div className="row" style={{ marginTop: 'var(--space-2)' }}>
@@ -372,7 +382,7 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
                   </ActionButton>
                 ))}
               </div>
-            )}
+            ))}
 
             {isOwner ? (
               <div className="row" style={{ marginTop: 'var(--space-11)' }}>
@@ -427,18 +437,26 @@ function Info({ label, value }: { label: string; value: string }) {
 
 function AddItem({ isOwner, onClose, onAdded }: { isOwner: boolean; onClose: () => void; onAdded: (name: string) => Promise<void> }) {
   const [form, setForm] = useState({
-    code: '', name: '', brand: '', size: '', cut: '', color: '', location: '', notes: '',
-    kind: 'dress', acquisition: 'unidad', condition: 'nuevo', price: '', cost: '',
+    code: '', name: '', brand: '', size: '', cut: '', color: '', notes: '',
+    kind: 'dress', price: '', cost: '',
   })
   const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }))
   const [photos, setPhotos] = useState<Shot[]>([])
   const [primary, setPrimary] = useState<string | null>(null)
+  // Se enciende en el primer intento de guardar con algo obligatorio vacío;
+  // antes de tocar «Agregar» nada se ve en rojo todavía.
+  const [attempted, setAttempted] = useState(false)
+
+  const missingName = attempted && !form.name.trim()
+  const missingCode = attempted && !form.code.trim()
+  const missingPrice = attempted && (parseMoney(form.price) ?? 0) <= 0
+  const missingPhoto = attempted && photos.length === 0
 
   return (
     <Dialog title="Nuevo artículo" onCancel={onClose} closeLabel="Cerrar sin guardar" full big>
       <div className="f3">
-        <Field label="Modelo">{(id) => <input id={id} type="text" value={form.name} onChange={set('name')} placeholder="Madelyn" />}</Field>
+        <Field label="Modelo" invalid={missingName}>{(id) => <input id={id} type="text" value={form.name} onChange={set('name')} placeholder="Madelyn" />}</Field>
         <Field label="Marca">{(id) => <input id={id} type="text" value={form.brand} onChange={set('brand')} placeholder="Lanesta" />}</Field>
         <Field label="Tipo">{(id) => (
           <select id={id} value={form.kind} onChange={set('kind')}>
@@ -453,41 +471,23 @@ function AddItem({ isOwner, onClose, onAdded }: { isOwner: boolean; onClose: () 
         <Field label="Color">{(id) => <input id={id} type="text" value={form.color} onChange={set('color')} placeholder="Marfil" />}</Field>
       </div>
       <div className="f3">
-        <Field label="Código" hint="Tu nomenclatura: p139, s14, A12, mantilla 039">
+        <Field label="Código" hint="Tu nomenclatura: p139, s14, A12, mantilla 039" invalid={missingCode}>
           {(id) => <input id={id} type="text" value={form.code} onChange={set('code')} placeholder="p139" />}
         </Field>
-        <Field label="Precio de venta">{(id) => <input id={id} type="text" inputMode="decimal" value={form.price} onChange={set('price')} />}</Field>
+        <Field label="Precio de venta" invalid={missingPrice}>{(id) => <input id={id} type="text" inputMode="decimal" value={form.price} onChange={set('price')} />}</Field>
         {isOwner
           ? <Field label="Costo">{(id) => <input id={id} type="text" inputMode="decimal" value={form.cost} onChange={set('cost')} />}</Field>
           : <Field label="Costo">{(id) => <input id={id} type="text" value="Solo la dueña" disabled style={{ opacity: .5 }} />}</Field>}
-      </div>
-      <div className="f3">
-        <Field label="Adquisición" hint="Por pedido = se manda a hacer, nunca se aparta">
-          {(id) => (
-            <select id={id} value={form.acquisition} onChange={set('acquisition')}>
-              <option value="unidad">De unidad</option>
-              <option value="pedido">Por pedido</option>
-            </select>
-          )}
-        </Field>
-        <Field label="Condición">{(id) => (
-          <select id={id} value={form.condition} onChange={set('condition')}>
-            <option value="nuevo">Nuevo</option>
-            <option value="muestra">Muestra</option>
-            <option value="exhibicion">Exhibición</option>
-            <option value="liquidacion">Liquidación</option>
-          </select>
-        )}</Field>
-        <Field label="Ubicación">{(id) => <input id={id} type="text" value={form.location} onChange={set('location')} placeholder="Pasillo A" />}</Field>
       </div>
 
       {/*
         Las fotos: hasta cinco, una principal. Se comprimen en la tableta con el
         mismo camino que las demás fotos del sistema y se amarran al artículo
-        en cuanto queda dado de alta.
+        en cuanto queda dado de alta. Sin foto no se guarda: es lo único que la
+        novia ve en el kiosco.
       */}
-      <div className="field">
-        <label>Fotos <span className="muted">· la principal es la que se ve en el kiosco</span></label>
+      <div className={`field${missingPhoto ? ' field--invalid' : ''}`}>
+        <label>Fotos <span className="muted">· la principal es la que se ve en el kiosco</span>{missingPhoto && <span className="falta falta--invalid">obligatorio</span>}</label>
         <PhotoSet photos={photos} primary={primary} onChange={(next, mark) => { setPhotos(next); setPrimary(mark) }} />
       </div>
 
@@ -496,16 +496,22 @@ function AddItem({ isOwner, onClose, onAdded }: { isOwner: boolean; onClose: () 
       <div className="row" style={{ marginTop: 'var(--space-2)' }}>
         <ActionButton
           onAction={async () => {
+            if (!form.name.trim() || !form.code.trim() || (parseMoney(form.price) ?? 0) <= 0 || photos.length === 0) {
+              setAttempted(true)
+              throw new ApiError('Completa lo marcado en rojo antes de guardar.', 400, 'incomplete')
+            }
             const { id } = await post<{ id: number }>('/items', {
               ...form,
+              // Aquí ya no se preguntan: casi todo lo que entra por este
+              // formulario es de unidad, nuevo, y dónde vive es cosa de la
+              // dueña, no un campo que llenar cada vez.
+              acquisition: 'unidad', condition: 'nuevo',
               price_cents: parseMoney(form.price) ?? 0,
               cost_cents: isOwner ? (parseMoney(form.cost) ?? 0) : undefined,
             })
-            if (photos.length > 0) {
-              await put(`/items/${id}/photos`, {
-                photos: photos.map((p) => ({ file_id: p.file_id, is_primary: p.file_id === primary })),
-              })
-            }
+            await put(`/items/${id}/photos`, {
+              photos: photos.map((p) => ({ file_id: p.file_id, is_primary: p.file_id === primary })),
+            })
             await onAdded(form.name)
           }}
         >

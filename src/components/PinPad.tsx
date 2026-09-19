@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 
 /**
  * El teclado del NIP. Es el mismo en los tres lugares donde se pide: al entrar,
@@ -21,9 +21,15 @@ export function PinPad({
 }) {
   const [pin, setPin] = useState('')
   const [local, setLocal] = useState<string | null>(null)
+  // El error del NIP anterior vive donde vivían los puntos: en cuanto se
+  // vuelve a teclear, tiene que apagarse solo, o se encimaría con los puntos
+  // nuevos que aparecen en ese mismo lugar.
+  const [dismissed, setDismissed] = useState(false)
+  useEffect(() => { setDismissed(false) }, [error])
 
   const press = (digit: string) => {
     setLocal(null)
+    setDismissed(true)
     setPin((current) => (current.length >= 6 ? current : current + digit))
   }
 
@@ -40,10 +46,19 @@ export function PinPad({
   return (
     <div className="pin-stage">
       <div className="pin-anchor">
+        {/*
+          Dos mensajes, dos lugares: el de «NIP incorrecto» (el que manda
+          quien usa esto) ocupa el renglón de los puntos —siempre están
+          vacíos cuando aparece— y se apaga solo en cuanto se vuelve a
+          teclear, antes de que un punto nuevo llegue a compartir su lugar.
+          El de «escribe tu NIP» es de aquí mismo, sobre un pin a medio
+          escribir, así que se queda en su propio renglón de siempre.
+        */}
         <div className="pindots" aria-hidden="true">
+          {!dismissed && error && <p className="err pin-error" role="alert">{error}</p>}
           {Array.from({ length: pin.length }, (_, i) => <span key={i} />)}
         </div>
-        <p className="err" role="alert">{local ?? error ?? ''}</p>
+        <p className="err" role="alert">{local ?? ''}</p>
 
         <div className="pinpad">
           {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((digit) => (

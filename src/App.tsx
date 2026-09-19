@@ -8,6 +8,7 @@ import { ClientsModule } from './screens/Clients'
 import { Expenses } from './screens/Expenses'
 import { Settings } from './screens/Settings'
 import { Reports } from './screens/Reports'
+import { PaymentsLedger, ExpensesLedger } from './screens/Ledgers'
 import { SalesSession } from './screens/SalesSession'
 import { PrintMedidas } from './screens/PrintMedidas'
 import { PrintContrato } from './screens/PrintContrato'
@@ -38,6 +39,8 @@ function Routes({ path }: { path: string }) {
   if (path.startsWith('/sesion')) return <SalesSession />
   if (path.startsWith('/clientes')) return <ClientsModule />
   if (path.startsWith('/inventario')) return <Inventory />
+  if (path.startsWith('/pagos-todos')) return <PaymentsLedger />
+  if (path.startsWith('/gastos-todos')) return <ExpensesLedger />
   if (path.startsWith('/gastos')) return <Expenses />
   if (path.startsWith('/ajustes')) return <Settings />
   if (path.startsWith('/reporte')) return <Reports />

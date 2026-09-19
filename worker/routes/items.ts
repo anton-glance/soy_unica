@@ -55,7 +55,8 @@ function forRole<T extends { cost_cents?: number }>(row: T, role: string): T {
 export async function markReview(db: D1Database, id: number): Promise<string[]> {
   const item = await one<ItemRow>(db, `SELECT * FROM items WHERE id = ?`, id)
   if (!item) return []
-  const missing = reviewFields(item)
+  const photo = await one<{ n: number }>(db, `SELECT COUNT(*) AS n FROM item_photos WHERE item_id = ?`, id)
+  const missing = reviewFields({ ...item, has_photo: (photo?.n ?? 0) > 0 })
   await run(
     db, `UPDATE items SET needs_review = ?, review_fields = ? WHERE id = ?`,
     missing.length > 0 ? 1 : 0, missing.length > 0 ? missing.join(',') : null, id,
@@ -127,7 +128,7 @@ app.get('/', async (c) => {
   if (review) where.push('needs_review = 1')
 
   const columns: Record<string, string> = {
-    code: 'code', name: 'name', brand: 'brand', price: 'price_cents',
+    code: 'code', name: 'name', kind: 'kind', brand: 'brand', price: 'price_cents',
     status: 'status', size: 'size', intake: 'intake_date',
   }
   const orderBy = columns[sort] ?? 'code'
@@ -138,9 +139,13 @@ app.get('/', async (c) => {
    * within those the ones with no price come first: a priceless item is the one
    * that cannot be sold at all, so it is the one worth fixing next.
    */
-  const rows = await all<ItemRow>(
+  const rows = await all<ItemRow & { photo_ids: string | null }>(
     c.env.DB,
-    `SELECT * FROM items WHERE ${where.join(' AND ')}
+    `SELECT items.*,
+            (SELECT GROUP_CONCAT(file_id) FROM (
+               SELECT file_id FROM item_photos WHERE item_id = items.id ORDER BY is_primary DESC, sort
+             )) AS photo_ids
+       FROM items WHERE ${where.join(' AND ')}
       ORDER BY needs_review DESC,
                (needs_review = 1 AND price_cents <= 0) DESC,
                ${orderBy} ${dir}
@@ -157,7 +162,11 @@ app.get('/', async (c) => {
     `SELECT status, COUNT(*) AS n FROM items WHERE ${shared.join(' AND ')} GROUP BY status`,
     ...sharedArgs,
   )
-  return c.json({ items: rows.map((r) => forRole(r, s.role)), counts, review_count: review_count?.n ?? 0 })
+  return c.json({
+    items: rows.map(({ photo_ids, ...r }) => ({ ...forRole(r, s.role), photos: photo_ids ? photo_ids.split(',') : [] })),
+    counts,
+    review_count: review_count?.n ?? 0,
+  })
 })
 
 /** El inventario completo, crudo, para abrir en cualquier hoja de cálculo. */
@@ -180,11 +189,19 @@ app.get('/export', async (c) => {
 app.get('/kiosk', async (c) => {
   const s = c.get('session')
   const sessionId = Number(c.req.query('session') ?? 0)
-  const rows = await all<ItemRow>(
+  // La principal primero: es la que se ve en la tarjeta y con la que abre el
+  // detalle. `is_primary DESC` antes que `sort` porque `sort` no garantiza
+  // que la principal quede al frente (se ordena por cómo se arrastraron,
+  // no por cuál se marcó).
+  const rows = await all<ItemRow & { photo_ids: string | null }>(
     c.env.DB,
-    `SELECT * FROM items
-     WHERE store_id = ? AND status IN ('available','watching') AND kind IN ('dress','accessory')
-     ORDER BY kind, code`,
+    `SELECT i.*,
+            (SELECT GROUP_CONCAT(file_id) FROM (
+               SELECT file_id FROM item_photos WHERE item_id = i.id ORDER BY is_primary DESC, sort
+             )) AS photo_ids
+       FROM items i
+      WHERE i.store_id = ? AND i.status IN ('available','watching') AND i.kind IN ('dress','accessory')
+      ORDER BY i.kind, i.code`,
     s.store,
   )
   const store = await one<{ kiosk_show_prices: number }>(c.env.DB, `SELECT kiosk_show_prices FROM stores WHERE id = ?`, s.store)
@@ -195,8 +212,9 @@ app.get('/kiosk', async (c) => {
 
   return c.json({
     show_prices: !!store?.kiosk_show_prices,
-    items: rows.map((r) => ({
+    items: rows.map(({ photo_ids, ...r }) => ({
       ...forRole(r, s.role),
+      photos: photo_ids ? photo_ids.split(',') : [],
       // Los modelos por pedido nunca se apagan: dos novias pueden encargarlo.
       held_by_other: r.acquisition === 'unidad' && r.held_by_session !== null && r.held_by_session !== sessionId,
       held_by_me: r.held_by_session === sessionId,
@@ -302,6 +320,7 @@ app.put('/:id{[0-9]+}/photos', async (c) => {
   })
   writes.push(auditStmt(c.env.DB, { session: s, entity: 'item', entityId: item.id, action: 'photos', after: { photos: ids.length } }))
   await c.env.DB.batch(writes)
+  await markReview(c.env.DB, item.id)
 
   return c.json({ photos: ids.length })
 })

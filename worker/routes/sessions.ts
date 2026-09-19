@@ -660,7 +660,10 @@ app.post('/:id{[0-9]+}/close', async (c) => {
   const s = c.get('session')
   const row = await loadSession(c.env.DB, s.store, Number(c.req.param('id')))
   assertOpen(row)
-  const body = await readJson<{ outcome?: string; reason?: string; note?: string; sheets_disposed?: boolean; pin?: string }>(c)
+  const body = await readJson<{
+    outcome?: string; reason?: string; note?: string; sheets_disposed?: boolean; pin?: string
+    name?: string; apellido?: string; phone?: string
+  }>(c)
 
   await assertOwnPin(c.env.DB, s, String(body.pin ?? ''))
 
@@ -684,14 +687,29 @@ app.post('/:id{[0-9]+}/close', async (c) => {
     throw conflict('Confirma que destruiste las hojas de medidas firmadas de esta sesión.')
   }
 
+  // Sólo desde el kiosco puede llegar hasta aquí sin cliente todavía: si trae
+  // nombre y teléfono, se crea ahora — es la única oportunidad, porque
+  // «Datos de la novia» nunca se alcanzó.
+  let customerId = row.customer_id
+  const name = String(body.name ?? '').trim()
+  const phone = String(body.phone ?? '').trim()
+  if (!customerId && name && digitsOnly(phone).length >= 10) {
+    const created = await run(
+      c.env.DB,
+      `INSERT INTO customers (store_id, name, apellido, phone, phone_digits) VALUES (?,?,?,?,?)`,
+      s.store, name, String(body.apellido ?? '').trim(), phone, digitsOnly(phone),
+    )
+    customerId = Number(created.meta.last_row_id)
+  }
+
   const now = nowIso()
   const statements: D1PreparedStatement[] = [
     // `closed_at_stage` guarda hasta dónde llegó: 'stage' se sobreescribe con
     // 'closed' y sin esto no se distingue la que se fue viendo el catálogo de
     // la que se fue después de dar sus datos.
     stmt(c.env.DB,
-      `UPDATE kiosk_sessions SET stage = 'closed', closed_at_stage = ?, closed_at = ?, outcome = ?, reason = ?, note = ?, sheets_disposed = ? WHERE id = ?`,
-      row.stage, now, outcome, reason, String(body.note ?? '').trim() || null, needsDisposal ? 1 : null, row.id),
+      `UPDATE kiosk_sessions SET stage = 'closed', closed_at_stage = ?, closed_at = ?, outcome = ?, reason = ?, note = ?, sheets_disposed = ?, customer_id = ? WHERE id = ?`,
+      row.stage, now, outcome, reason, String(body.note ?? '').trim() || null, needsDisposal ? 1 : null, customerId, row.id),
     stmt(c.env.DB, `INSERT INTO session_events (session_id, stage, detail) VALUES (?, 'closed', ?)`, row.id, `${outcome}: ${reason} · murió en «${row.stage}»`),
     // Se sueltan los apartados, que son estado vivo del inventario. Los
     // favoritos NO se borran: son la señal de demanda de la semana y el único

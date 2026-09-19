@@ -100,11 +100,15 @@ describe('una sesión fresca sobrevive al barrido', () => {
 
 describe('el reporte la distingue de una venta perdida', () => {
   it('la cuenta aparte y no la mezcla con los motivos de no-venta', async () => {
+    // La sesión se envejeció «-9 horas»: cerca de la medianoche UTC eso cae
+    // del lado de ayer, no de hoy. `from` cubre los dos días para no
+    // depender de a qué hora del día corra esta prueba.
     const today = new Date().toISOString().slice(0, 10)
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
     const w = await owner.get<{
       conversion: { abandoned: number }
       anonimas: { reasons: { reason: string; n: number }[] }
-    }>(`/api/reports/period?from=${today}&to=${today}`)
+    }>(`/api/reports/period?from=${yesterday}&to=${today}`)
     expect(w.conversion.abandoned).toBeGreaterThanOrEqual(1)
     expect(w.anonimas.reasons.map((r) => r.reason)).toContain('abandonada (la tableta se quedó abierta)')
   })

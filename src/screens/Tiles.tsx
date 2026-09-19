@@ -15,6 +15,12 @@ const TILES = [
   { to: '/gastos', label: 'Registrar gasto' },
 ]
 
+/** El rollo completo de cada uno, con filtros por periodo — sólo la dueña. */
+const OWNER_TILES = [
+  { to: '/pagos-todos', label: 'Todos los pagos' },
+  { to: '/gastos-todos', label: 'Todos los gastos' },
+]
+
 interface OpenSession {
   id: number; stage: string; device_label: string; opened_at: string; last_seen: string
   bride_name: string | null; bride_apellido: string | null
@@ -92,6 +98,14 @@ export function Tiles() {
                 className="btn-main"
                 onClick={() => (tile.to === '/sesion' ? void startNewSession() : navigate(tile.to))}
               >
+                {tile.label}
+              </button>
+            ))}
+            {/* El rollo completo de pagos y de gastos: sólo la dueña los necesita
+                día a día — la vendedora ya los ve uno por uno, dentro de cada
+                contrato o al registrar el gasto. */}
+            {me?.role === 'owner' && OWNER_TILES.map((tile) => (
+              <button key={tile.to} type="button" className="btn-main" onClick={() => navigate(tile.to)}>
                 {tile.label}
               </button>
             ))}

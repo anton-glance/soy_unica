@@ -119,12 +119,16 @@ export function reviewFields(item: {
   cost_cents?: number | null
   condition?: string | null
   acquisition?: string | null
+  has_photo?: boolean
 }): string[] {
   const missing: string[] = []
   // Price first: it is the one that blocks a sale.
   if (!item.price_cents || item.price_cents <= 0) missing.push('price')
   const code = String(item.code ?? '').trim()
   if (!code || code.startsWith(NO_CODE_PREFIX)) missing.push('code')
+  // A photo is never optional, unlike size and cost: made-to-order or not,
+  // the kiosk has nothing to show the bride without one.
+  if (!item.has_photo) missing.push('photo')
   if (item.acquisition !== 'pedido') {
     if (!String(item.size ?? '').trim()) missing.push('size')
     if (!item.cost_cents || item.cost_cents <= 0) missing.push('cost')

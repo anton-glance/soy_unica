@@ -406,14 +406,17 @@ for (const row of rows) {
   sql.push(`  VALUES ('${row.store}', ${q(row.code)}, '${row.kind}', 'pedido', '${row.condition}', ${q(row.name)}, ${q(row.brand)}, ${q(row.cut)}, ${q(row.color)},`)
   sql.push(`          ${row.price_cents}, ${q(notes.join(' · '))}, date('now'),`)
   sql.push(`          ${row.review.length > 0 ? 1 : 0}, ${row.review.length > 0 ? q(row.review.join(',')) : 'NULL'});`)
-  for (const f of row.files ?? []) {
+  // `sort` es el índice real dentro del producto (0, 1, 2…), no sólo
+  // «principal o no»: con todas las secundarias empatadas en el mismo
+  // número, su orden entre sí quedaba a la suerte de SQLite.
+  ;(row.files ?? []).forEach((f, i) => {
     sql.push('INSERT OR IGNORE INTO files (id, store_id, kind, r2_key, mime, bytes, width, height, uploaded_by)')
     sql.push(`  SELECT ${q(f.id)}, '${row.store}', 'item_photo', ${q(f.key)}, 'image/webp', ${f.bytes}, ${f.width}, ${f.height}, u.id`)
     sql.push(`    FROM users u WHERE u.store_id = '${row.store}' AND u.role = 'owner' ORDER BY u.id LIMIT 1;`)
     sql.push('INSERT OR IGNORE INTO item_photos (item_id, file_id, sort, is_primary)')
-    sql.push(`  SELECT i.id, ${q(f.id)}, ${f.primary ? 0 : 1}, ${f.primary ? 1 : 0} FROM items i`)
+    sql.push(`  SELECT i.id, ${q(f.id)}, ${i}, ${f.primary ? 1 : 0} FROM items i`)
     sql.push(`   WHERE i.store_id = '${row.store}' AND i.code = ${q(row.code)};`)
-  }
+  })
 }
 
 // ────────────────────────────────────────────────────────────── verify ──

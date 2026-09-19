@@ -1,4 +1,4 @@
-import { Hono } from 'hono'
+import { Hono, type Context } from 'hono'
 import { readJson } from '../lib/http'
 import type { AppEnv } from '../lib/env'
 import { all, one, stmt } from '../lib/db'
@@ -7,10 +7,64 @@ import { badRequest, conflict, notFound } from '../lib/errors'
 import { requireOwner } from '../lib/auth'
 import { isDate, nowIso, todayISO } from '../lib/dates'
 import { balanceOf, buildLedger, type InstallmentRow, type PaymentRow } from '../lib/payments'
+import { csvResponse, toCsv } from '../lib/csv'
 import { loadContract, contractDetail } from './contracts'
 import { refreshReadiness } from './items'
 
 const app = new Hono<AppEnv>()
+
+interface PeriodPayment {
+  id: number; paid_at: string; amount_cents: number; method: string; receipt_folio: string | null
+  voided_at: string | null; void_reason: string | null
+  folio: string; bride: string
+}
+
+function periodRange(c: Context<AppEnv>): [string, string] {
+  const from = c.req.query('from') ?? ''
+  const to = c.req.query('to') ?? ''
+  if (!isDate(from) || !isDate(to)) throw badRequest('Faltan las fechas del periodo.')
+  if (from > to) throw badRequest('«Desde» no puede ser posterior a «hasta».')
+  return [from, to]
+}
+
+/** El rollo completo: todos los abonos de la sucursal en el periodo, cancelados incluidos. */
+app.get('/', requireOwner, async (c) => {
+  const s = c.get('session')
+  const [from, to] = periodRange(c)
+  const rows = await all<PeriodPayment>(
+    c.env.DB,
+    `SELECT p.id, p.paid_at, p.amount_cents, p.method, p.receipt_folio, p.voided_at, p.void_reason,
+            ct.folio, TRIM(cu.name || ' ' || IFNULL(cu.apellido, '')) AS bride
+       FROM payments p
+       JOIN contracts ct ON ct.id = p.contract_id
+       LEFT JOIN customers cu ON cu.id = ct.customer_id
+      WHERE p.store_id = ? AND p.paid_at BETWEEN ? AND ?
+      ORDER BY p.paid_at DESC, p.id DESC`,
+    s.store, from, to,
+  )
+  return c.json({
+    from, to, payments: rows,
+    total_cents: rows.filter((r) => !r.voided_at).reduce((sum, r) => sum + r.amount_cents, 0),
+  })
+})
+
+app.get('/export', requireOwner, async (c) => {
+  const s = c.get('session')
+  const [from, to] = periodRange(c)
+  const rows = await all<PeriodPayment>(
+    c.env.DB,
+    `SELECT p.id, p.paid_at, p.amount_cents, p.method, p.receipt_folio, p.voided_at, p.void_reason,
+            ct.folio, TRIM(cu.name || ' ' || IFNULL(cu.apellido, '')) AS bride
+       FROM payments p
+       JOIN contracts ct ON ct.id = p.contract_id
+       LEFT JOIN customers cu ON cu.id = ct.customer_id
+      WHERE p.store_id = ? AND p.paid_at BETWEEN ? AND ?
+      ORDER BY p.paid_at DESC, p.id DESC`,
+    s.store, from, to,
+  )
+  const columns = ['id', 'paid_at', 'folio', 'bride', 'amount_cents', 'method', 'receipt_folio', 'voided_at', 'void_reason']
+  return csvResponse('pagos.csv', toCsv(columns, rows))
+})
 
 /**
  * Un pago no se puede escribir sin al menos un archivo adjunto. El pago, sus

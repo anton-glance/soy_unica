@@ -122,10 +122,11 @@ manager: re-running `secret put` with a different value signs everyone out.
 npx wrangler d1 migrations apply soy-unica --remote
 ```
 
-It applies `db/migrations/0001` through `0008` in order and records them in a
-`d1_migrations` table, so re-running it is a no-op. It asks for confirmation and
-`migrations apply` has no `-y` flag; prefix it with `CI=1` if you are scripting
-it, which makes wrangler take the non-interactive path and answer yes.
+It applies every file in `db/migrations/` in order and records each one in a
+`d1_migrations` table, so re-running it is a no-op — safe to run before every
+deploy, not just the first one. It asks for confirmation and `migrations
+apply` has no `-y` flag; prefix it with `CI=1` if you are scripting it, which
+makes wrangler take the non-interactive path and answer yes.
 
 Two things this step does that are worth knowing:
 
@@ -371,6 +372,27 @@ everyone with that role.
 Log in with the reset PIN **immediately** and set a real one in Ajustes → NIP
 before anyone else finds the URL — these are the same public demo PINs called
 out in §10, committed in this repository.
+
+## 12. Updating an existing deploy
+
+Every deploy after the first is the same two commands, in this order, **every
+time** — not just when you remember there was a migration:
+
+```bash
+npx wrangler d1 migrations apply soy-unica --remote
+npm run build && npx wrangler deploy
+```
+
+Skipping the migration step is the single most common cause of a page that
+worked yesterday breaking today: the Worker code ships expecting a column or
+table that a migration adds, `wrangler deploy` says nothing about the
+database at all, and the first request that touches the new column fails with
+the generic "Algo falló de este lado" — because the server error is a raw SQL
+error (`no such column: …`), not something the app can explain to the person
+tapping the screen. If a screen that used to work suddenly shows that message
+right after a deploy, this is the first thing to check — re-run the migration
+command above; it is always safe to run again ([§"Is it safe to run
+twice?"](#is-it-safe-to-run-twice)).
 
 ---
 
