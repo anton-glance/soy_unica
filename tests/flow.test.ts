@@ -60,6 +60,24 @@ describe('entrada', () => {
   })
 })
 
+describe('reautenticarse a media tarea', () => {
+  it('confirma el NIP propio sin crear una sesión nueva', async () => {
+    await expect(tabletA.post('/api/auth/verify-pin', { pin: '1111' })).resolves.toMatchObject({ ok: true })
+  })
+
+  it('rechaza el NIP de otra persona, aunque sea válido para su propio rol', async () => {
+    // 4242 es un NIP real (de la dueña), pero no el de quien tiene esta cookie.
+    const refusal = await tabletA.refusal('/api/auth/verify-pin', { pin: '4242' })
+    expect(refusal.status).toBe(401)
+    expect(refusal.error).toBe('NIP incorrecto.')
+  })
+
+  it('exige la cookie de sesión, no basta con mandar el NIP', async () => {
+    const outsider = new Kiosk()
+    expect((await outsider.refusal('/api/auth/verify-pin', { pin: '1111' })).status).toBe(401)
+  })
+})
+
 describe('apartados entre tabletas', () => {
   it('marcar favorito aparta el vestido único', async () => {
     const items = await kioskItems(tabletA, sessionA)

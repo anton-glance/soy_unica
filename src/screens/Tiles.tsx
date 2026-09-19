@@ -5,6 +5,7 @@ import { useNavigate } from '../lib/router'
 import { useSession } from '../lib/session'
 import { Brandmark } from '../components/Brandmark'
 import { Dialog } from '../components/Dialog'
+import { IconButton } from '../components/IconButton'
 import { Screen } from '../components/Screen'
 import { CloseControl, SESSION_KEY, type CloseControlHandle } from './SalesSession'
 
@@ -78,8 +79,15 @@ export function Tiles() {
   }
 
   return (
-    // La única pantalla con (X): aquí sí significa salir del sistema.
-    <Screen title={<Brandmark />} onClose={() => void logout()} closeLabel="Salir">
+    // Regresar aquí es salir del sistema — ésta es la pantalla de arriba de
+    // todo, así que «atrás» y «salir» son la misma flecha. Los ajustes, sólo
+    // de la dueña, viven en el hueco de enfrente en vez de una (X).
+    <Screen
+      title={<Brandmark />}
+      onBack={() => void logout()}
+      backLabel="Salir"
+      right={me?.role === 'owner' && <IconButton kind="settings" label="Ajustes" onClick={() => navigate('/ajustes')} />}
+    >
       {/*
         Centrado en la pantalla de verdad —arriba/abajo y a los lados—, no
         sólo en el hueco que deja la barra: el mismo anclaje fijo que usa el
@@ -109,16 +117,17 @@ export function Tiles() {
                 {tile.label}
               </button>
             ))}
+            {/*
+              Antes era un enlace discreto al pie, del mismo tamaño que
+              «Ajustes» — se veía como una nota al margen y no como lo que es:
+              lo primero que la dueña revisa cada semana. Ocupa las dos
+              columnas y la mitad del alto de un cuadro, en verde para que no
+              se confunda con el trabajo del día a día (los cuadros negros).
+            */}
+            {me?.role === 'owner' && (
+              <button type="button" className="btn-report" onClick={() => navigate('/reporte')}>Reportes</button>
+            )}
           </div>
-
-          {/* Las dos pantallas de la dueña. No son cuadros: los cuadros son el
-              trabajo del día y esto se abre una vez por semana. */}
-          {me?.role === 'owner' && (
-            <div className="row" style={{ justifyContent: 'center' }}>
-              <button type="button" className="btn-quiet" onClick={() => navigate('/reporte')}>Reportes</button>
-              <button type="button" className="btn-quiet" onClick={() => navigate('/ajustes')}>⚙ Ajustes</button>
-            </div>
-          )}
         </div>
       </div>
 

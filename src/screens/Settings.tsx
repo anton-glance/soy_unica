@@ -120,8 +120,8 @@ function Pins({ users }: { users: SettingsData['users'] }) {
       <h3 style={{ marginBottom: 'var(--space-6)' }}>NIP</h3>
       <p className="lede">
         De 4 a 6 dígitos, escrito dos veces. El NIP nunca se guarda ni se registra en claro — si el
-        cambio queda mal escrito no hay forma de recuperarlo salvo el reinicio manual descrito en
-        <code>docs/DEPLOY.md</code>.
+        cambio queda mal escrito no hay forma de recuperarlo tú misma; avísale a quien te dé soporte
+        técnico para restablecerlo.
       </p>
       {users.map((user) => {
         const pin = pins[user.id] ?? ''
@@ -398,15 +398,15 @@ function Catalogs({ data, onSaved }: { data: SettingsData; onSaved: () => Promis
       <div className="panel">
         <h3 style={{ marginBottom: 'var(--space-6)' }}>Cargos</h3>
         <p className="lede">
-          Lo que el contrato llama «Pagos extra» en su punto 9: envío según la marca del vestido,
-          recargo por talla grande, ajustes con precio propio (bastilla, mangas, segundo planchado),
-          mantillas y crinolina sueltas, coser el cinto, porta traje. Cada uno es un monto fijo o un
-          porcentaje del precio del vestido.
+          No son artículos del inventario: son cobros de servicio que el contrato menciona en su
+          punto 9 («Pagos extra») y que nunca tienen su propio código ni su propia foto — envío según
+          la marca del vestido, recargo por talla grande, un ajuste de costura, coser el cinto, porta
+          traje. Cada uno es un monto fijo o un porcentaje del precio del vestido.
         </p>
         <p className="pill pill--brass" style={{ marginBottom: 'var(--space-9)' }}>
-          Todavía no hay dónde escogerlos al armar una venta — el plan de pago no ofrece marcarlos —
-          así que hoy activarlos o desactivarlos aquí no cambia ningún contrato. Son el catálogo de
-          cargos, listos para cuando esa pantalla exista.
+          Esta lista todavía no hace nada: ninguna pantalla de venta ofrece marcarlos, así que
+          activar o desactivar uno aquí no cambia ningún contrato. Es sólo el catálogo, guardado para
+          cuando exista esa pantalla — si no la vas a construir pronto, se puede quitar esta sección.
         </p>
         <div className="hist">
           {data.surcharges.map((s) => (

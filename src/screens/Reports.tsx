@@ -228,7 +228,13 @@ export function Reports() {
           </div>
         ))}
 
-        <h3 className="report-head">Se fueron antes de dar sus datos <span className="muted">· {data.anonimas.count}</span></h3>
+        {/*
+          Antes decía «Se fueron antes de dar sus datos», pero desde que el
+          cierre del kiosco pide nombre y teléfono, ya nadie llega aquí por
+          irse a media conversación — lo que queda es casi siempre la tableta
+          que se quedó abierta y se cerró sola.
+        */}
+        <h3 className="report-head">Sin datos de contacto <span className="muted">· {data.anonimas.count}</span></h3>
         {data.anonimas.count === 0 && <p className="muted">Ninguna.</p>}
         {data.anonimas.count > 0 && (
           <div className="panel">
