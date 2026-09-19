@@ -60,6 +60,24 @@ describe('entrada', () => {
   })
 })
 
+describe('reautenticarse a media tarea', () => {
+  it('confirma el NIP propio sin crear una sesión nueva', async () => {
+    await expect(tabletA.post('/api/auth/verify-pin', { pin: '1111' })).resolves.toMatchObject({ ok: true })
+  })
+
+  it('rechaza el NIP de otra persona, aunque sea válido para su propio rol', async () => {
+    // 4242 es un NIP real (de la dueña), pero no el de quien tiene esta cookie.
+    const refusal = await tabletA.refusal('/api/auth/verify-pin', { pin: '4242' })
+    expect(refusal.status).toBe(401)
+    expect(refusal.error).toBe('NIP incorrecto.')
+  })
+
+  it('exige la cookie de sesión, no basta con mandar el NIP', async () => {
+    const outsider = new Kiosk()
+    expect((await outsider.refusal('/api/auth/verify-pin', { pin: '1111' })).status).toBe(401)
+  })
+})
+
 describe('apartados entre tabletas', () => {
   it('marcar favorito aparta el vestido único', async () => {
     const items = await kioskItems(tabletA, sessionA)
@@ -255,6 +273,26 @@ describe('el rollo de todos los pagos, para la dueña', () => {
   it('un periodo sin nada trae la lista vacía', async () => {
     const { payments } = await owner.get<{ payments: unknown[] }>('/api/payments?from=2020-01-01&to=2020-01-02')
     expect(payments).toEqual([])
+  })
+})
+
+describe('comisiones de esta semana, en el reporte', () => {
+  const today = new Date().toISOString().slice(0, 10)
+
+  it('trae un total fijo por vendedora, sin importar qué periodo pidió la pantalla', async () => {
+    // El abono de esta misma suite ($5,000, con la regla sembrada de 3% sobre
+    // lo cobrado) ya debería contar, aunque se pida el reporte de un día
+    // cualquiera — «esta semana» de comisiones no depende de `from`/`to`.
+    const week = await owner.get<{
+      commissions_this_week: {
+        from: string; to: string; total_cents: number
+        by_seller: { seller_id: number; seller_name: string; cents: number }[]
+        excluded_monthly_rules: number
+      }
+    }>(`/api/reports/period?from=${today}&to=${today}`)
+    expect(week.commissions_this_week.total_cents).toBeGreaterThan(0)
+    expect(week.commissions_this_week.by_seller.length).toBeGreaterThan(0)
+    expect(week.commissions_this_week.excluded_monthly_rules).toBe(0)
   })
 })
 

@@ -1,7 +1,7 @@
 import type { Context, MiddlewareHandler } from 'hono'
 import { all, one } from './db'
 import { auditStmt } from './audit'
-import { forbidden, locked, unauthorized } from './errors'
+import { badRequest, forbidden, locked, unauthorized } from './errors'
 import { SESSION_TTL_SECONDS, signSession, verifyPin, verifySession } from './crypto'
 import type { AppEnv, Role, Session, StoreId } from './env'
 
@@ -167,6 +167,19 @@ export function assertNotLocked(state: LockoutState): void {
   if (state.locked) {
     throw locked(`Demasiados intentos. Espera ${state.retry_in_seconds} segundos y vuelve a marcar.`)
   }
+}
+
+/**
+ * Confirma que quien sigue en la pantalla es la misma persona que la abrió:
+ * su propio NIP, no el de cualquiera de su rol. Se usa para reautenticarse a
+ * media tarea (pasar la tableta, elegir el vestido, cerrar la sesión) sin
+ * pedir de nuevo la sucursal ni el rol.
+ */
+export async function assertOwnPin(db: D1Database, s: Session, pin: string): Promise<void> {
+  if (!/^\d{4,6}$/.test(pin)) throw badRequest('Marca tu NIP para continuar.')
+  const user = await one<{ pin_hash: string; pin_salt: string }>(
+    db, `SELECT pin_hash, pin_salt FROM users WHERE id = ? AND active = 1`, s.userId)
+  if (!user || !(await verifyPin(pin, user.pin_hash, user.pin_salt))) throw unauthorized('NIP incorrecto.', 'bad_pin')
 }
 
 export { signSession }

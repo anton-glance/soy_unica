@@ -3,7 +3,7 @@ import { readJson } from '../lib/http'
 import type { AppEnv, Role, StoreId } from '../lib/env'
 import { badRequest, unauthorized } from '../lib/errors'
 import {
-  assertNotLocked, clearedCookie, evaluateLockout, findUserByPin, issueSession,
+  assertNotLocked, assertOwnPin, clearedCookie, evaluateLockout, findUserByPin, issueSession,
   recentFailures, recordAttempt, requireSession, sessionCookie,
 } from '../lib/auth'
 import { one } from '../lib/db'
@@ -43,6 +43,18 @@ app.post('/pin', async (c) => {
   const token = await issueSession(user, c.env.JWT_SECRET)
   c.header('Set-Cookie', sessionCookie(token, new URL(c.req.url).protocol === 'https:'))
   return c.json({ store: user.store_id, role: user.role, name: user.name })
+})
+
+/**
+ * Reautenticarse a media tarea: confirma que el NIP escrito es el de quien ya
+ * inició sesión, sin crear una sesión nueva ni tocar el bloqueo por intentos.
+ * Antes esto no existía y una pantalla de cierre avanzaba a su siguiente paso
+ * con cualquier NIP, sin decir que estaba mal hasta el envío final.
+ */
+app.post('/verify-pin', requireSession, async (c) => {
+  const body = await readJson<{ pin?: string }>(c)
+  await assertOwnPin(c.env.DB, c.get('session'), String(body.pin ?? ''))
+  return c.json({ ok: true })
 })
 
 app.post('/logout', (c) => {

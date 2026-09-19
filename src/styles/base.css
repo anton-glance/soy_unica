@@ -390,6 +390,7 @@ a.chip, a.btn-main, a.btn-quiet { text-decoration: none; }
 .fav-rail__item {
   margin: 0;
   flex: 0 0 168px;
+  min-width: 0;
   scroll-snap-align: start;
   text-align: center;
 }
@@ -759,6 +760,24 @@ label .falta { margin-left: var(--space-4); font-size: var(--text-xs); color: va
    propio de aquí, porque atrás puede haber cualquier color de foto. */
 .lightbox__close { position: absolute; top: var(--space-9); right: var(--space-9); }
 .lightbox__close .icon-btn { backdrop-filter: blur(6px); background: rgba(20,16,12,.4); }
+/* Flechas para pasar de foto sin deslizar: mismo círculo desenfocado que la
+   (X), a los lados en vez de arriba. El swipe hace lo mismo con el dedo. */
+.lightbox__nav {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  width: 56px; height: 56px; border-radius: 999px;
+  display: grid; place-items: center;
+  background: rgba(20,16,12,.4); backdrop-filter: blur(6px);
+  border: 0; color: var(--paper); cursor: pointer;
+}
+.lightbox__nav svg { width: 28px; height: 28px; }
+.lightbox__nav--prev { left: var(--space-9); }
+.lightbox__nav--next { right: var(--space-9); }
+.lightbox__count {
+  position: absolute; bottom: var(--space-9); left: 50%; transform: translateX(-50%);
+  padding: var(--space-2) var(--space-6); border-radius: 999px;
+  background: rgba(20,16,12,.4); backdrop-filter: blur(6px);
+  color: var(--paper); font-size: var(--text-sm);
+}
 
 /* ── piezas que el prototipo no dibuja ─────────────────────────────────── */
 /* La entrada: sucursal, rol y NIP, cada una a pantalla completa. */
@@ -786,6 +805,16 @@ label .falta { margin-left: var(--space-4); font-size: var(--text-xs); color: va
 }
 .tiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-9); width: 100%; max-width: 720px; }
 .tiles .btn-main { width: 100%; min-height: 132px; border-radius: var(--radius); font-size: var(--text-panel); font-family: var(--font-display); }
+/* El banner de Reportes: mismas dos columnas, la mitad del alto de un cuadro,
+   en verde para distinguirlo del trabajo del día a día. */
+.btn-report {
+  grid-column: 1 / -1;
+  width: 100%; min-height: 66px;
+  border-radius: var(--radius);
+  background: var(--sage); color: var(--ivory);
+  font-size: var(--text-panel); font-family: var(--font-display);
+  display: flex; align-items: center; justify-content: center;
+}
 
 .stack > * + * { margin-top: var(--space-7); }
 .muted { color: var(--ink-faint); }

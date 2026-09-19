@@ -436,7 +436,16 @@ function Kiosk({ sessionId, onChange, onClosed }: {
     >
       <div className="k-filters">
         {filters.map(([value, label]) => (
-          <button key={value} type="button" className="chip" aria-pressed={filter === value} onClick={() => setFilter(value)}>
+          <button
+            key={value}
+            type="button"
+            className="chip"
+            aria-pressed={filter === value}
+            // Un filtro nuevo es una lista nueva: si venía de a medio scroll
+            // de «Todos», antes se quedaba a media pantalla de una lista que
+            // ya no es la misma.
+            onClick={() => { setFilter(value); window.scrollTo({ top: 0 }) }}
+          >
             {label}
           </button>
         ))}
@@ -696,7 +705,13 @@ function SelectionScreen({ sessionId, pin, favorites, accessories, showPrices, o
               {accessoryTypes.length > 2 && (
                 <div className="k-filters k-filters--sheet" style={{ padding: '0 0 var(--space-8)' }}>
                   {accessoryTypes.map((t) => (
-                    <button key={t} type="button" className="chip" aria-pressed={accType === t} onClick={() => setAccType(t)}>
+                    <button
+                      key={t}
+                      type="button"
+                      className="chip"
+                      aria-pressed={accType === t}
+                      onClick={(e) => { setAccType(t); e.currentTarget.closest('.sheet-body')?.scrollTo({ top: 0 }) }}
+                    >
                       {t}
                     </button>
                   ))}
@@ -1291,7 +1306,10 @@ export const CloseControl = forwardRef<CloseControlHandle, {
    */
   askBride?: boolean
 }>(function CloseControl({ sessionId, onClosed, trigger, askBride }, ref) {
+  const { signOutToEntry } = useSession()
   const [step, setStep] = useState<'closed' | 'pin' | 'reason'>('closed')
+  const [pinBusy, setPinBusy] = useState(false)
+  const [pinError, setPinError] = useState<string | null>(null)
   const [pin, setPin] = useState('')
   const [outcome, setOutcome] = useState<'won' | 'lost' | null>(null)
   const [reason, setReason] = useState('')
@@ -1304,14 +1322,14 @@ export const CloseControl = forwardRef<CloseControlHandle, {
   const [phone, setPhone] = useState('')
   const [triedBride, setTriedBride] = useState(false)
 
-  function reset() { setStep('closed'); setPin(''); setError(null) }
+  function reset() { setStep('closed'); setPin(''); setError(null); setPinError(null) }
 
   useImperativeHandle(ref, () => ({ open: () => setStep('pin') }), [])
 
   const detail = outcome === 'won' ? reason : note
   // No entra en `ready`: a diferencia del resto, este par se marca en rojo al
   // primer intento en vez de dejar el botón apagado sin decir por qué.
-  const brideOk = !askBride || (name.trim().length > 0 && phone.replace(/\D/g, '').length >= 10)
+  const brideOk = !askBride || (name.trim().length > 0 && phone.length >= 10)
   const ready = Boolean(outcome) && Boolean(reason.trim()) && Boolean(detail.trim()) && (!needsDisposal || disposed)
 
   return (
@@ -1322,12 +1340,28 @@ export const CloseControl = forwardRef<CloseControlHandle, {
 
       {step === 'pin' && (
         // El teclado es el mismo de siempre y queda en el centro exacto de la
-        // pantalla, como en la entrada: aquí no se dibuja uno aparte.
+        // pantalla, como en la entrada: aquí no se dibuja uno aparte. Se
+        // confirma contra el servidor antes de avanzar — antes cualquier NIP
+        // pasaba a «¿Cómo terminó?» y sólo se rechazaba hasta el envío final.
         <Dialog title="Cerrar la sesión" onCancel={reset} closeLabel="Cancelar, seguir en la sesión" full big>
           <PinPad
             hint="Se borran los favoritos y las marcas de «viendo ahora». Pide el NIP a la vendedora."
-            error={error}
-            onSubmit={(value) => { setPin(value); setError(null); setStep('reason') }}
+            error={pinError}
+            busy={pinBusy}
+            onSubmit={async (value) => {
+              setPinError(null)
+              setPinBusy(true)
+              try {
+                await post('/auth/verify-pin', { pin: value })
+                setPin(value)
+                setStep('reason')
+              } catch (err) {
+                if (err instanceof UnauthorizedError) { void signOutToEntry('Tu sesión expiró. Vuelve a marcar tu NIP.'); return }
+                setPinError(err instanceof ApiError ? err.message : 'No se pudo continuar. Vuelve a intentar.')
+              } finally {
+                setPinBusy(false)
+              }
+            }}
           />
         </Dialog>
       )}
@@ -1349,8 +1383,25 @@ export const CloseControl = forwardRef<CloseControlHandle, {
                   {(id) => <input id={id} type="text" value={apellido} onChange={(e) => setApellido(e.target.value)} placeholder="García" />}
                 </Field>
               </div>
-              <Field label="Teléfono" invalid={triedBride && phone.replace(/\D/g, '').length < 10}>
-                {(id) => <input id={id} type="tel" inputMode="numeric" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="10 dígitos" />}
+              <Field label="Teléfono" invalid={triedBride && phone.length < 10}>
+                {(id) => (
+                  <input
+                    id={id}
+                    className={phone.length === 0 ? 'mask-empty' : undefined}
+                    type="tel"
+                    inputMode="numeric"
+                    value={formatPhoneMask(phone)}
+                    onFocus={(e) => { if (phone.length === 0) e.currentTarget.setSelectionRange(4, 4) }}
+                    onChange={(e) => {
+                      const el = e.currentTarget
+                      const digits = phoneDigitsFromMasked(el.value).slice(0, 10)
+                      el.value = formatPhoneMask(digits)
+                      const caret = phoneMaskCaret(digits.length)
+                      el.setSelectionRange(caret, caret)
+                      setPhone(digits)
+                    }}
+                  />
+                )}
               </Field>
             </>
           )}
@@ -1400,7 +1451,7 @@ export const CloseControl = forwardRef<CloseControlHandle, {
                   await post(`/sessions/${sessionId}/close`, {
                     outcome, reason: reason.trim(), note: note.trim() || undefined, pin,
                     sheets_disposed: disposed || undefined,
-                    ...(askBride ? { name: name.trim(), apellido: apellido.trim() || undefined, phone: phone.trim() } : {}),
+                    ...(askBride ? { name: name.trim(), apellido: apellido.trim() || undefined, phone } : {}),
                   })
                   onClosed()
                 } catch (err) {

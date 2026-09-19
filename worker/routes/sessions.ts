@@ -1,10 +1,10 @@
 import { Hono } from 'hono'
 import { readJson } from '../lib/http'
-import type { AppEnv, Session } from '../lib/env'
+import type { AppEnv } from '../lib/env'
 import { all, digitsOnly, one, run, stmt } from '../lib/db'
 import { auditStmt } from '../lib/audit'
-import { badRequest, conflict, notFound, unauthorized } from '../lib/errors'
-import { verifyPin } from '../lib/crypto'
+import { assertOwnPin } from '../lib/auth'
+import { badRequest, conflict, notFound } from '../lib/errors'
 import { issueFolio } from '../lib/folio'
 import { nowIso, isDate, todayISO, formatDateMX } from '../lib/dates'
 import { evaluatePlans, parseSplits, type Plan } from '../lib/plans'
@@ -13,12 +13,6 @@ import { loadItem } from './items'
 import { reapAbandoned } from '../lib/reaper'
 
 const app = new Hono<AppEnv>()
-
-async function assertOwnPin(db: D1Database, s: Session, pin: string): Promise<void> {
-  if (!/^\d{4,6}$/.test(pin)) throw badRequest('Marca tu NIP para cerrar la sesión.')
-  const user = await one<{ pin_hash: string; pin_salt: string }>(db, `SELECT pin_hash, pin_salt FROM users WHERE id = ? AND active = 1`, s.userId)
-  if (!user || !(await verifyPin(pin, user.pin_hash, user.pin_salt))) throw unauthorized('NIP incorrecto.', 'bad_pin')
-}
 
 export type Stage =
   | 'browsing' | 'fitting' | 'selected' | 'bride_data' | 'sheet_printed'

@@ -671,15 +671,25 @@ function ClientDetail({ customerId, onBack }: { customerId: number; onBack: () =
           )}
         </div>
 
-        {session && session.closed_at && session.outcome !== 'won' && (
+        {session && session.closed_at && (
+          // Se muestra para cualquier cierre, no sólo los perdidos: un cierre
+          // «se vendió» sin contrato todavía (por ejemplo, cerrado desde el
+          // kiosco antes de elegir vestido) antes desaparecía sin dejar ni el
+          // motivo ni el comentario que la vendedora sí alcanzó a escribir.
           <div className="panel">
-            <h3 style={{ marginBottom: 'var(--space-6)' }}>Por qué no se vendió</h3>
+            <h3 style={{ marginBottom: 'var(--space-6)' }}>
+              {session.outcome === 'won' ? 'Cómo se vendió' : 'Por qué no se vendió'}
+            </h3>
             <p style={{ fontSize: 'var(--text-lg)', margin: 0 }}>
-              {session.outcome === 'abandoned'
-                ? 'Sin actividad: se fue sin decir nada y la sesión se cerró sola.'
-                : (LOST_LABEL[session.reason ?? ''] ?? session.reason ?? 'Sin motivo registrado')}
+              {session.outcome === 'won'
+                ? (session.reason || 'Sin detalle registrado')
+                : session.outcome === 'abandoned'
+                  ? 'Sin actividad: se fue sin decir nada y la sesión se cerró sola.'
+                  : (LOST_LABEL[session.reason ?? ''] ?? session.reason ?? 'Sin motivo registrado')}
             </p>
-            {session.note && <p className="muted" style={{ margin: 'var(--space-3) 0 0' }}>{session.note}</p>}
+            {session.outcome !== 'won' && session.note && (
+              <p className="muted" style={{ margin: 'var(--space-3) 0 0' }}>{session.note}</p>
+            )}
             <p className="muted" style={{ margin: 'var(--space-6) 0 0', fontSize: 'var(--text-label)' }}>
               Llegó hasta «{STAGE_LABEL[session.closed_at_stage ?? ''] ?? session.closed_at_stage}» · cerrada el {dateTimeMX(session.closed_at)}
             </p>

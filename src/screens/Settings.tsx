@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { get, patch, post } from '../lib/api'
-import { bytes, money, parseMoney } from '../lib/format'
+import { bytes, parseMoney } from '../lib/format'
 import { useNavigate } from '../lib/router'
 import { ActionButton } from '../components/ActionButton'
 import { Field } from '../components/Field'
@@ -19,7 +19,6 @@ interface SettingsData {
   store: Store
   users: { id: number; name: string; role: string; active: number }[]
   plans: { id: number; name: string; splits: string; max_months: number; discount_pct: number; min_price_cents: number; active: number }[]
-  surcharges: { id: number; name: string; kind: string; amount_cents: number; pct: number; active: number }[]
   commissions: {
     id: number; priority: number; min_price_cents: number; max_price_cents: number | null
     rate_pct: number; basis: string; period: string; active: number
@@ -120,8 +119,8 @@ function Pins({ users }: { users: SettingsData['users'] }) {
       <h3 style={{ marginBottom: 'var(--space-6)' }}>NIP</h3>
       <p className="lede">
         De 4 a 6 dígitos, escrito dos veces. El NIP nunca se guarda ni se registra en claro — si el
-        cambio queda mal escrito no hay forma de recuperarlo salvo el reinicio manual descrito en
-        <code>docs/DEPLOY.md</code>.
+        cambio queda mal escrito no hay forma de recuperarlo tú misma; avísale a quien te dé soporte
+        técnico para restablecerlo.
       </p>
       {users.map((user) => {
         const pin = pins[user.id] ?? ''
@@ -393,37 +392,6 @@ function Catalogs({ data, onSaved }: { data: SettingsData; onSaved: () => Promis
           meses.
         </p>
         {data.plans.map((plan) => <PlanRow key={plan.id} plan={plan} onSaved={onSaved} />)}
-      </div>
-
-      <div className="panel">
-        <h3 style={{ marginBottom: 'var(--space-6)' }}>Cargos</h3>
-        <p className="lede">
-          Lo que el contrato llama «Pagos extra» en su punto 9: envío según la marca del vestido,
-          recargo por talla grande, ajustes con precio propio (bastilla, mangas, segundo planchado),
-          mantillas y crinolina sueltas, coser el cinto, porta traje. Cada uno es un monto fijo o un
-          porcentaje del precio del vestido.
-        </p>
-        <p className="pill pill--brass" style={{ marginBottom: 'var(--space-9)' }}>
-          Todavía no hay dónde escogerlos al armar una venta — el plan de pago no ofrece marcarlos —
-          así que hoy activarlos o desactivarlos aquí no cambia ningún contrato. Son el catálogo de
-          cargos, listos para cuando esa pantalla exista.
-        </p>
-        <div className="hist">
-          {data.surcharges.map((s) => (
-            <div key={s.id} style={{ opacity: s.active ? 1 : .5 }}>
-              <span>{s.name}</span>
-              <span className="row" style={{ alignItems: 'center' }}>
-                <span className="mono">{s.pct > 0 ? `${s.pct}%` : money(s.amount_cents)}</span>
-                <ActionButton
-                  className="btn-quiet"
-                  onAction={async () => { await patch(`/settings/surcharges/${s.id}`, { active: s.active ? 0 : 1 }); await onSaved() }}
-                >
-                  {s.active ? 'Desactivar' : 'Activar'}
-                </ActionButton>
-              </span>
-            </div>
-          ))}
-        </div>
       </div>
 
       <div className="panel">
