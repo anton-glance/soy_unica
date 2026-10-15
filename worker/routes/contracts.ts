@@ -106,13 +106,18 @@ app.post('/:folio/accessories', async (c) => {
     throw conflict('Sólo se pueden agregar accesorios a un contrato ya firmado.')
   }
   const body = await readJson<{ item_id?: number }>(c)
-  const item = await one<{ id: number; code: string; name: string; kind: string; price_cents: number; needs_review: number }>(
-    c.env.DB, `SELECT id, code, name, kind, price_cents, needs_review FROM items WHERE id = ? AND store_id = ?`, Number(body.item_id), s.store,
+  const item = await one<{ id: number; code: string; name: string; kind: string; acquisition: string; quantity: number | null; price_cents: number; needs_review: number }>(
+    c.env.DB, `SELECT id, code, name, kind, acquisition, quantity, price_cents, needs_review FROM items WHERE id = ? AND store_id = ?`, Number(body.item_id), s.store,
   )
   if (!item) throw notFound('No se encontró ese artículo.')
-  if (item.kind !== 'accessory') throw badRequest('Sólo se pueden agregar accesorios después de firmado el contrato.')
+  if (item.kind === 'dress') throw badRequest('Sólo se pueden agregar accesorios después de firmado el contrato.')
   if (item.price_cents <= 0 || item.needs_review) {
     throw conflict(`«${item.name}» no tiene precio o está por verificar. Complétalo en Inventario antes de agregarlo.`, 'needs_price')
+  }
+  // Esta venta es inmediata, sin el paso intermedio de un contrato todavía
+  // borrador: si ya no quedan, se rechaza aquí mismo, no al firmar.
+  if (item.acquisition === 'unidad' && (item.quantity ?? 0) <= 0) {
+    throw conflict(`«${item.name}» ya no tiene existencias.`, 'out_of_stock')
   }
 
   const sortRow = await one<{ n: number }>(c.env.DB, `SELECT COUNT(*) AS n FROM contract_items WHERE contract_id = ?`, contract.id)
@@ -121,6 +126,9 @@ app.post('/:folio/accessories', async (c) => {
     stmt(c.env.DB, `INSERT INTO contract_items (contract_id, item_id, description, price_cents, line_kind, sort, added_at)
                     VALUES (?,?,?,?, 'accessory', ?, ?)`, contract.id, item.id, `${item.name} (${item.code})`, item.price_cents, (sortRow?.n ?? 0) + 1, now),
     stmt(c.env.DB, `UPDATE contracts SET total_cents = total_cents + ?, updated_at = ? WHERE id = ?`, item.price_cents, now, contract.id),
+    ...(item.acquisition === 'unidad'
+      ? [stmt(c.env.DB, `UPDATE items SET quantity = quantity - 1, updated_at = ? WHERE id = ? AND quantity > 0`, now, item.id)]
+      : []),
     auditStmt(c.env.DB, { session: s, entity: 'contract', entityId: contract.id, action: 'accessory_added', after: { item: item.code, price_cents: item.price_cents } }),
   ])
   return c.json({ ok: true, total_cents: contract.total_cents + item.price_cents })

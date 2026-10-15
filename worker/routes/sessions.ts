@@ -283,10 +283,10 @@ app.post('/:id{[0-9]+}/select', async (c) => {
 
   const accessoryIds = (body.accessory_item_ids ?? []).map(Number).filter(Boolean)
   const accessories = accessoryIds.length
-    ? await all<{ id: number; code: string; name: string; price_cents: number; needs_review: number }>(
+    ? await all<{ id: number; code: string; name: string; price_cents: number; needs_review: number; acquisition: string; quantity: number | null }>(
         c.env.DB,
-        `SELECT id, code, name, price_cents, needs_review FROM items
-         WHERE store_id = ? AND kind = 'accessory' AND id IN (${accessoryIds.map(() => '?').join(',')})`,
+        `SELECT id, code, name, price_cents, needs_review, acquisition, quantity FROM items
+         WHERE store_id = ? AND kind <> 'dress' AND id IN (${accessoryIds.map(() => '?').join(',')})`,
         s.store, ...accessoryIds)
     : []
   // The same guard for the accessories: a veil the site never priced would add a
@@ -297,6 +297,13 @@ app.post('/:id{[0-9]+}/select', async (c) => {
       `«${unpriced.name}» no tiene precio o está por verificar. Complétalo en Inventario antes de agregarlo al contrato.`,
       'needs_price',
     )
+  }
+  // Algo de unidad sin existencias no se puede agregar: lo que ya está en
+  // cero no se puede vender otra vez. Lo por pedido nunca entra aquí, se
+  // manda a hacer siempre.
+  const outOfStock = accessories.find((a) => a.acquisition === 'unidad' && (a.quantity ?? 0) <= 0)
+  if (outOfStock) {
+    throw conflict(`«${outOfStock.name}» ya no tiene existencias.`, 'out_of_stock')
   }
 
   const folio = await issueFolio(c.env.DB, s.store)
@@ -427,9 +434,9 @@ async function quote(db: D1Database, store: string, contract: ContractRow, extra
   ).map((r) => r.item_id)
 
   const accessories = chosen.length
-    ? await all<{ id: number; code: string; name: string; price_cents: number }>(
+    ? await all<{ id: number; code: string; name: string; price_cents: number; acquisition: string; quantity: number | null }>(
         db,
-        `SELECT id, code, name, price_cents FROM items
+        `SELECT id, code, name, price_cents, acquisition, quantity FROM items
          WHERE store_id = ? AND id IN (${chosen.map(() => '?').join(',')})`,
         store, ...chosen,
       )
@@ -519,6 +526,13 @@ app.post('/:id{[0-9]+}/terms', async (c) => {
   if (!offer) {
     const why = rejected.find((r) => r.plan.id === planId)
     throw conflict(why ? `Ese plan no aplica: ${why.detail}` : 'Ese plan no aplica para este precio o esta fecha de evento.')
+  }
+  // Esta pantalla puede cambiar los accesorios respecto a los que se eligieron
+  // al escoger el vestido: el mismo cuidado de allá, por si alguno se vendió
+  // en lo que tanto pasó entre un paso y otro.
+  const outOfStock = accessories.find((a) => a.acquisition === 'unidad' && (a.quantity ?? 0) <= 0)
+  if (outOfStock) {
+    throw conflict(`«${outOfStock.name}» ya no tiene existencias.`, 'out_of_stock')
   }
 
   // Las parcialidades se escriben aquí, al escoger el plan, y ya no se vuelven
@@ -639,6 +653,33 @@ app.post('/:id{[0-9]+}/sign', async (c) => {
         stmt(c.env.DB, `UPDATE items SET status = 'reserved', contract_id = ?, held_by_session = NULL, updated_at = ?
                         WHERE id = ? AND status IN ('watching','available')`, contract.id, nowIso(), item.id),
         auditStmt(c.env.DB, { session: s, entity: 'item', entityId: item.id, action: 'reserve', before: { status: item.status }, after: { status: 'reserved' } }),
+      )
+    }
+  }
+
+  /*
+   * Firmar es la venta de verdad: hasta aquí los accesorios sólo vivían en un
+   * contrato todavía borrador, que se puede abandonar sin que nada haya
+   * pasado de verdad con las existencias. Sólo lo de unidad se descuenta — lo
+   * por pedido se manda a hacer siempre, nunca sale de ninguna cuenta.
+   */
+  const accessoryLines = await all<{ item_id: number }>(
+    c.env.DB,
+    `SELECT item_id FROM contract_items WHERE contract_id = ? AND line_kind = 'accessory' AND item_id IS NOT NULL`,
+    contract.id,
+  )
+  if (accessoryLines.length > 0) {
+    const accessoryItems = await all<{ id: number; name: string; acquisition: string; quantity: number | null }>(
+      c.env.DB,
+      `SELECT id, name, acquisition, quantity FROM items WHERE id IN (${accessoryLines.map(() => '?').join(',')})`,
+      ...accessoryLines.map((l) => l.item_id),
+    )
+    const stocked = accessoryItems.filter((a) => a.acquisition === 'unidad')
+    const outOfStock = stocked.find((a) => (a.quantity ?? 0) <= 0)
+    if (outOfStock) throw conflict(`«${outOfStock.name}» ya no tiene existencias.`, 'out_of_stock')
+    for (const a of stocked) {
+      statements.push(
+        stmt(c.env.DB, `UPDATE items SET quantity = quantity - 1, updated_at = ? WHERE id = ? AND quantity > 0`, now, a.id),
       )
     }
   }

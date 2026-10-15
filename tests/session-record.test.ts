@@ -37,7 +37,17 @@ beforeAll(async () => {
   const pedidos = items.filter((i) => i.kind === 'dress' && i.acquisition === 'pedido')
   dress = pedidos[0] as KioskItem
   otherDress = pedidos[1] as KioskItem
-  accessory = items.find((i) => i.kind === 'accessory') as KioskItem
+  // De su propio alta, no de la semilla compartida: otras pruebas (flow.test.ts)
+  // agregan accesorios después de firmado y de verdad les descuentan la
+  // existencia, así que un accesorio sembrado puede llegar aquí ya en cero.
+  const created = await owner.post<{ id: number }>('/api/items', {
+    code: 'sr-accesorio', name: 'Mantilla de prueba', kind: 'mantilla',
+    acquisition: 'unidad', condition: 'nuevo', price_cents: 50_000, cost_cents: 10_000,
+    size: 'Única', quantity: 5,
+  })
+  const photoId = await owner.upload('item_photo')
+  await owner.put(`/api/items/${created.id}/photos`, { photos: [{ file_id: photoId, is_primary: true }] })
+  accessory = (await owner.get<{ item: KioskItem }>(`/api/items/${created.id}`)).item
   await tablet.post(`/api/sessions/${probe}/close`, { outcome: 'lost', reason: 'otro', note: 'sonda', pin: '1111' })
 })
 

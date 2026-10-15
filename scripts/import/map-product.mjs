@@ -55,11 +55,22 @@ export function codeFor(product) {
  * branch signal anywhere in this endpoint. CDMX is not in this catalog at all;
  * it has to come from somewhere else.
  *
- * What the categories DO carry, reliably: whether something is a dress or an
- * accessory, its cut, whether it's on liquidation, whether it's part of the
- * "Bridal Sale -20%" promotion, and whether it's a rental (out of scope here).
+ * What the categories DO carry, reliably: whether something is a dress or
+ * which of the non-dress kinds it is, its cut, whether it's on liquidation,
+ * whether it's part of the "Bridal Sale -20%" promotion, and whether it's a
+ * rental (out of scope here).
+ *
+ * Checked in order: a product can carry both the generic "Accesorios" and a
+ * specific one ("Mantillas") at once — the specific one has to win, or every
+ * mantilla would collapse into the generic "otros" bucket alongside capes and
+ * boleros, which is exactly the loss of information this split exists to fix.
  */
-export const ACCESSORY_CATEGORIES = /^(accesorios|mantillas|tiaras|cintos|capa|bolero)$/i
+export const KIND_CATEGORIES = [
+  { test: /^mantillas$/i, kind: 'mantilla' },
+  { test: /^tiaras$/i, kind: 'tiara' },
+  { test: /^cintos$/i, kind: 'cinto' },
+  { test: /^(accesorios|capa|bolero)$/i, kind: 'otros' },
+]
 export const CUT_CATEGORIES = [
   { test: /^corte princesa$/i, cut: 'Princesa' },
   { test: /^corte a$/i, cut: 'A' },
@@ -118,10 +129,14 @@ export function toItem(product) {
   const colorAttr = (product.attributes ?? []).find((a) => /color/i.test(a.name ?? ''))
   const color = colorAttr?.terms?.map((t) => strip(t.name)).join(', ') || null
 
-  const kind = categories.some((c) => ACCESSORY_CATEGORIES.test(c)) ? 'accessory'
+  const kindMatch = KIND_CATEGORIES.find((rule) => categories.some((c) => rule.test.test(c)))
+  const kind = kindMatch ? kindMatch.kind
     : categories.some((c) => /^vestidos de novia$/i.test(c)) ? 'dress'
     // No category names either: fall back to the name, same as before there was a census to trust.
-    : /mantilla|velo|tiara|crinolina|liga|cint(?:o|ur[oó]n)|tocado/i.test(strip(product.name)) ? 'accessory'
+    : /mantilla/i.test(strip(product.name)) ? 'mantilla'
+    : /tiara|tocado|corona/i.test(strip(product.name)) ? 'tiara'
+    : /cint(?:o|ur[oó]n)/i.test(strip(product.name)) ? 'cinto'
+    : /velo|crinolina|liga/i.test(strip(product.name)) ? 'otros'
     : 'dress'
 
   const cutMatch = CUT_CATEGORIES.find((rule) => categories.some((c) => rule.test.test(c)))

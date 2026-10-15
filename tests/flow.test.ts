@@ -373,7 +373,7 @@ describe('accesorio agregado después de firmado', () => {
 
   it('se suma al total y queda marcado con cuándo se agregó', async () => {
     const items = await kioskItems(tabletA, sessionA)
-    const accessory = items.find((i) => i.kind === 'accessory' && i.price_cents > 0) as KioskItem
+    const accessory = items.find((i) => i.kind !== 'dress' && i.price_cents > 0) as KioskItem
     expect(accessory).toBeDefined()
 
     const before = await owner.get<{ contract: { total_cents: number } }>(`/api/contracts/${folio}`)
