@@ -14,15 +14,41 @@
 -- counted either: like a made-to-order dress, it is always orderable, so its
 -- quantity stays NULL and plays no part in availability.
 --
--- SQLite cannot alter a CHECK constraint in place, so the table is rebuilt —
--- the same approach as 0007_payment_date_optional.sql. Everything with a
--- foreign key onto items.id keeps pointing at the same ids, since the rebuild
--- preserves them.
+-- SQLite cannot alter a CHECK constraint in place, so `items` is rebuilt. Unlike
+-- 0007 (payments, which nothing points at), four tables point at items(id):
+--   item_photos, session_favorites, session_selections  — ON DELETE CASCADE
+--   contract_items                                       — no action
+-- and the usual `PRAGMA foreign_keys = OFF` is a silent no-op inside a
+-- transaction, which is how migrations run. So this does not rely on it:
+--   1. `defer_foreign_keys` postpones the constraint check to COMMIT, by which
+--      time every items row is back under its original id, so contract_items
+--      never ends up dangling.
+--   2. DROP TABLE deletes the parent rows, and that fires the CASCADE actions
+--      immediately — they are not deferred — so the three cascading children
+--      are copied aside first and put back afterwards. INSERT OR IGNORE, so it
+--      also holds if a cascade did not fire.
+-- Tested against a database with rows in all four child tables: every row
+-- survives with the same ids, and PRAGMA foreign_key_check comes back empty.
+--
+-- (AUTOINCREMENT restarts from the highest existing id. It only differs from
+-- before if the newest items had been deleted.)
 -- ════════════════════════════════════════════════════════════════════════════
 
-PRAGMA foreign_keys = OFF;
+PRAGMA defer_foreign_keys = ON;
 
-CREATE TABLE items_new (
+DROP TABLE IF EXISTS items_bak;
+DROP TABLE IF EXISTS item_photos_bak;
+DROP TABLE IF EXISTS session_favorites_bak;
+DROP TABLE IF EXISTS session_selections_bak;
+
+CREATE TABLE items_bak AS SELECT * FROM items;
+CREATE TABLE item_photos_bak AS SELECT * FROM item_photos;
+CREATE TABLE session_favorites_bak AS SELECT * FROM session_favorites;
+CREATE TABLE session_selections_bak AS SELECT * FROM session_selections;
+
+DROP TABLE items;
+
+CREATE TABLE items (
   id                   INTEGER PRIMARY KEY AUTOINCREMENT,
   store_id             TEXT NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
   code                 TEXT NOT NULL,
@@ -61,7 +87,7 @@ CREATE TABLE items_new (
   CHECK (kind = 'dress' OR acquisition = 'pedido' OR quantity IS NOT NULL)
 );
 
-INSERT INTO items_new (
+INSERT INTO items (
   id, store_id, code, kind, acquisition, condition, name, brand, size, cut, color,
   cost_cents, price_cents, quantity, status, location, notes, intake_date,
   held_by_session, contract_id, tailoring_started_at, tailoring_done_at,
@@ -91,15 +117,22 @@ SELECT
   status, location, notes, intake_date, held_by_session, contract_id,
   tailoring_started_at, tailoring_done_at, ready_notified_at, delivered_at,
   needs_review, review_fields, created_at, updated_at
-FROM items;
+FROM items_bak;
 
-DROP TABLE items;
-ALTER TABLE items_new RENAME TO items;
+INSERT OR IGNORE INTO item_photos (id, item_id, file_id, sort, is_primary)
+  SELECT id, item_id, file_id, sort, is_primary FROM item_photos_bak;
+INSERT OR IGNORE INTO session_favorites (session_id, item_id, added_at)
+  SELECT session_id, item_id, added_at FROM session_favorites_bak;
+INSERT OR IGNORE INTO session_selections (session_id, item_id, line_kind, at)
+  SELECT session_id, item_id, line_kind, at FROM session_selections_bak;
+
+DROP TABLE items_bak;
+DROP TABLE item_photos_bak;
+DROP TABLE session_favorites_bak;
+DROP TABLE session_selections_bak;
 
 CREATE INDEX idx_items_store_status ON items (store_id, status);
 CREATE INDEX idx_items_hold         ON items (held_by_session);
 CREATE INDEX idx_items_contract     ON items (contract_id);
 CREATE INDEX idx_items_code         ON items (store_id, code);
 CREATE INDEX idx_items_needs_review ON items (store_id, needs_review);
-
-PRAGMA foreign_keys = ON;
