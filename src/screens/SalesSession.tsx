@@ -13,7 +13,6 @@ import { IconButton } from '../components/IconButton'
 import { PinPad } from '../components/PinPad'
 import { PrintOverlay } from '../components/PrintOverlay'
 import { Screen } from '../components/Screen'
-import { Chips, Field } from '../components/Field'
 import { PrintMedidas } from './PrintMedidas'
 import { PrintContrato } from './PrintContrato'
 import { ScrollRail } from '../components/ScrollRail'
@@ -409,7 +408,7 @@ function Kiosk({ sessionId, onChange, onClosed }: {
             ancho) y la píldora se cortaba a la mitad. La cruz libera el ancho
             que la píldora necesita.
           */}
-          <CloseControl ref={closeRef} sessionId={sessionId} onClosed={onClosed} askBride trigger={(open) => <IconButton kind="close" label="Cerrar sesión" onClick={open} />} />
+          <CloseControl ref={closeRef} sessionId={sessionId} onClosed={onClosed} trigger={(open) => <IconButton kind="close" label="Cerrar sesión" onClick={open} />} />
         </div>
       }
       footer={
@@ -1295,46 +1294,31 @@ export interface CloseControlHandle { open: () => void }
 /**
  * El disparador es reemplazable: en la mayoría de los pasos es el botón
  * «Cerrar sesión» del pie, pero en «Datos de la novia» es la (X) de la barra,
- * como en el resto de la aplicación. El NIP y el motivo son siempre los
- * mismos; sólo cambia de dónde se abren — de ahí el `ref` con `open()`.
+ * como en el resto de la aplicación. Cerrar pide sólo el NIP de la vendedora:
+ * ya no se pregunta cómo terminó. La única pregunta que puede salir es la
+ * confirmación de destruir las hojas de medidas, y sólo si se imprimieron y
+ * no hubo contrato — el servidor no deja cerrar sin ella.
  */
 export const CloseControl = forwardRef<CloseControlHandle, {
   sessionId: number
   onClosed: () => void
   trigger?: (open: () => void) => ReactNode
-  /**
-   * Sólo el cierre desde el kiosco: es el único punto donde la sesión puede
-   * llegar a cerrarse sin que nadie haya pasado por «Datos de la novia»
-   * todavía — nunca hay un nombre ni un teléfono guardados. En cualquier otro
-   * paso, ya se capturaron y volver a pedirlos sería repetir el trabajo.
-   */
-  askBride?: boolean
-}>(function CloseControl({ sessionId, onClosed, trigger, askBride }, ref) {
+}>(function CloseControl({ sessionId, onClosed, trigger }, ref) {
   const { signOutToEntry } = useSession()
-  const [step, setStep] = useState<'closed' | 'pin' | 'reason'>('closed')
+  const [step, setStep] = useState<'closed' | 'pin' | 'sheets'>('closed')
   const [pinBusy, setPinBusy] = useState(false)
   const [pinError, setPinError] = useState<string | null>(null)
   const [pin, setPin] = useState('')
-  const [outcome, setOutcome] = useState<'won' | 'lost' | null>(null)
-  const [reason, setReason] = useState('')
-  const [note, setNote] = useState('')
-  const [disposed, setDisposed] = useState(false)
-  const [needsDisposal, setNeedsDisposal] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [name, setName] = useState('')
-  const [apellido, setApellido] = useState('')
-  const [phone, setPhone] = useState('')
-  const [triedBride, setTriedBride] = useState(false)
 
   function reset() { setStep('closed'); setPin(''); setError(null); setPinError(null) }
 
   useImperativeHandle(ref, () => ({ open: () => setStep('pin') }), [])
 
-  const detail = outcome === 'won' ? reason : note
-  // No entra en `ready`: a diferencia del resto, este par se marca en rojo al
-  // primer intento en vez de dejar el botón apagado sin decir por qué.
-  const brideOk = !askBride || (name.trim().length > 0 && phone.length >= 10)
-  const ready = Boolean(outcome) && Boolean(reason.trim()) && Boolean(detail.trim()) && (!needsDisposal || disposed)
+  async function close(value: string, sheetsDisposed?: boolean) {
+    await post(`/sessions/${sessionId}/close`, { pin: value, sheets_disposed: sheetsDisposed || undefined })
+    onClosed()
+  }
 
   return (
     <>
@@ -1344,24 +1328,26 @@ export const CloseControl = forwardRef<CloseControlHandle, {
 
       {step === 'pin' && (
         // El teclado es el mismo de siempre y queda en el centro exacto de la
-        // pantalla, como en la entrada: aquí no se dibuja uno aparte. Se
-        // confirma contra el servidor antes de avanzar — antes cualquier NIP
-        // pasaba a «¿Cómo terminó?» y sólo se rechazaba hasta el envío final.
+        // pantalla, como en la entrada: aquí no se dibuja uno aparte. El NIP
+        // se confirma contra el servidor y con él mismo se cierra la sesión.
         <Dialog title="Cerrar la sesión" onCancel={reset} closeLabel="Cancelar, seguir en la sesión" full big>
           <PinPad
-            hint="Se borran los favoritos y las marcas de «viendo ahora». Pide el NIP a la vendedora."
+            hint="Se sueltan las marcas de «viendo ahora». Pide el NIP a la vendedora."
             error={pinError}
             busy={pinBusy}
             onSubmit={async (value) => {
               setPinError(null)
               setPinBusy(true)
               try {
-                await post('/auth/verify-pin', { pin: value })
-                setPin(value)
-                setStep('reason')
+                await close(value)
               } catch (err) {
                 if (err instanceof UnauthorizedError) { void signOutToEntry('Tu sesión expiró. Vuelve a marcar tu NIP.'); return }
-                setPinError(err instanceof ApiError ? err.message : 'No se pudo continuar. Vuelve a intentar.')
+                if (err instanceof ApiError && err.status === 409 && err.message.includes('destruiste')) {
+                  setPin(value)
+                  setStep('sheets')
+                  return
+                }
+                setPinError(err instanceof ApiError ? err.message : 'No se pudo cerrar. Vuelve a intentar.')
               } finally {
                 setPinBusy(false)
               }
@@ -1370,104 +1356,22 @@ export const CloseControl = forwardRef<CloseControlHandle, {
         </Dialog>
       )}
 
-      {step === 'reason' && (
-        <Dialog title="¿Cómo terminó?" onCancel={reset} closeLabel="Cancelar" narrow>
-          {/*
-            Sólo aquí: en el resto de los pasos ya se sabe quién es. Sin esto
-            una sesión cerrada desde el kiosco no dejaba ni nombre ni teléfono
-            — no había forma de encontrarla después en Clientes.
-          */}
-          {askBride && (
-            <>
-              <div className="two">
-                <Field label="Nombre de la novia" invalid={triedBride && !name.trim()}>
-                  {(id) => <input id={id} type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ana" />}
-                </Field>
-                <Field label="Apellido">
-                  {(id) => <input id={id} type="text" value={apellido} onChange={(e) => setApellido(e.target.value)} placeholder="García" />}
-                </Field>
-              </div>
-              <Field label="Teléfono" invalid={triedBride && phone.length < 10}>
-                {(id) => (
-                  <input
-                    id={id}
-                    className={phone.length === 0 ? 'mask-empty' : undefined}
-                    type="tel"
-                    inputMode="numeric"
-                    value={formatPhoneMask(phone)}
-                    onFocus={(e) => { if (phone.length === 0) e.currentTarget.setSelectionRange(4, 4) }}
-                    onChange={(e) => {
-                      const el = e.currentTarget
-                      const digits = phoneDigitsFromMasked(el.value).slice(0, 10)
-                      el.value = formatPhoneMask(digits)
-                      const caret = phoneMaskCaret(digits.length)
-                      el.setSelectionRange(caret, caret)
-                      setPhone(digits)
-                    }}
-                  />
-                )}
-              </Field>
-            </>
-          )}
-
-          <Chips
-            label="Resultado"
-            options={[{ value: 'won' as const, label: 'Se vendió' }, { value: 'lost' as const, label: 'No se vendió' }]}
-            value={outcome}
-            onChange={(v) => { setOutcome(v); setReason(''); setNote('') }}
-          />
-
-          {outcome === 'won' && (
-            <Field label="¿Cómo estuvo la venta?">
-              {(id) => <textarea id={id} value={reason} onChange={(e) => setReason(e.target.value)} />}
-            </Field>
-          )}
-
-          {outcome === 'lost' && (
-            <>
-              <Chips label="Motivo" options={LOST_REASONS} value={reason as never} onChange={setReason} small />
-              {reason && (
-                <Field label="Detalle">
-                  {(id) => <input id={id} type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Qué dijo la clienta" />}
-                </Field>
-              )}
-            </>
-          )}
-
-          {needsDisposal && (
-            <label className="shot" style={{ borderColor: 'var(--clay)', color: 'var(--clay)' }}>
-              <input type="checkbox" checked={disposed} onChange={(e) => setDisposed(e.target.checked)} style={{ width: 24, height: 24, minHeight: 0 }} />
-              <b>Destruye las hojas de medidas firmadas de esta sesión</b>
-            </label>
-          )}
-
+      {step === 'sheets' && (
+        <Dialog title="Hojas de medidas" onCancel={reset} closeLabel="Cancelar" narrow>
+          <p>Se imprimieron hojas de medidas y no hubo contrato. Destruye las hojas firmadas de esta sesión antes de cerrar.</p>
           {error && <p className="err" role="alert">{error}</p>}
-
           <div className="row" style={{ marginTop: 'var(--space-9)' }}>
             <ActionButton
-              disabled={!ready}
               onAction={async () => {
-                if (askBride && !brideOk) {
-                  setTriedBride(true)
-                  throw new ApiError('Falta el nombre o el teléfono de la novia.', 400, 'incomplete')
-                }
                 try {
-                  await post(`/sessions/${sessionId}/close`, {
-                    outcome, reason: reason.trim(), note: note.trim() || undefined, pin,
-                    sheets_disposed: disposed || undefined,
-                    ...(askBride ? { name: name.trim(), apellido: apellido.trim() || undefined, phone } : {}),
-                  })
-                  onClosed()
+                  await close(pin, true)
                 } catch (err) {
-                  if (err instanceof ApiError) {
-                    if (err.message.includes('destruiste')) setNeedsDisposal(true)
-                    setError(err.message)
-                  }
+                  setError(err instanceof ApiError ? err.message : 'No se pudo cerrar. Vuelve a intentar.')
                   throw err
                 }
               }}
             >
-              Cerrar sesión
+              Ya las destruí, cerrar sesión
             </ActionButton>
           </div>
         </Dialog>
@@ -1475,4 +1379,3 @@ export const CloseControl = forwardRef<CloseControlHandle, {
     </>
   )
 })
-
