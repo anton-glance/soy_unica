@@ -714,12 +714,6 @@ app.post('/:id{[0-9]+}/close', async (c) => {
 
   await assertOwnPin(c.env.DB, s, String(body.pin ?? ''))
 
-  const outcome = body.outcome
-  if (outcome !== 'won' && outcome !== 'lost') throw badRequest('Elige cómo terminó: se vendió o no se vendió.')
-  const reason = String(body.reason ?? '').trim()
-  if (!reason) throw badRequest(outcome === 'won' ? 'Escribe cómo estuvo la venta.' : 'Elige el motivo.')
-  if (outcome === 'lost' && !LOST_REASONS.includes(reason)) throw badRequest('Ese motivo no está en la lista.')
-
   const contract = row.contract_id
     ? await one<ContractRow>(c.env.DB, `SELECT * FROM contracts WHERE id = ?`, row.contract_id)
     : null
@@ -727,6 +721,14 @@ app.post('/:id{[0-9]+}/close', async (c) => {
     c.env.DB, `SELECT COUNT(*) AS n FROM session_events WHERE session_id = ? AND stage = 'sheet_printed'`, row.id,
   )
   const contractSigned = contract !== null && contract.status !== 'draft' && contract.status !== 'void'
+
+  // Cerrar pide sólo el NIP. El resultado y el motivo ya no se preguntan: una
+  // sesión que llega aquí sin contrato firmado se cuenta como «no se vendió»,
+  // sin motivo. Si el cliente (o un script) los manda, se respetan y validan.
+  const outcome = body.outcome === undefined ? (contractSigned ? 'won' : 'lost') : body.outcome
+  if (outcome !== 'won' && outcome !== 'lost') throw badRequest('El resultado debe ser «won» o «lost».')
+  const reason = String(body.reason ?? '').trim() || null
+  if (outcome === 'lost' && reason !== null && !LOST_REASONS.includes(reason)) throw badRequest('Ese motivo no está en la lista.')
 
   // Si se imprimieron hojas y no se firmó contrato, hay que destruirlas.
   const needsDisposal = (printedSheet?.n ?? 0) > 0 && !contractSigned
@@ -757,7 +759,7 @@ app.post('/:id{[0-9]+}/close', async (c) => {
     stmt(c.env.DB,
       `UPDATE kiosk_sessions SET stage = 'closed', closed_at_stage = ?, closed_at = ?, outcome = ?, reason = ?, note = ?, sheets_disposed = ?, customer_id = ? WHERE id = ?`,
       row.stage, now, outcome, reason, String(body.note ?? '').trim() || null, needsDisposal ? 1 : null, customerId, row.id),
-    stmt(c.env.DB, `INSERT INTO session_events (session_id, stage, detail) VALUES (?, 'closed', ?)`, row.id, `${outcome}: ${reason} · murió en «${row.stage}»`),
+    stmt(c.env.DB, `INSERT INTO session_events (session_id, stage, detail) VALUES (?, 'closed', ?)`, row.id, `${outcome}${reason ? `: ${reason}` : ''} · murió en «${row.stage}»`),
     // Se sueltan los apartados, que son estado vivo del inventario. Los
     // favoritos NO se borran: son la señal de demanda de la semana y el único
     // registro de qué vino a buscar una clienta que no compró.
