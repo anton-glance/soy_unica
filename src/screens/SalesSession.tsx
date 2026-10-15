@@ -35,7 +35,7 @@ export type ItemKind = 'dress' | 'mantilla' | 'tiara' | 'cinto' | 'otros'
 
 export interface KioskItem {
   id: number; code: string; name: string; brand: string | null; kind: ItemKind
-  acquisition: 'unidad' | 'pedido'; size: string | null; cut: string | null; color: string | null
+  size: string | null; cut: string | null; color: string | null
   price_cents: number; held_by_other: boolean; held_by_me: boolean; favorite: boolean
   photos: string[]; quantity: number | null; available: boolean
 }
@@ -596,7 +596,7 @@ function SelectionScreen({ sessionId, pin, favorites, accessories, showPrices, o
   // Un vestido que otra tableta está viendo no se puede escoger: el servidor lo
   // rechazaría con un 409 y la vendedora se quedaría con el error en la cara.
   // Se marca aquí, antes de que lo toque.
-  const pickable = favorites.filter((f) => !f.held_by_other)
+  const pickable = favorites.filter((f) => !f.held_by_other && f.available)
   const [dress, setDress] = useState<number | null>(pickable.length === 1 ? (pickable[0] as KioskItem).id : null)
   // Los accesorios que la novia ya marcó con el corazón en el catálogo llegan
   // aquí preseleccionados: no hace falta que la vendedora los vuelva a buscar
@@ -645,9 +645,9 @@ function SelectionScreen({ sessionId, pin, favorites, accessories, showPrices, o
             <button
               key={d.id}
               type="button"
-              className={`pick-card${dress === d.id ? ' is-chosen' : ''}${d.held_by_other ? ' is-taken' : ''}`}
+              className={`pick-card${dress === d.id ? ' is-chosen' : ''}${d.held_by_other || !d.available ? ' is-taken' : ''}`}
               aria-pressed={dress === d.id}
-              disabled={d.held_by_other}
+              disabled={d.held_by_other || !d.available}
               onClick={() => setDress(d.id)}
             >
               <ItemArt item={d} />
@@ -657,7 +657,8 @@ function SelectionScreen({ sessionId, pin, favorites, accessories, showPrices, o
                   {[d.code, d.color, d.size && `talla ${d.size}`].filter(Boolean).join(' · ')}
                 </span>
                 {showPrices && <span className="price" style={{ display: 'block' }}>{money(d.price_cents)}</span>}
-                {d.held_by_other && <span className="state late">La está viendo otra clienta</span>}
+                {!d.available && <span className="state late">No disponible</span>}
+                {d.available && d.held_by_other && <span className="state late">La está viendo otra clienta</span>}
               </span>
             </button>
           ))}

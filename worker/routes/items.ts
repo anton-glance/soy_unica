@@ -30,8 +30,9 @@ export interface ItemRow {
   color: string | null
   cost_cents: number
   price_cents: number
-  // Cuántos quedan en la vitrina. NULL para un vestido y para cualquier cosa
-  // por pedido: ninguno de los dos se cuenta así — ver la migración 0011.
+  // Cuántos hay. NULL = todavía no se cuenta (así entra lo importado del
+  // sitio). Con un número, ese número manda: cada venta firmada descuenta uno
+  // y en cero se apaga. Aplica igual a un vestido que a un accesorio.
   quantity: number | null
   status: ItemStatus
   location: string | null
@@ -54,14 +55,12 @@ function forRole<T extends { cost_cents?: number }>(row: T, role: string): T {
 }
 
 /**
- * Un vestido siempre es "disponible" en este sentido — lo que lo apaga es su
- * `status`, no esto. Lo mismo algo por pedido: nunca se cuenta, siempre se
- * puede encargar. Sólo algo de existencias (kind ≠ dress, acquisition =
- * unidad) se apaga por esto, cuando ya no queda ninguno.
+ * Lo que no lleva cantidad no se está contando y nunca se apaga por esto (lo
+ * puede apagar su `status`, que es otra cosa). Lo que sí la lleva se apaga al
+ * llegar a cero.
  */
-function isAvailable(item: { kind: string; acquisition: string; quantity: number | null }): boolean {
-  if (item.kind === 'dress' || item.acquisition === 'pedido') return true
-  return (item.quantity ?? 0) > 0
+function isAvailable(item: { quantity: number | null }): boolean {
+  return item.quantity === null || item.quantity > 0
 }
 
 /**
@@ -145,7 +144,7 @@ app.get('/', async (c) => {
 
   const columns: Record<string, string> = {
     code: 'code', name: 'name', kind: 'kind', brand: 'brand', price: 'price_cents',
-    status: 'status', size: 'size', intake: 'intake_date',
+    status: 'status', size: 'size', intake: 'intake_date', quantity: 'quantity',
   }
   const orderBy = columns[sort] ?? 'code'
   const dir = c.req.query('dir') === 'desc' ? 'DESC' : 'ASC'
@@ -258,7 +257,7 @@ app.get('/:id{[0-9]+}', async (c) => {
 interface ItemInput {
   code?: string; name?: string; kind?: string; acquisition?: string; condition?: string
   brand?: string; size?: string; cut?: string; color?: string
-  cost_cents?: number; price_cents?: number; quantity?: number | string
+  cost_cents?: number; price_cents?: number; quantity?: number | string | null
   location?: string; notes?: string; intake_date?: string
 }
 
@@ -268,19 +267,26 @@ const CONDITIONS = ['nuevo', 'muestra', 'exhibicion', 'liquidacion']
 
 interface ValidatedItem {
   code: string; name: string; kind: ItemKind; acquisition: string; condition: string
-  /** NULL para un vestido o para cualquier cosa por pedido — ninguno se cuenta así. */
+  /** NULL = todavía no se cuenta. */
   quantity: number | null
 }
 
 /**
- * Resuelve la cantidad: sólo importa para algo que no es vestido y que sí se
- * cuenta en existencias. Si no mandan nada y hace falta una, 1 es lo que
- * de verdad vale casi siempre — un renglón nuevo del formulario de alta trae
- * una unidad real en la mano, no cero.
+ * Resuelve la cantidad. Cualquier artículo puede llevar un número o ninguno
+ * (vacío = no se cuenta, que es como entra lo importado del sitio). La única
+ * excepción es un accesorio de los que se dieron de alta a mano: la base exige
+ * que lleve número, y si no mandan ninguno al crearlo, 1 — un renglón nuevo
+ * trae una pieza real en la mano, no cero.
  */
-function resolveQuantity(kind: ItemKind, acquisition: string, raw: number | string | undefined, at: string): number | null {
-  if (kind === 'dress' || acquisition === 'pedido') return null
-  if (raw === undefined) return 1
+function resolveQuantity(kind: ItemKind, acquisition: string, raw: number | string | null | undefined, at: string): number | null {
+  const blank = raw === undefined || raw === null || raw === ''
+  if (blank) {
+    if (kind !== 'dress' && acquisition === 'unidad') {
+      if (raw === undefined) return 1
+      throw badRequest(`Pon la cantidad${at}: este artículo no puede quedar sin contar.`)
+    }
+    return null
+  }
   const n = Math.trunc(Number(raw))
   if (!Number.isFinite(n) || n < 0) throw badRequest(`La cantidad no puede ser negativa${at}.`)
   return n
@@ -377,11 +383,9 @@ app.patch('/:id{[0-9]+}', requireOwner, async (c) => {
     acquisition: body.acquisition ?? item.acquisition,
     condition: body.condition ?? item.condition,
     price_cents: body.price_cents ?? item.price_cents,
-    // Si ya tenía una cantidad guardada, esa sigue valiendo sin que la manden
-    // de nuevo; `resolveQuantity` sólo inventa un 1 cuando no hay ninguna —
-    // típicamente porque `kind` o `acquisition` acaban de volverse algo que
-    // sí se cuenta.
-    quantity: body.quantity ?? item.quantity ?? undefined,
+    // Si no mandan cantidad, la que ya tenía sigue valiendo. Mandar null
+    // —o vacío— es a propósito: dejar de contarla.
+    quantity: body.quantity !== undefined ? body.quantity : (item.quantity ?? undefined),
   })
 
   // The code is editable: an item imported without one carries a placeholder,

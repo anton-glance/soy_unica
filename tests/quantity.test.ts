@@ -18,10 +18,11 @@ const owner = new Kiosk()
 const seller = new Kiosk()
 
 /** Un vestido por pedido: nunca se aparta, así que lo pueden usar varias sesiones a la vez sin chocar. */
-async function makeDress(code: string): Promise<ItemRow> {
+async function makeDress(code: string, opts: { quantity?: number } = {}): Promise<ItemRow> {
   const { id } = await owner.post<{ id: number }>('/api/items', {
     code, name: `Vestido ${code}`, kind: 'dress', acquisition: 'pedido',
     condition: 'nuevo', price_cents: 1_000_000,
+    ...(opts.quantity !== undefined ? { quantity: opts.quantity } : {}),
   })
   const photo = await owner.upload('item_photo')
   await owner.put(`/api/items/${id}/photos`, { photos: [{ file_id: photo, is_primary: true }] })
@@ -127,14 +128,14 @@ describe('un accesorio agregado después de firmado también la descuenta', () =
   })
 })
 
-describe('lo que no se cuenta así: un vestido, o cualquier cosa por pedido', () => {
-  it('un vestido siempre está disponible, sin importar nada de esto', async () => {
+describe('lo que no se cuenta: un vestido, y un accesorio al que no se le ha puesto cantidad', () => {
+  it('un vestido sin cantidad no se cuenta y siempre está disponible', async () => {
     const dress = await makeDress('qty-d6')
     expect(dress.quantity).toBeNull()
     expect(dress.available).toBe(true)
   })
 
-  it('un accesorio por pedido nunca se cuenta ni se apaga', async () => {
+  it('un accesorio por pedido sin cantidad (lo importado del sitio) no se cuenta ni se apaga', async () => {
     const accessory = await makeAccessory('qty-a6', { acquisition: 'pedido', kind: 'cinto' })
     expect(accessory.quantity).toBeNull()
     expect(accessory.available).toBe(true)
@@ -146,5 +147,66 @@ describe('lo que no se cuenta así: un vestido, o cualquier cosa por pedido', ()
     const after = await owner.get<{ item: ItemRow }>(`/api/items/${accessory.id}`)
     expect(after.item.quantity).toBeNull()
     expect(after.item.available).toBe(true)
+  })
+})
+
+describe('ponerle cantidad a un accesorio que entró por pedido', () => {
+  it('sin cantidad no se cuenta; al ponérsela empieza a contarse y se apaga en cero', async () => {
+    const accessory = await makeAccessory('qty-a7', { acquisition: 'pedido' })
+    expect(accessory.quantity).toBeNull()
+
+    await owner.patch(`/api/items/${accessory.id}`, { quantity: 1 })
+    const counted = (await owner.get<{ item: ItemRow }>(`/api/items/${accessory.id}`)).item
+    expect(counted.quantity).toBe(1)
+    expect(counted.available).toBe(true)
+
+    const dress = await makeDress('qty-d8')
+    await sellThrough(dress, [accessory.id])
+    const after = (await owner.get<{ item: ItemRow }>(`/api/items/${accessory.id}`)).item
+    expect(after.quantity).toBe(0)
+    expect(after.available).toBe(false)
+  })
+
+  it('vaciarla la deja sin contar otra vez, y vuelve a estar disponible', async () => {
+    const accessory = await makeAccessory('qty-a8', { acquisition: 'pedido', quantity: 0 })
+    expect(accessory.available).toBe(false)
+
+    await owner.patch(`/api/items/${accessory.id}`, { quantity: null })
+    const after = (await owner.get<{ item: ItemRow }>(`/api/items/${accessory.id}`)).item
+    expect(after.quantity).toBeNull()
+    expect(after.available).toBe(true)
+  })
+
+  it('algo de unidad no puede quedar sin cantidad', async () => {
+    const accessory = await makeAccessory('qty-a9', { quantity: 3 })
+    const refusal = await owner.refusal(`/api/items/${accessory.id}`, { quantity: null }, 'PATCH')
+    expect(refusal.status).toBe(400)
+    expect(refusal.error).toMatch(/cantidad/i)
+  })
+})
+
+describe('un vestido también puede llevar cantidad', () => {
+  it('al firmar se descuenta, queda en cero y ya no se puede elegir otra vez', async () => {
+    const dress = await makeDress('qty-d9', { quantity: 1 })
+    expect(dress.quantity).toBe(1)
+    expect(dress.available).toBe(true)
+
+    await sellThrough(dress, [])
+    const after = (await owner.get<{ item: ItemRow }>(`/api/items/${dress.id}`)).item
+    expect(after.quantity).toBe(0)
+    expect(after.available).toBe(false)
+
+    const session = (await seller.post<{ id: number }>('/api/sessions', { device_label: 'sin vestido' })).id
+    const refusal = await seller.refusal(`/api/sessions/${session}/select`, { item_id: dress.id, pin: '1111' })
+    expect(refusal.status).toBe(409)
+    expect(refusal.error).toMatch(/ya no tiene existencias/)
+  })
+
+  it('con más de uno, cada venta descuenta uno y sigue disponible hasta el último', async () => {
+    const dress = await makeDress('qty-d10', { quantity: 2 })
+    await sellThrough(dress, [])
+    const mid = (await owner.get<{ item: ItemRow }>(`/api/items/${dress.id}`)).item
+    expect(mid.quantity).toBe(1)
+    expect(mid.available).toBe(true)
   })
 })
