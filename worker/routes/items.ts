@@ -12,13 +12,15 @@ import { csvResponse, toCsv } from '../lib/csv'
 
 const app = new Hono<AppEnv>()
 
+export type ItemKind = 'dress' | 'mantilla' | 'tiara' | 'cinto' | 'otros'
+
 export interface ItemRow {
   id: number
   needs_review: number
   review_fields: string | null
   store_id: string
   code: string
-  kind: 'dress' | 'accessory'
+  kind: ItemKind
   acquisition: 'unidad' | 'pedido'
   condition: string
   name: string
@@ -28,6 +30,9 @@ export interface ItemRow {
   color: string | null
   cost_cents: number
   price_cents: number
+  // Cuántos quedan en la vitrina. NULL para un vestido y para cualquier cosa
+  // por pedido: ninguno de los dos se cuenta así — ver la migración 0011.
+  quantity: number | null
   status: ItemStatus
   location: string | null
   notes: string | null
@@ -46,6 +51,17 @@ function forRole<T extends { cost_cents?: number }>(row: T, role: string): T {
   const copy = { ...row }
   delete copy.cost_cents
   return copy
+}
+
+/**
+ * Un vestido siempre es "disponible" en este sentido — lo que lo apaga es su
+ * `status`, no esto. Lo mismo algo por pedido: nunca se cuenta, siempre se
+ * puede encargar. Sólo algo de existencias (kind ≠ dress, acquisition =
+ * unidad) se apaga por esto, cuando ya no queda ninguno.
+ */
+function isAvailable(item: { kind: string; acquisition: string; quantity: number | null }): boolean {
+  if (item.kind === 'dress' || item.acquisition === 'pedido') return true
+  return (item.quantity ?? 0) > 0
 }
 
 /**
@@ -163,7 +179,7 @@ app.get('/', async (c) => {
     ...sharedArgs,
   )
   return c.json({
-    items: rows.map(({ photo_ids, ...r }) => ({ ...forRole(r, s.role), photos: photo_ids ? photo_ids.split(',') : [] })),
+    items: rows.map(({ photo_ids, ...r }) => ({ ...forRole(r, s.role), photos: photo_ids ? photo_ids.split(',') : [], available: isAvailable(r) })),
     counts,
     review_count: review_count?.n ?? 0,
   })
@@ -180,7 +196,7 @@ app.get('/export', async (c) => {
   const columns = [
     'code', 'name', 'kind', 'acquisition', 'condition', 'brand', 'size', 'cut', 'color',
     ...(s.role === 'owner' ? ['cost_cents'] : []),
-    'price_cents', 'status', 'location', 'notes', 'intake_date', 'needs_review', 'review_fields',
+    'price_cents', 'quantity', 'status', 'location', 'notes', 'intake_date', 'needs_review', 'review_fields',
   ]
   return csvResponse('inventario.csv', toCsv(columns, rows))
 })
@@ -192,7 +208,9 @@ app.get('/kiosk', async (c) => {
   // La principal primero: es la que se ve en la tarjeta y con la que abre el
   // detalle. `is_primary DESC` antes que `sort` porque `sort` no garantiza
   // que la principal quede al frente (se ordena por cómo se arrastraron,
-  // no por cuál se marcó).
+  // no por cuál se marcó). Un accesorio sin existencias se sigue mostrando
+  // —la novia tiene que poder verlo marcado «No disponible», no que
+  // desaparezca— así que esto ya no filtra por cantidad, sólo por `status`.
   const rows = await all<ItemRow & { photo_ids: string | null }>(
     c.env.DB,
     `SELECT i.*,
@@ -200,7 +218,7 @@ app.get('/kiosk', async (c) => {
                SELECT file_id FROM item_photos WHERE item_id = i.id ORDER BY is_primary DESC, sort
              )) AS photo_ids
        FROM items i
-      WHERE i.store_id = ? AND i.status IN ('available','watching') AND i.kind IN ('dress','accessory')
+      WHERE i.store_id = ? AND i.status IN ('available','watching')
       ORDER BY i.kind, i.code`,
     s.store,
   )
@@ -215,6 +233,7 @@ app.get('/kiosk', async (c) => {
     items: rows.map(({ photo_ids, ...r }) => ({
       ...forRole(r, s.role),
       photos: photo_ids ? photo_ids.split(',') : [],
+      available: isAvailable(r),
       // Los modelos por pedido nunca se apagan: dos novias pueden encargarlo.
       held_by_other: r.acquisition === 'unidad' && r.held_by_session !== null && r.held_by_session !== sessionId,
       held_by_me: r.held_by_session === sessionId,
@@ -232,34 +251,56 @@ app.get('/:id{[0-9]+}', async (c) => {
      JOIN files f ON f.id = p.file_id WHERE p.item_id = ? ORDER BY p.sort`,
     item.id,
   )
-  return c.json({ item: forRole(item, s.role), photos })
+  return c.json({ item: { ...forRole(item, s.role), available: isAvailable(item) }, photos })
 })
 
 // ─────────────────────────────────────────────────────────────── alta ──
 interface ItemInput {
   code?: string; name?: string; kind?: string; acquisition?: string; condition?: string
   brand?: string; size?: string; cut?: string; color?: string
-  cost_cents?: number; price_cents?: number; location?: string; notes?: string; intake_date?: string
+  cost_cents?: number; price_cents?: number; quantity?: number | string
+  location?: string; notes?: string; intake_date?: string
 }
 
-const KINDS = ['dress', 'accessory']
+const KINDS: ItemKind[] = ['dress', 'mantilla', 'tiara', 'cinto', 'otros']
 const ACQ = ['unidad', 'pedido']
 const CONDITIONS = ['nuevo', 'muestra', 'exhibicion', 'liquidacion']
 
-function validateItem(input: ItemInput, line?: number): Required<Pick<ItemInput, 'code' | 'name' | 'kind' | 'acquisition' | 'condition'>> {
+interface ValidatedItem {
+  code: string; name: string; kind: ItemKind; acquisition: string; condition: string
+  /** NULL para un vestido o para cualquier cosa por pedido — ninguno se cuenta así. */
+  quantity: number | null
+}
+
+/**
+ * Resuelve la cantidad: sólo importa para algo que no es vestido y que sí se
+ * cuenta en existencias. Si no mandan nada y hace falta una, 1 es lo que
+ * de verdad vale casi siempre — un renglón nuevo del formulario de alta trae
+ * una unidad real en la mano, no cero.
+ */
+function resolveQuantity(kind: ItemKind, acquisition: string, raw: number | string | undefined, at: string): number | null {
+  if (kind === 'dress' || acquisition === 'pedido') return null
+  if (raw === undefined) return 1
+  const n = Math.trunc(Number(raw))
+  if (!Number.isFinite(n) || n < 0) throw badRequest(`La cantidad no puede ser negativa${at}.`)
+  return n
+}
+
+function validateItem(input: ItemInput, line?: number): ValidatedItem {
   const at = line ? ` (renglón ${line})` : ''
   const code = String(input.code ?? '').trim()
   const name = String(input.name ?? '').trim()
   if (!code) throw badRequest(`Falta el código del artículo${at}.`)
   if (!name) throw badRequest(`Falta el nombre del artículo${at}.`)
-  const kind = String(input.kind ?? 'dress')
+  const kind = String(input.kind ?? 'dress') as ItemKind
   const acquisition = String(input.acquisition ?? 'unidad')
   const condition = String(input.condition ?? 'nuevo')
-  if (!KINDS.includes(kind)) throw badRequest(`«${kind}» no es un tipo válido${at}. Usa dress o accessory.`)
+  if (!KINDS.includes(kind)) throw badRequest(`«${kind}» no es un tipo válido${at}. Usa dress, mantilla, tiara, cinto u otros.`)
   if (!ACQ.includes(acquisition)) throw badRequest(`«${acquisition}» no es una adquisición válida${at}. Usa unidad o pedido.`)
   if (!CONDITIONS.includes(condition)) throw badRequest(`«${condition}» no es una condición válida${at}.`)
   if ((input.price_cents ?? 0) < 0) throw badRequest(`El precio no puede ser negativo${at}.`)
-  return { code, name, kind, acquisition, condition }
+  const quantity = resolveQuantity(kind, acquisition, input.quantity, at)
+  return { code, name, kind, acquisition, condition, quantity }
 }
 
 app.post('/', async (c) => {
@@ -272,12 +313,12 @@ app.post('/', async (c) => {
   const result = await run(
     c.env.DB,
     `INSERT INTO items (store_id, code, kind, acquisition, condition, name, brand, size, cut, color,
-                        cost_cents, price_cents, location, notes, intake_date)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                        cost_cents, price_cents, quantity, location, notes, intake_date)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     s.store, base.code, base.kind, base.acquisition, base.condition, base.name,
     body.brand ?? null, body.size ?? null, body.cut ?? null, body.color ?? null,
     s.role === 'owner' ? Math.trunc(body.cost_cents ?? 0) : 0,
-    Math.trunc(body.price_cents ?? 0),
+    Math.trunc(body.price_cents ?? 0), base.quantity,
     body.location ?? null, body.notes ?? null, body.intake_date ?? todayISO(),
   )
   const id = Number(result.meta.last_row_id)
@@ -329,13 +370,18 @@ app.patch('/:id{[0-9]+}', requireOwner, async (c) => {
   const s = c.get('session')
   const item = await loadItem(c.env.DB, s.store, Number(c.req.param('id')))
   const body = await readJson<ItemInput>(c)
-  validateItem({
+  const validated = validateItem({
     code: body.code ?? item.code,
     name: body.name ?? item.name,
     kind: body.kind ?? item.kind,
     acquisition: body.acquisition ?? item.acquisition,
     condition: body.condition ?? item.condition,
     price_cents: body.price_cents ?? item.price_cents,
+    // Si ya tenía una cantidad guardada, esa sigue valiendo sin que la manden
+    // de nuevo; `resolveQuantity` sólo inventa un 1 cuando no hay ninguna —
+    // típicamente porque `kind` o `acquisition` acaban de volverse algo que
+    // sí se cuenta.
+    quantity: body.quantity ?? item.quantity ?? undefined,
   })
 
   // The code is editable: an item imported without one carries a placeholder,
@@ -356,6 +402,12 @@ app.patch('/:id{[0-9]+}', requireOwner, async (c) => {
   }
   for (const f of ['cost_cents', 'price_cents'] as const) {
     if (body[f] !== undefined) { sets.push(`${f} = ?`); args.push(Math.trunc(body[f] as number)) }
+  }
+  // La cantidad se vuelve a escribir en cuanto cambia cualquier cosa que la
+  // afecte — ella misma, o `kind`/`acquisition`, que deciden si de plano
+  // aplica — no sólo cuando la manda el formulario.
+  if (body.quantity !== undefined || body.kind !== undefined || body.acquisition !== undefined) {
+    sets.push('quantity = ?'); args.push(validated.quantity)
   }
   if (sets.length === 0) return c.json({ ok: true })
   sets.push('updated_at = ?'); args.push(nowIso())
@@ -466,11 +518,14 @@ app.post('/import', requireOwner, async (c) => {
       kind: cell('kind') || 'dress', acquisition: cell('acquisition') || 'unidad',
       condition: cell('condition') || 'nuevo',
       price_cents: priceRaw === '' ? 0 : Math.round(Number(priceRaw) * 100),
+      quantity: cell('quantity') || undefined,
       // La descarga de photo_url queda para el siguiente paso; el enlace se
       // guarda en las notas para no perderlo.
       notes: photoUrl ? `foto: ${photoUrl}` : undefined,
     }
-    validateItem(item, i + 1)
+    // Normaliza `quantity` al valor resuelto (1 por omisión si la fila lo
+    // necesita) antes de guardarla: lo que se inserta es lo que ya se validó.
+    item.quantity = validateItem(item, i + 1).quantity ?? undefined
     parsed.push(item)
   }
 
@@ -487,11 +542,11 @@ app.post('/import', requireOwner, async (c) => {
     ...parsed.map((p) =>
       stmt(
         c.env.DB,
-        `INSERT INTO items (store_id, code, kind, acquisition, condition, name, brand, size, cut, price_cents, notes, intake_date)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+        `INSERT INTO items (store_id, code, kind, acquisition, condition, name, brand, size, cut, price_cents, quantity, notes, intake_date)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         s.store, p.code as string, p.kind as string, p.acquisition as string, p.condition as string,
         p.name as string, p.brand ?? null, p.size ?? null, p.cut ?? null,
-        p.price_cents ?? 0, p.notes ?? null, todayISO(),
+        p.price_cents ?? 0, p.quantity ?? null, p.notes ?? null, todayISO(),
       ),
     ),
     auditStmt(c.env.DB, { session: s, entity: 'item', entityId: null, action: 'import', after: { rows: parsed.length } }),

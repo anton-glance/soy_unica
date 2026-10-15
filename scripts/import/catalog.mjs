@@ -2,7 +2,7 @@
 import { writeFileSync, mkdirSync, existsSync, readFileSync, statSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import {
-  toItem, assignStores, ACCESSORY_CATEGORIES, CUT_CATEGORIES, LIQUIDATION_CATEGORY, PROMO_CATEGORY, RENTAL_CATEGORY,
+  toItem, assignStores, KIND_CATEGORIES, CUT_CATEGORIES, LIQUIDATION_CATEGORY, PROMO_CATEGORY, RENTAL_CATEGORY,
 } from './map-product.mjs'
 import { parseSwoofListing, reconcileListings, slugifyCategory } from './swoof.mjs'
 import { verifyAgainstMigratedDatabase } from './verify-sql.mjs'
@@ -222,7 +222,8 @@ for (const product of raw) {
 const fieldFor = (name) => {
   if (name === '(sin categorizar)') return 'flagged for review — no data to categorize from'
   if (RENTAL_CATEGORY.test(name)) return 'excluded — rental, out of scope'
-  if (ACCESSORY_CATEGORIES.test(name)) return 'kind = accessory'
+  const kindMatch = KIND_CATEGORIES.find((rule) => rule.test.test(name))
+  if (kindMatch) return `kind = ${kindMatch.kind}`
   if (/^vestidos de novia$/i.test(name)) return 'kind = dress'
   const cut = CUT_CATEGORIES.find((rule) => rule.test.test(name))
   if (cut) return `cut = ${cut.cut}`

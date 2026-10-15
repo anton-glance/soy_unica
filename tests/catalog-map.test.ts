@@ -143,14 +143,31 @@ describe('what comes out of the attributes', () => {
   })
 })
 
-describe('dress or accessory, read from the real categories', () => {
-  it('"Vestidos de Novia" is a dress, "Accesorios"/"Mantillas" is an accessory', () => {
+describe('dress or one of the four non-dress kinds, read from the real categories', () => {
+  it('"Vestidos de Novia" is a dress', () => {
     expect(byId(101).kind).toBe('dress')
-    expect(byId(102).kind).toBe('accessory')
+  })
+
+  it('the specific category wins over the generic "Accesorios" also on the product', () => {
+    // Product 102 carries both "Accesorios" and "Mantillas" — the specific one
+    // has to decide, or every mantilla would collapse into "otros" alongside
+    // capes and boleros, which is exactly what this split exists to avoid.
+    expect(byId(102).kind).toBe('mantilla')
+    expect(byId(111).kind).toBe('tiara')
+    expect(byId(112).kind).toBe('cinto')
+  })
+
+  it('the generic "Accesorios" category alone, with nothing more specific, is "otros"', () => {
+    // Product 113 ("Capa bordada") carries "Accesorios" and "Capa" — neither
+    // names one of the three specific kinds.
+    expect(byId(113).kind).toBe('otros')
   })
 
   it('falls back to the model name only when there is no category at all', () => {
     expect(byId(110).kind).toBe('dress')
+    // "Liga de novia azul" has no category, but the name says what it is —
+    // a word that isn't mantilla/tiara/cinto lands in "otros", not "dress".
+    expect(byId(114).kind).toBe('otros')
   })
 })
 

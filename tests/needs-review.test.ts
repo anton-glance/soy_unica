@@ -55,7 +55,7 @@ describe('which fields count as missing', () => {
 describe('the flag is derived, never typed', () => {
   it('is set on creation from what the row actually holds — a new item has no photo yet either', async () => {
     const { id } = await owner.post<{ id: number }>('/api/items', {
-      code: 'rev-1', name: 'Mantilla sin precio', kind: 'accessory',
+      code: 'rev-1', name: 'Mantilla sin precio', kind: 'mantilla',
       acquisition: 'unidad', condition: 'nuevo', price_cents: 0, cost_cents: 0, size: '',
     })
     unpriced = id
@@ -134,7 +134,7 @@ describe('an incomplete item cannot reach a contract', () => {
     const dressPhoto = await owner.upload('item_photo')
     await owner.put(`/api/items/${dress.id}/photos`, { photos: [{ file_id: dressPhoto, is_primary: true }] })
     const veil = await owner.post<{ id: number }>('/api/items', {
-      code: 'rev-4', name: 'Velo catedral', kind: 'accessory',
+      code: 'rev-4', name: 'Velo catedral', kind: 'otros',
       acquisition: 'pedido', condition: 'nuevo', price_cents: 0,
     })
     const refusal = await seller.refusal(`/api/sessions/${sessionId}/select`, {

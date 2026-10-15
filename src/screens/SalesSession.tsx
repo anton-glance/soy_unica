@@ -31,11 +31,13 @@ type Stage =
   | 'browsing' | 'fitting' | 'selected' | 'bride_data' | 'sheet_printed'
   | 'sheet_signed' | 'terms' | 'contract_printed' | 'signed' | 'payment' | 'closed'
 
+export type ItemKind = 'dress' | 'mantilla' | 'tiara' | 'cinto' | 'otros'
+
 export interface KioskItem {
-  id: number; code: string; name: string; brand: string | null; kind: 'dress' | 'accessory'
+  id: number; code: string; name: string; brand: string | null; kind: ItemKind
   acquisition: 'unidad' | 'pedido'; size: string | null; cut: string | null; color: string | null
   price_cents: number; held_by_other: boolean; held_by_me: boolean; favorite: boolean
-  photos: string[]
+  photos: string[]; quantity: number | null; available: boolean
 }
 
 /** La miniatura de una tarjeta: su foto principal, o el dibujo genérico si no tiene. */
@@ -44,26 +46,13 @@ function ItemArt({ item, className = 'art' }: { item: KioskItem; className?: str
   return photo ? <img src={`/api/files/${photo}`} alt="" className={className} /> : <GownArt seed={item.id} className={className} />
 }
 
-/**
- * El tipo de accesorio, para los chips rápidos de «Agregar accesorios» —
- * mismas categorías que el desplegable «Accesorios» del sitio (mantillas,
- * bolero, capa, tiaras, cintos). No hay un campo `type` en la base: se lee
- * del nombre, igual que el importador del catálogo decide si algo es
- * accesorio cuando el sitio no le dio categoría.
- */
-const ACCESSORY_TYPES: [RegExp, string][] = [
-  [/mantilla/i, 'Mantillas'],
-  [/bolero/i, 'Bolero'],
-  [/\bcapa\b/i, 'Capa'],
-  [/tiara|tocado|corona/i, 'Tiaras'],
-  [/cint(?:o|ur[oó]n)/i, 'Cintos'],
-  [/velo/i, 'Velos'],
-  [/crinolina/i, 'Crinolina'],
-  [/liga/i, 'Ligas'],
-]
-function accessoryType(item: KioskItem): string {
-  const hay = `${item.name} ${item.code}`
-  return ACCESSORY_TYPES.find(([re]) => re.test(hay))?.[1] ?? 'Otros'
+/** Mismas etiquetas que el inventario, para los chips de «Agregar accesorios». */
+const ACCESSORY_TYPE_LABEL: Record<Exclude<ItemKind, 'dress'>, string> = {
+  mantilla: 'Mantillas', tiara: 'Tiaras', cinto: 'Cintos', otros: 'Otros',
+}
+/** La misma etiqueta, en singular, para la cinta de un solo artículo. */
+const KIND_LABEL: Record<Exclude<ItemKind, 'dress'>, string> = {
+  mantilla: 'Mantilla', tiara: 'Tiara', cinto: 'Cinto', otros: 'Otro',
 }
 
 interface SessionState {
@@ -265,7 +254,7 @@ function Kiosk({ sessionId, onChange, onClosed }: {
   useEffect(() => { void load().catch((e: Error) => setError(e.message)) }, [load])
 
   const dresses = useMemo(() => items.filter((i) => i.kind === 'dress'), [items])
-  const accessories = useMemo(() => items.filter((i) => i.kind === 'accessory'), [items])
+  const accessories = useMemo(() => items.filter((i) => i.kind !== 'dress'), [items])
   // «Favoritos» son todo lo que se marcó con el corazón, vestidos y
   // accesorios juntos: antes sólo contaba vestidos y un accesorio marcado
   // desaparecía sin dejar rastro — no en «Mis favoritos», no como accesorio
@@ -333,8 +322,10 @@ function Kiosk({ sessionId, onChange, onClosed }: {
             {showPrices && <span className="price" style={{ display: 'block' }}>{money(item.price_cents)}</span>}
           </span>
         </button>
-        {item.held_by_other && <span className="tag">La está viendo otra clienta</span>}
-        {!item.held_by_other && item.held_by_me && <span className="tag">Lo estás viendo</span>}
+        {/* «No disponible» manda: si ya no hay existencia, da igual quién lo esté viendo. */}
+        {!item.available && <span className="tag">No disponible</span>}
+        {item.available && item.held_by_other && <span className="tag">La está viendo otra clienta</span>}
+        {item.available && !item.held_by_other && item.held_by_me && <span className="tag">Lo estás viendo</span>}
         {/*
           El corazón es su propio botón, hermano del que abre el detalle, no
           un hijo suyo: tocarlo no debe encoger la tarjeta entera, sólo él
@@ -569,7 +560,7 @@ function FavoritesReview({ favs, showPrices, onClose, onRemove, onCall }: {
           <figure key={d.id} className="fav-rail__item">
             <div style={{ position: 'relative' }}>
               <ItemArt item={d} />
-              {d.kind === 'accessory' && <span className="tag tag--right">Accesorio</span>}
+              {d.kind !== 'dress' && <span className="tag tag--right">{KIND_LABEL[d.kind]}</span>}
             </div>
             <figcaption>{d.name}</figcaption>
             {showPrices && <p className="mono">{money(d.price_cents)}</p>}
@@ -616,11 +607,13 @@ function SelectionScreen({ sessionId, pin, favorites, accessories, showPrices, o
   const [openAccessory, setOpenAccessory] = useState<KioskItem | null>(null)
   const [confirming, setConfirming] = useState(false)
 
-  const accessoryTypes = useMemo(
-    () => ['Todos', ...[...new Set(accessories.map(accessoryType))].sort()],
-    [accessories],
-  )
-  const visibleAccessories = accType === 'Todos' ? accessories : accessories.filter((a) => accessoryType(a) === accType)
+  const accessoryTypes = useMemo(() => {
+    const present = new Set(accessories.map((a) => a.kind))
+    return ['Todos', ...(['mantilla', 'tiara', 'cinto', 'otros'] as const).filter((k) => present.has(k)).map((k) => ACCESSORY_TYPE_LABEL[k])]
+  }, [accessories])
+  const visibleAccessories = accType === 'Todos'
+    ? accessories
+    : accessories.filter((a) => a.kind !== 'dress' && ACCESSORY_TYPE_LABEL[a.kind] === accType)
 
   const chosenDress = favorites.find((f) => f.id === dress) ?? null
   const chosenAccessories = accessories.filter((a) => picked.includes(a.id))
@@ -718,7 +711,12 @@ function SelectionScreen({ sessionId, pin, favorites, accessories, showPrices, o
                 </div>
               )}
               <div className="grid grid--tight">
-                {visibleAccessories.map((a) => (
+                {visibleAccessories.map((a) => {
+                  const isPicked = picked.includes(a.id)
+                  // Lo que ya no tiene existencias no se puede agregar — pero si ya
+                  // estaba marcado desde antes, se puede seguir quitando.
+                  const pickDisabled = !a.available && !isPicked
+                  return (
                   <div key={a.id} className="card">
                     <button
                       type="button"
@@ -734,17 +732,20 @@ function SelectionScreen({ sessionId, pin, favorites, accessories, showPrices, o
                         {showPrices && <span className="price" style={{ display: 'block' }}>{money(a.price_cents)}</span>}
                       </span>
                     </button>
+                    {!a.available && <span className="tag">No disponible</span>}
                     <button
                       type="button"
                       className="heart"
-                      aria-pressed={picked.includes(a.id)}
+                      aria-pressed={isPicked}
                       aria-label={`Agregar ${a.name}`}
+                      disabled={pickDisabled}
                       onClick={() => setPicked((p) => (p.includes(a.id) ? p.filter((id) => id !== a.id) : [...p, a.id]))}
                     >
-                      {picked.includes(a.id) ? '♥' : '♡'}
+                      {isPicked ? '♥' : '♡'}
                     </button>
                   </div>
-                ))}
+                  )
+                })}
                 {visibleAccessories.length === 0 && <p className="lede">Nada con ese filtro.</p>}
               </div>
             </>
@@ -762,11 +763,13 @@ function SelectionScreen({ sessionId, pin, favorites, accessories, showPrices, o
                 {showPrices && <><dt>Precio</dt><dd>{money(openAccessory.price_cents)}</dd></>}
                 <dt>Código</dt><dd className="mono">{openAccessory.code}</dd>
                 <dt>Color</dt><dd>{openAccessory.color ?? '—'}</dd>
+                {!openAccessory.available && (<><dt>Disponibilidad</dt><dd>No disponible</dd></>)}
               </dl>
               <div className="row">
                 <button
                   type="button"
                   className="btn-main"
+                  disabled={!openAccessory.available && !picked.includes(openAccessory.id)}
                   onClick={() => {
                     setPicked((p) => (p.includes(openAccessory.id) ? p.filter((id) => id !== openAccessory.id) : [...p, openAccessory.id]))
                     setOpenAccessory(null)

@@ -118,5 +118,49 @@
     "categories": [],
     "attributes": [],
     "images": []
+  },
+  {
+    "id": 111,
+    "name": "Tiara de cristal",
+    "slug": "tiara-de-cristal",
+    "permalink": "https://soyunicanovias.com/producto/accesorios/tiaras/tiara-de-cristal/",
+    "sku": "",
+    "prices": { "price": "65000", "currency_minor_unit": 2 },
+    "categories": [{ "id": 9, "name": "Accesorios" }, { "id": 12, "name": "Tiaras" }],
+    "attributes": [],
+    "images": [{ "id": 4, "src": "https://soyunicanovias.com/wp-content/uploads/tiara.jpg", "alt": "" }]
+  },
+  {
+    "id": 112,
+    "name": "Cinturón de pedrería",
+    "slug": "cinturon-de-pedreria",
+    "permalink": "https://soyunicanovias.com/producto/accesorios/cintos/cinturon-de-pedreria/",
+    "sku": "",
+    "prices": { "price": "72000", "currency_minor_unit": 2 },
+    "categories": [{ "id": 9, "name": "Accesorios" }, { "id": 13, "name": "Cintos" }],
+    "attributes": [],
+    "images": [{ "id": 5, "src": "https://soyunicanovias.com/wp-content/uploads/cinto.jpg", "alt": "" }]
+  },
+  {
+    "id": 113,
+    "name": "Capa bordada",
+    "slug": "capa-bordada",
+    "permalink": "https://soyunicanovias.com/producto/accesorios/capa-bordada/",
+    "sku": "",
+    "prices": { "price": "48000", "currency_minor_unit": 2 },
+    "categories": [{ "id": 9, "name": "Accesorios" }, { "id": 14, "name": "Capa" }],
+    "attributes": [],
+    "images": []
+  },
+  {
+    "id": 114,
+    "name": "Liga de novia azul",
+    "slug": "liga-de-novia-azul",
+    "permalink": "https://soyunicanovias.com/producto/liga-de-novia-azul/",
+    "sku": "",
+    "prices": { "price": "9000", "currency_minor_unit": 2 },
+    "categories": [],
+    "attributes": [],
+    "images": []
   }
 ]

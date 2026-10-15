@@ -10,19 +10,26 @@ import { Dialog } from '../components/Dialog'
 import { PhotoSet, type Shot } from '../components/PhotoSet'
 import { PhotoGallery } from '../components/PhotoGallery'
 
+type ItemKind = 'dress' | 'mantilla' | 'tiara' | 'cinto' | 'otros'
+
 interface Item {
   id: number; code: string; name: string; brand: string | null; size: string | null
-  cut: string | null; color: string | null; kind: 'dress' | 'accessory'
+  cut: string | null; color: string | null; kind: ItemKind
   acquisition: 'unidad' | 'pedido'; condition: string; status: string
-  cost_cents?: number; price_cents: number; location: string | null; notes: string | null
+  cost_cents?: number; price_cents: number; quantity: number | null; location: string | null; notes: string | null
   intake_date: string | null; contract_id: number | null
   tailoring_done_at: string | null; ready_notified_at: string | null; delivered_at: string | null
-  needs_review: number; review_fields: string | null
+  needs_review: number; review_fields: string | null; photos: string[]; available: boolean
 }
 
 /** What the record sheet calls each field the importer left empty. */
 const FALTA: Record<string, string> = {
   price: 'precio', code: 'código', size: 'talla', cost: 'costo', condition: 'condición', photo: 'foto',
+}
+
+/** Vestido, o cuál de los cuatro tipos que no son vestido. */
+const KIND_LABEL: Record<ItemKind, string> = {
+  dress: 'Vestido', mantilla: 'Mantilla', tiara: 'Tiara', cinto: 'Cinto', otros: 'Otro',
 }
 
 function missingOf(item: Item): Set<string> {
@@ -116,9 +123,12 @@ export function Inventory() {
           <div className="field" style={{ minWidth: 180 }}>
             <label htmlFor="ikind">Tipo</label>
             <select id="ikind" value={kind} onChange={(e) => setKind(e.target.value)}>
-              <option value="">Vestidos y accesorios</option>
-              <option value="dress">Solo vestidos</option>
-              <option value="accessory">Solo accesorios</option>
+              <option value="">Todos los tipos</option>
+              <option value="dress">Vestidos</option>
+              <option value="mantilla">Mantillas</option>
+              <option value="tiara">Tiaras</option>
+              <option value="cinto">Cintos</option>
+              <option value="otros">Otros</option>
             </select>
           </div>
           <a className="btn-quiet" href="/api/items/export">Exportar CSV</a>
@@ -175,9 +185,9 @@ export function Inventory() {
                 return (
                 <tr key={item.id} onClick={() => setOpen(item)}>
                   <td style={{ textAlign: 'center' }}>
-                    {missing.has('photo')
-                      ? <span aria-label="Sin foto" style={{ color: 'var(--clay)', fontSize: '20px', fontWeight: 'var(--weight-medium)' }}>✗</span>
-                      : <span aria-label="Con foto" style={{ color: 'var(--sage)', fontSize: '20px', fontWeight: 'var(--weight-medium)' }}>✓</span>}
+                    {item.photos[0]
+                      ? <img src={`/api/files/${item.photos[0]}`} alt="" style={{ width: 32, height: 32, objectFit: 'cover', borderRadius: 'var(--radius-sm, 4px)' }} />
+                      : <span aria-label="Sin foto" style={{ color: 'var(--clay)', fontSize: '20px', fontWeight: 'var(--weight-medium)' }}>✗</span>}
                   </td>
                   <td className="mono">{item.code}</td>
                   <td className="model">
@@ -189,14 +199,18 @@ export function Inventory() {
                     )}
                   </td>
                   <td>
-                    <span className={`bdg ${item.kind === 'accessory' ? 'clay' : 'ok'}`}>
-                      {item.kind === 'accessory' ? 'Accesorio' : 'Vestido'}
+                    <span className={`bdg ${item.kind === 'dress' ? 'ok' : 'clay'}`}>
+                      {KIND_LABEL[item.kind]}
                     </span>
                   </td>
                   <td>{item.brand ?? '—'}</td>
                   <td>{missing.has('size') ? <span className="falta">falta</span> : (item.size ?? '—')}</td>
                   <td className="mono">{missing.has('price') ? <span className="falta">falta</span> : money(item.price_cents)}</td>
-                  <td><span className={`bdg ${ST[item.status]?.[1] ?? 'mute'}`}>{ST[item.status]?.[0] ?? item.status}</span></td>
+                  <td>
+                    {!item.available
+                      ? <span className="bdg mute">No disponible</span>
+                      : <span className={`bdg ${ST[item.status]?.[1] ?? 'mute'}`}>{ST[item.status]?.[0] ?? item.status}</span>}
+                  </td>
                   <td className="mono">{dateMX(item.intake_date)}</td>
                   {isOwner && (
                     <td className="mono">{missing.has('cost') ? <span className="falta">falta</span> : money(item.cost_cents ?? 0)}</td>
@@ -249,12 +263,16 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
 
   const missing = missingOf(item)
 
+  // Sólo algo que no es vestido, comprado como existencias, se cuenta así.
+  const isStocked = item.kind !== 'dress' && item.acquisition === 'unidad'
+
   // La dueña edita la ficha completa; la vendedora sólo la lee.
   const [form, setForm] = useState({
     code: item.code,
     name: item.name, brand: item.brand ?? '', size: item.size ?? '', cut: item.cut ?? '',
     color: item.color ?? '', location: item.location ?? '', notes: item.notes ?? '',
     condition: item.condition, price: String(item.price_cents / 100), cost: String((item.cost_cents ?? 0) / 100),
+    quantity: String(item.quantity ?? 0),
     intake_date: item.intake_date ?? '',
   })
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
@@ -275,13 +293,20 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
   return (
     <Dialog title={item.name} onCancel={onClose} closeLabel="Cerrar la ficha" full big>
       <p className="muted" style={{ textAlign: 'center', margin: '0 0 var(--space-8)' }}>
-        código {item.code} · {item.kind === 'dress' ? 'vestido' : 'accesorio'} · {item.acquisition === 'pedido' ? 'por pedido' : 'de unidad'}
+        código {item.code} · {KIND_LABEL[item.kind].toLowerCase()} · {item.acquisition === 'pedido' ? 'por pedido' : 'de unidad'}
+        {isStocked && ` · ${item.quantity ?? 0} en existencia`}
       </p>
 
       {item.needs_review === 1 && (
         <p className="pill pill--brass" style={{ display: 'block', textAlign: 'center', margin: '0 0 var(--space-10)' }}>
           Por verificar: falta {[...missing].map((f) => FALTA[f] ?? f).join(', ')}.
           {missing.has('price') && ' Sin precio no se puede elegir en una sesión.'}
+        </p>
+      )}
+
+      {!item.available && (
+        <p className="pill pill--brass" style={{ display: 'block', textAlign: 'center', margin: '0 0 var(--space-10)' }}>
+          No disponible: ya no quedan existencias. No se puede agregar a un contrato hasta que se reponga.
         </p>
       )}
 
@@ -330,7 +355,17 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
                 <div className="f3">
                   <Field label="Precio de venta" marked={missing.has('price')}>{(id) => <input id={id} type="text" inputMode="decimal" value={form.price} onChange={set('price')} />}</Field>
                   <Field label="Costo" marked={missing.has('cost')}>{(id) => <input id={id} type="text" inputMode="decimal" value={form.cost} onChange={set('cost')} />}</Field>
+                  {isStocked && (
+                    <Field label="Cantidad" hint="Cuántos quedan en la vitrina. En cero deja de verse como disponible.">
+                      {(id) => <input id={id} type="number" inputMode="numeric" min={0} step={1} value={form.quantity} onChange={set('quantity')} />}
+                    </Field>
+                  )}
                 </div>
+                {item.kind !== 'dress' && item.acquisition === 'pedido' && (
+                  <p className="muted" style={{ fontSize: 'var(--text-label)', margin: '0 0 var(--space-6)' }}>
+                    Por pedido: no se cuenta en existencias, siempre se puede encargar.
+                  </p>
+                )}
                 <div className="f3">
                   <Field label="Condición" marked={missing.has('condition')}>{(id) => (
                     <select id={id} value={form.condition} onChange={set('condition')}>
@@ -349,13 +384,14 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
               </>
             ) : (
               <div className="f3">
-                <Info label="Estado" value={ST[item.status]?.[0] ?? item.status} />
+                <Info label="Estado" value={!item.available ? 'No disponible' : (ST[item.status]?.[0] ?? item.status)} />
                 <Info label="Marca" value={item.brand ?? '—'} />
                 <Info label="Corte" value={item.cut ?? '—'} />
                 <Info label="Talla" value={missing.has('size') ? 'falta' : (item.size ?? '—')} />
                 <Info label="Color" value={item.color ?? '—'} />
                 <Info label="Condición" value={item.condition} />
                 <Info label="Precio de venta" value={missing.has('price') ? 'falta' : money(item.price_cents)} />
+                {isStocked && <Info label="Cantidad" value={String(item.quantity ?? 0)} />}
                 <Info label="Ubicación" value={item.location ?? '—'} />
                 <Info label="Fecha de ingreso" value={dateMX(item.intake_date)} />
               </div>
@@ -389,6 +425,7 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
                 <ActionButton
                   done="Guardado"
                   onAction={async () => {
+                    const newQuantity = isStocked ? Math.max(0, Math.trunc(Number(form.quantity) || 0)) : null
                     await patch(`/items/${item.id}`, {
                       code: form.code,
                       name: form.name, brand: form.brand, size: form.size, cut: form.cut,
@@ -396,8 +433,10 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
                       condition: form.condition, intake_date: form.intake_date || undefined,
                       price_cents: parseMoney(form.price) ?? 0,
                       cost_cents: parseMoney(form.cost) ?? 0,
+                      ...(isStocked ? { quantity: newQuantity } : {}),
                     })
-                    await onChanged(`${form.name} guardado como ${(ST[item.status]?.[0] ?? item.status).toLowerCase()}.`)
+                    const label = isStocked && newQuantity === 0 ? 'no disponible' : (ST[item.status]?.[0] ?? item.status).toLowerCase()
+                    await onChanged(`${form.name} guardado como ${label}.`)
                   }}
                 >
                   Guardar cambios
@@ -438,7 +477,7 @@ function Info({ label, value }: { label: string; value: string }) {
 function AddItem({ isOwner, onClose, onAdded }: { isOwner: boolean; onClose: () => void; onAdded: (name: string) => Promise<void> }) {
   const [form, setForm] = useState({
     code: '', name: '', brand: '', size: '', cut: '', color: '', notes: '',
-    kind: 'dress', price: '', cost: '',
+    kind: 'dress', price: '', cost: '', quantity: '1',
   })
   const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }))
@@ -461,7 +500,10 @@ function AddItem({ isOwner, onClose, onAdded }: { isOwner: boolean; onClose: () 
         <Field label="Tipo">{(id) => (
           <select id={id} value={form.kind} onChange={set('kind')}>
             <option value="dress">Vestido</option>
-            <option value="accessory">Accesorio</option>
+            <option value="mantilla">Mantilla</option>
+            <option value="tiara">Tiara</option>
+            <option value="cinto">Cinto</option>
+            <option value="otros">Otro</option>
           </select>
         )}</Field>
       </div>
@@ -479,6 +521,13 @@ function AddItem({ isOwner, onClose, onAdded }: { isOwner: boolean; onClose: () 
           ? <Field label="Costo">{(id) => <input id={id} type="text" inputMode="decimal" value={form.cost} onChange={set('cost')} />}</Field>
           : <Field label="Costo">{(id) => <input id={id} type="text" value="Solo la dueña" disabled style={{ opacity: .5 }} />}</Field>}
       </div>
+      {form.kind !== 'dress' && (
+        <div className="f3">
+          <Field label="Cantidad" hint="Cuántos entran al inventario ahora mismo">
+            {(id) => <input id={id} type="number" inputMode="numeric" min={0} step={1} value={form.quantity} onChange={set('quantity')} />}
+          </Field>
+        </div>
+      )}
 
       {/*
         Las fotos: hasta cinco, una principal. Se comprimen en la tableta con el
