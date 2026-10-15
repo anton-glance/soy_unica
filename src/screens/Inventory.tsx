@@ -543,9 +543,10 @@ function AddItem({ isOwner, onClose, onAdded }: { isOwner: boolean; onClose: () 
             }
             const { id } = await post<{ id: number }>('/items', {
               ...form,
-              // Aquí ya no se preguntan: casi todo lo que entra por este
-              // formulario es de unidad, nuevo, y dónde vive es cosa de la
-              // dueña, no un campo que llenar cada vez.
+              // Aquí ya no se preguntan: lo que entra por este formulario
+              // es nuevo y se cuenta por cantidad (campo `acquisition`
+              // interno, no visible), y dónde vive es cosa de la dueña, no
+              // un campo que llenar cada vez.
               acquisition: 'unidad', condition: 'nuevo',
               price_cents: parseMoney(form.price) ?? 0,
               cost_cents: isOwner ? (parseMoney(form.cost) ?? 0) : undefined,
