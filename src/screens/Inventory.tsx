@@ -48,7 +48,7 @@ const ST: Record<string, [string, string]> = {
 
 const COLS = [
   ['photo', 'Fotos'], ['code', 'Código'], ['name', 'Modelo'], ['kind', 'Tipo'], ['brand', 'Marca'],
-  ['size', 'Talla'], ['price', 'Precio'], ['status', 'Estado'], ['intake', 'Ingreso'],
+  ['size', 'Talla'], ['price', 'Precio'], ['quantity', 'Cant.'], ['status', 'Estado'], ['intake', 'Ingreso'],
 ] as const
 
 export function Inventory() {
@@ -206,6 +206,7 @@ export function Inventory() {
                   <td>{item.brand ?? '—'}</td>
                   <td>{missing.has('size') ? <span className="falta">falta</span> : (item.size ?? '—')}</td>
                   <td className="mono">{missing.has('price') ? <span className="falta">falta</span> : money(item.price_cents)}</td>
+                  <td className="mono">{item.quantity === null ? '—' : item.quantity}</td>
                   <td>
                     {!item.available
                       ? <span className="bdg mute">No disponible</span>
@@ -220,7 +221,7 @@ export function Inventory() {
               })}
               {items.length === 0 && (
                 <tr>
-                  <td colSpan={isOwner ? 10 : 9} style={{ padding: 40, textAlign: 'center', color: 'var(--ink-faint)' }}>
+                  <td colSpan={isOwner ? 11 : 10} style={{ padding: 40, textAlign: 'center', color: 'var(--ink-faint)' }}>
                     Nada coincide con esa búsqueda. Borra el filtro o agrega el artículo.
                   </td>
                 </tr>
@@ -263,8 +264,8 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
 
   const missing = missingOf(item)
 
-  // Sólo algo que no es vestido, comprado como existencias, se cuenta así.
-  const isStocked = item.kind !== 'dress' && item.acquisition === 'unidad'
+  // Cualquier artículo lleva cantidad, vestido o no. Vacía quiere decir que
+  // todavía no se cuenta (así entra lo importado del sitio).
 
   // La dueña edita la ficha completa; la vendedora sólo la lee.
   const [form, setForm] = useState({
@@ -272,7 +273,7 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
     name: item.name, brand: item.brand ?? '', size: item.size ?? '', cut: item.cut ?? '',
     color: item.color ?? '', location: item.location ?? '', notes: item.notes ?? '',
     condition: item.condition, price: String(item.price_cents / 100), cost: String((item.cost_cents ?? 0) / 100),
-    quantity: String(item.quantity ?? 0),
+    quantity: item.quantity === null ? '' : String(item.quantity),
     intake_date: item.intake_date ?? '',
   })
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
@@ -293,8 +294,7 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
   return (
     <Dialog title={item.name} onCancel={onClose} closeLabel="Cerrar la ficha" full big>
       <p className="muted" style={{ textAlign: 'center', margin: '0 0 var(--space-8)' }}>
-        código {item.code} · {KIND_LABEL[item.kind].toLowerCase()} · {item.acquisition === 'pedido' ? 'por pedido' : 'de unidad'}
-        {isStocked && ` · ${item.quantity ?? 0} en existencia`}
+        código {item.code} · {KIND_LABEL[item.kind].toLowerCase()} · {item.quantity === null ? 'sin contar' : `${item.quantity} en existencia`}
       </p>
 
       {item.needs_review === 1 && (
@@ -355,17 +355,10 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
                 <div className="f3">
                   <Field label="Precio de venta" marked={missing.has('price')}>{(id) => <input id={id} type="text" inputMode="decimal" value={form.price} onChange={set('price')} />}</Field>
                   <Field label="Costo" marked={missing.has('cost')}>{(id) => <input id={id} type="text" inputMode="decimal" value={form.cost} onChange={set('cost')} />}</Field>
-                  {isStocked && (
-                    <Field label="Cantidad" hint="Cuántos quedan en la vitrina. En cero deja de verse como disponible.">
-                      {(id) => <input id={id} type="number" inputMode="numeric" min={0} step={1} value={form.quantity} onChange={set('quantity')} />}
-                    </Field>
-                  )}
+                  <Field label="Cantidad" hint="Cuántos hay. Cada venta firmada descuenta uno; en cero deja de poder venderse. Vacío = todavía no se cuenta.">
+                    {(id) => <input id={id} type="number" inputMode="numeric" min={0} step={1} placeholder="sin contar" value={form.quantity} onChange={set('quantity')} />}
+                  </Field>
                 </div>
-                {item.kind !== 'dress' && item.acquisition === 'pedido' && (
-                  <p className="muted" style={{ fontSize: 'var(--text-label)', margin: '0 0 var(--space-6)' }}>
-                    Por pedido: no se cuenta en existencias, siempre se puede encargar.
-                  </p>
-                )}
                 <div className="f3">
                   <Field label="Condición" marked={missing.has('condition')}>{(id) => (
                     <select id={id} value={form.condition} onChange={set('condition')}>
@@ -391,7 +384,7 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
                 <Info label="Color" value={item.color ?? '—'} />
                 <Info label="Condición" value={item.condition} />
                 <Info label="Precio de venta" value={missing.has('price') ? 'falta' : money(item.price_cents)} />
-                {isStocked && <Info label="Cantidad" value={String(item.quantity ?? 0)} />}
+                <Info label="Cantidad" value={item.quantity === null ? 'Sin contar' : String(item.quantity)} />
                 <Info label="Ubicación" value={item.location ?? '—'} />
                 <Info label="Fecha de ingreso" value={dateMX(item.intake_date)} />
               </div>
@@ -401,9 +394,7 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
 
             {/* El estado y su transición son cosa de la vendedora, que trae el
                 vestido en las manos; la dueña no necesita tocarlo aquí. */}
-            {!isOwner && (item.acquisition === 'pedido' ? (
-              <p className="state">Los modelos por pedido no cambian de estado: se mandan a hacer.</p>
-            ) : (
+            {!isOwner && item.acquisition !== 'pedido' && (
               <div className="row" style={{ marginTop: 'var(--space-2)' }}>
                 {transitions.map((t) => (
                   <ActionButton
@@ -418,14 +409,17 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
                   </ActionButton>
                 ))}
               </div>
-            ))}
+            )}
 
             {isOwner ? (
               <div className="row" style={{ marginTop: 'var(--space-11)' }}>
                 <ActionButton
                   done="Guardado"
                   onAction={async () => {
-                    const newQuantity = isStocked ? Math.max(0, Math.trunc(Number(form.quantity) || 0)) : null
+                    // Vacía: sin contar.
+                    const newQuantity = form.quantity.trim() === ''
+                      ? null
+                      : Math.max(0, Math.trunc(Number(form.quantity) || 0))
                     await patch(`/items/${item.id}`, {
                       code: form.code,
                       name: form.name, brand: form.brand, size: form.size, cut: form.cut,
@@ -433,9 +427,9 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
                       condition: form.condition, intake_date: form.intake_date || undefined,
                       price_cents: parseMoney(form.price) ?? 0,
                       cost_cents: parseMoney(form.cost) ?? 0,
-                      ...(isStocked ? { quantity: newQuantity } : {}),
+                      quantity: newQuantity,
                     })
-                    const label = isStocked && newQuantity === 0 ? 'no disponible' : (ST[item.status]?.[0] ?? item.status).toLowerCase()
+                    const label = newQuantity === 0 ? 'no disponible' : (ST[item.status]?.[0] ?? item.status).toLowerCase()
                     await onChanged(`${form.name} guardado como ${label}.`)
                   }}
                 >
@@ -521,13 +515,11 @@ function AddItem({ isOwner, onClose, onAdded }: { isOwner: boolean; onClose: () 
           ? <Field label="Costo">{(id) => <input id={id} type="text" inputMode="decimal" value={form.cost} onChange={set('cost')} />}</Field>
           : <Field label="Costo">{(id) => <input id={id} type="text" value="Solo la dueña" disabled style={{ opacity: .5 }} />}</Field>}
       </div>
-      {form.kind !== 'dress' && (
-        <div className="f3">
-          <Field label="Cantidad" hint="Cuántos entran al inventario ahora mismo">
-            {(id) => <input id={id} type="number" inputMode="numeric" min={0} step={1} value={form.quantity} onChange={set('quantity')} />}
-          </Field>
-        </div>
-      )}
+      <div className="f3">
+        <Field label="Cantidad" hint="Cuántos entran al inventario ahora mismo">
+          {(id) => <input id={id} type="number" inputMode="numeric" min={0} step={1} value={form.quantity} onChange={set('quantity')} />}
+        </Field>
+      </div>
 
       {/*
         Las fotos: hasta cinco, una principal. Se comprimen en la tableta con el
