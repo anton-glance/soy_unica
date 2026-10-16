@@ -144,6 +144,9 @@ app.get('/', async (c) => {
   const where = [...shared]
   const args = [...sharedArgs]
   if (status) { where.push('status = ?'); args.push(status) }
+  // «Disponible» es lo que de verdad se puede vender: un artículo en cero tiene
+  // `status = 'available'` pero se cuenta en «No disponible», no aquí.
+  if (status === 'available') where.push(`NOT (${UNAVAILABLE})`)
   if (review) where.push('needs_review = 1')
   if (unavailable) where.push(UNAVAILABLE)
 
@@ -184,14 +187,20 @@ app.get('/', async (c) => {
   )
   const counts = await all<{ status: string; n: number }>(
     c.env.DB,
-    `SELECT status, COUNT(*) AS n FROM items WHERE ${shared.join(' AND ')} GROUP BY status`,
+    `SELECT status, COUNT(*) AS n FROM items
+      WHERE ${shared.join(' AND ')} AND NOT (status = 'available' AND ${UNAVAILABLE})
+      GROUP BY status`,
     ...sharedArgs,
+  )
+  const total = await one<{ n: number }>(
+    c.env.DB, `SELECT COUNT(*) AS n FROM items WHERE ${shared.join(' AND ')}`, ...sharedArgs,
   )
   return c.json({
     items: rows.map(({ photo_ids, ...r }) => ({ ...forRole(r, s.role), photos: photo_ids ? photo_ids.split(',') : [], available: isAvailable(r) })),
     counts,
     review_count: review_count?.n ?? 0,
     unavailable_count: unavailable_count?.n ?? 0,
+    total: total?.n ?? 0,
   })
 })
 

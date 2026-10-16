@@ -220,6 +220,14 @@ describe('filtro rápido «No disponible» y cambio de tipo', () => {
     expect(all.items.map((i) => i.id)).toEqual(expect.arrayContaining([zero.id, counted.id]))
     expect(all.unavailable_count).toBe(1)
 
+    // «Disponible» no incluye lo que está en cero; «Todos» sí lo cuenta.
+    const avail = await owner.get<{ items: ItemRow[]; counts: { status: string; n: number }[]; total: number }>(
+      '/api/items?q=qty-f&status=available',
+    )
+    expect(avail.items.map((i) => i.id)).toEqual([counted.id])
+    expect(avail.counts.find((c) => c.status === 'available')?.n).toBe(1)
+    expect(avail.total).toBe(2)
+
     const only = await owner.get<{ items: ItemRow[] }>('/api/items?q=qty-f&unavailable=1')
     expect(only.items.map((i) => i.id)).toEqual([zero.id])
   })
