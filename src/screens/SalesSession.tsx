@@ -41,7 +41,7 @@ export interface KioskItem {
 
 /** Cómo se llama cada dato que falta en la etiqueta «Falta: …». */
 const FALTA_LABEL: Record<string, string> = {
-  price: 'precio', code: 'código', name: 'modelo', brand: 'marca', photo: 'foto',
+  price: 'precio', code: 'código', name: 'modelo', brand: 'marca', quantity: 'cantidad', photo: 'foto',
 }
 
 /** «Falta: precio, foto» si el artículo está incompleto; null si está completo. */

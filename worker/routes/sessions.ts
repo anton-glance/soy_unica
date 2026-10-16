@@ -20,7 +20,7 @@ export type Stage =
 
 /** Cómo se llama cada dato que falta, en el aviso de «incompleto». */
 const FALTA: Record<string, string> = {
-  price: 'precio', code: 'código', name: 'modelo', brand: 'marca', photo: 'foto',
+  price: 'precio', code: 'código', name: 'modelo', brand: 'marca', quantity: 'cantidad', photo: 'foto',
 }
 
 /** Ver y probar se alternan libremente; de ahí en adelante el orden es fijo. */

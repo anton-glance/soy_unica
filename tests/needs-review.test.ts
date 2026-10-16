@@ -29,7 +29,7 @@ beforeAll(async () => {
 })
 
 describe('which fields count as missing', () => {
-  const base = { code: 'p139', name: 'Madelyn', brand: 'Lanesta', kind: 'dress', price_cents: 100, has_photo: true }
+  const base = { code: 'p139', name: 'Madelyn', brand: 'Lanesta', kind: 'dress', price_cents: 100, quantity: 2, has_photo: true }
 
   it('price first, because it is the one that blocks a sale', () => {
     expect(reviewFields({ ...base, price_cents: 0 })).toEqual(['price'])
@@ -48,6 +48,11 @@ describe('which fields count as missing', () => {
     expect(reviewFields({ ...base, brand: '' })).toEqual(['brand'])
     expect(reviewFields({ ...base, brand: null, kind: 'mantilla' })).toEqual([])
     expect(reviewFields({ ...base, brand: null, kind: 'otros' })).toEqual([])
+  })
+
+  it('the quantity is mandatory: blank means nobody counted it', () => {
+    expect(reviewFields({ ...base, quantity: null })).toEqual(['quantity'])
+    expect(reviewFields({ ...base, quantity: undefined })).toEqual(['quantity'])
   })
 
   it('a photo is never optional', () => {
@@ -101,7 +106,7 @@ describe('the flag is derived, never typed', () => {
   it('lets her replace a placeholder code, which is the only way to clear that flag', async () => {
     const { id } = await owner.post<{ id: number }>('/api/items', {
       code: `${NO_CODE_PREFIX}vestido-alma`, name: 'Alma', brand: 'Lanesta', kind: 'dress',
-      acquisition: 'pedido', condition: 'nuevo', price_cents: 1_800_000,
+      acquisition: 'pedido', condition: 'nuevo', price_cents: 1_800_000, quantity: 3,
     })
     expect((await owner.get<{ item: ItemRow }>(`/api/items/${id}`)).item.review_fields).toBe('code,photo')
     await owner.patch(`/api/items/${id}`, { code: 'a77' })
@@ -138,7 +143,7 @@ describe('an incomplete item cannot reach a contract', () => {
   it('refuses an accessory with no price, so no line ever lands at zero', async () => {
     const dress = await owner.post<{ id: number }>('/api/items', {
       code: 'rev-3', name: 'Nova', brand: 'Lanesta', kind: 'dress',
-      acquisition: 'pedido', condition: 'nuevo', price_cents: 1_950_000,
+      acquisition: 'pedido', condition: 'nuevo', price_cents: 1_950_000, quantity: 3,
     })
     // Sin foto, el vestido mismo quedaría marcado por verificar y la prueba
     // fallaría antes de llegar al accesorio, que es lo que de verdad importa

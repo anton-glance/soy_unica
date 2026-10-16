@@ -24,7 +24,7 @@ interface Item {
 
 /** What the record sheet calls each field the importer left empty. */
 const FALTA: Record<string, string> = {
-  price: 'precio', code: 'código', name: 'modelo', brand: 'marca', photo: 'foto',
+  price: 'precio', code: 'código', name: 'modelo', brand: 'marca', quantity: 'cantidad', photo: 'foto',
 }
 
 /** Vestido, o cuál de los cuatro tipos que no son vestido. */
@@ -37,7 +37,7 @@ function missingOf(item: Item): Set<string> {
 }
 
 /** These have a column of their own in the table, marked there instead. */
-const HAS_COLUMN = new Set(['price', 'brand', 'photo'])
+const HAS_COLUMN = new Set(['price', 'brand', 'quantity', 'photo'])
 
 /** Etiqueta y color de cada estado, como en el prototipo. */
 const ST: Record<string, [string, string]> = {
@@ -209,7 +209,7 @@ export function Inventory() {
                   <td>{missing.has('brand') ? <span className="falta">falta</span> : (item.brand ?? '')}</td>
                   <td>{item.size ?? ''}</td>
                   <td className="mono">{missing.has('price') ? <span className="falta">falta</span> : money(item.price_cents)}</td>
-                  <td className="mono">{item.quantity === null ? '' : item.quantity}</td>
+                  <td className="mono">{missing.has('quantity') ? <span className="falta">falta</span> : (item.quantity ?? '')}</td>
                   <td>
                     {!item.available
                       ? <span className="bdg mute">No disponible</span>
@@ -289,7 +289,7 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
 
   // Guarda todo lo de la ficha. Lo comparten «Guardar cambios» y la (X).
   async function save(): Promise<string> {
-    // Vacía: sin contar.
+    // Vacía: falta cantidad (queda marcado, no se puede vender).
     const newQuantity = form.quantity.trim() === ''
       ? null
       : Math.max(0, Math.trunc(Number(form.quantity) || 0))
@@ -331,7 +331,7 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
   return (
     <Dialog title={item.name} onCancel={() => void closeSheet()} closeLabel={dirty ? 'Guardar y cerrar la ficha' : 'Cerrar la ficha'} full big>
       <p className="muted" style={{ textAlign: 'center', margin: '0 0 var(--space-8)' }}>
-        código {item.code} · {KIND_LABEL[item.kind].toLowerCase()} · {item.quantity === null ? 'sin contar' : `${item.quantity} en existencia`}
+        código {item.code} · {KIND_LABEL[item.kind].toLowerCase()} · {item.quantity === null ? 'falta cantidad' : `${item.quantity} en existencia`}
       </p>
 
       {item.needs_review === 1 && (
@@ -394,8 +394,8 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
                 <div className="f3">
                   <Field label="Precio de venta" marked={missing.has('price')}>{(id) => <input id={id} type="text" inputMode="decimal" value={form.price} onChange={set('price')} />}</Field>
                   <Field label="Costo">{(id) => <input id={id} type="text" inputMode="decimal" value={form.cost} onChange={set('cost')} />}</Field>
-                  <Field label="Cantidad" hint="Cuántos hay. Cada venta firmada descuenta uno; en cero deja de poder venderse. Vacío = todavía no se cuenta.">
-                    {(id) => <input id={id} type="number" inputMode="numeric" min={0} step={1} placeholder="sin contar" value={form.quantity} onChange={set('quantity')} />}
+                  <Field label="Cantidad" marked={missing.has('quantity')} hint="Obligatoria. Cada venta firmada descuenta uno; en cero queda «No disponible».">
+                    {(id) => <input id={id} type="number" inputMode="numeric" min={0} step={1} placeholder="falta" value={form.quantity} onChange={set('quantity')} />}
                   </Field>
                 </div>
                 <div className="f3">
@@ -419,7 +419,7 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
                 <Info label="Color" value={item.color ?? '—'} />
                 <Info label="Tipo" value={KIND_LABEL[item.kind]} />
                 <Info label="Precio de venta" value={missing.has('price') ? 'falta' : money(item.price_cents)} />
-                <Info label="Cantidad" value={item.quantity === null ? 'Sin contar' : String(item.quantity)} />
+                <Info label="Cantidad" value={item.quantity === null ? 'falta' : String(item.quantity)} />
                 <Info label="Fecha de ingreso" value={dateMX(item.intake_date)} />
               </div>
             )}
@@ -520,6 +520,7 @@ function AddItem({ isOwner, onClose, onAdded }: { isOwner: boolean; onClose: () 
   // La marca sólo es obligatoria en un vestido.
   const missingBrand = attempted && form.kind === 'dress' && !form.brand.trim()
   const missingPrice = attempted && (parseMoney(form.price) ?? 0) <= 0
+  const missingQuantity = attempted && form.quantity.trim() === ''
   const missingPhoto = attempted && photos.length === 0
 
   return (
@@ -552,7 +553,7 @@ function AddItem({ isOwner, onClose, onAdded }: { isOwner: boolean; onClose: () 
           : <Field label="Costo">{(id) => <input id={id} type="text" value="Solo la dueña" disabled style={{ opacity: .5 }} />}</Field>}
       </div>
       <div className="f3">
-        <Field label="Cantidad" hint="Cuántos entran al inventario ahora mismo">
+        <Field label="Cantidad" hint="Cuántos entran al inventario ahora mismo" invalid={missingQuantity}>
           {(id) => <input id={id} type="number" inputMode="numeric" min={0} step={1} value={form.quantity} onChange={set('quantity')} />}
         </Field>
       </div>
@@ -573,7 +574,7 @@ function AddItem({ isOwner, onClose, onAdded }: { isOwner: boolean; onClose: () 
       <div className="row" style={{ marginTop: 'var(--space-2)' }}>
         <ActionButton
           onAction={async () => {
-            if (!form.name.trim() || !form.code.trim() || (form.kind === 'dress' && !form.brand.trim()) || (parseMoney(form.price) ?? 0) <= 0 || photos.length === 0) {
+            if (!form.name.trim() || !form.code.trim() || (form.kind === 'dress' && !form.brand.trim()) || (parseMoney(form.price) ?? 0) <= 0 || form.quantity.trim() === '' || photos.length === 0) {
               setAttempted(true)
               throw new ApiError('Completa lo marcado en rojo antes de guardar.', 400, 'incomplete')
             }

@@ -108,10 +108,11 @@ export const NO_CODE_PREFIX = 's/n-'
  * `needs_review` flag: the importer calls it, and so does every write that can
  * fill one of these in, so filling the last gap clears the flag by itself.
  *
- * Mandatory: price, code, model name, a photo — and the brand, but only on a
- * dress. Cost, size, cut, colour and notes are never gaps. An item with no
- * stock left (quantity 0) is never flagged at all: «No disponible» is the only
- * thing that matters about it, whatever else it is missing.
+ * Mandatory: price, code, model name, quantity, a photo — and the brand, but
+ * only on a dress. Cost, size, cut, colour and notes are never gaps. An item
+ * with no stock left (quantity 0) is never flagged at all: «No disponible» is
+ * the only thing that matters about it, whatever else it is missing. A blank
+ * quantity (null) IS a gap: it means nobody has counted it yet.
  */
 export function reviewFields(item: {
   code?: string | null
@@ -130,6 +131,7 @@ export function reviewFields(item: {
   if (!code || code.startsWith(NO_CODE_PREFIX)) missing.push('code')
   if (!String(item.name ?? '').trim()) missing.push('name')
   if (item.kind === 'dress' && !String(item.brand ?? '').trim()) missing.push('brand')
+  if (item.quantity === null || item.quantity === undefined) missing.push('quantity')
   // A photo is never optional: the kiosk has nothing to show the bride without one.
   if (!item.has_photo) missing.push('photo')
   return missing

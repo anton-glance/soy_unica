@@ -95,7 +95,7 @@ async function seedItemPhotos(base: string): Promise<void> {
   }
 
   await call('/api/auth/pin', { method: 'POST', body: JSON.stringify({ store: 'mty', role: 'owner', pin: '4242' }) })
-  const { items } = await call<{ items: { id: number }[] }>('/api/items')
+  const { items } = await call<{ items: { id: number; quantity: number | null }[] }>('/api/items')
 
   for (const item of items) {
     const form = new FormData()
@@ -109,6 +109,12 @@ async function seedItemPhotos(base: string): Promise<void> {
     await call(`/api/items/${item.id}/photos`, {
       method: 'PUT', body: JSON.stringify({ photos: [{ file_id: fileId, is_primary: true }] }),
     })
+    // La cantidad también es obligatoria: sin ella el artículo queda «por
+    // verificar» y no se puede vender. Las pruebas venden vestidos de la semilla
+    // varias veces, así que traen de sobra.
+    if (item.quantity === null) {
+      await call(`/api/items/${item.id}`, { method: 'PATCH', body: JSON.stringify({ quantity: 100 }) })
+    }
   }
 }
 
