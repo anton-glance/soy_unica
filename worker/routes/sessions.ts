@@ -245,12 +245,9 @@ app.post('/:id{[0-9]+}/select', async (c) => {
   const row = await loadSession(c.env.DB, s.store, Number(c.req.param('id')))
   assertOpen(row)
   if (row.contract_id) throw conflict('Esta sesión ya tiene un vestido elegido.')
-  const body = await readJson<{ item_id?: number; pin?: string; accessory_item_ids?: number[] }>(c)
-
-  // La tableta la trae la novia. Emitir folio es una acción de contrato, así
-  // que aquí se comprueba que quien la tocó es la vendedora, en el servidor y
-  // no sólo en la pantalla.
-  await assertOwnPin(c.env.DB, s, String(body.pin ?? ''))
+  const body = await readJson<{ item_id?: number; accessory_item_ids?: number[] }>(c)
+  // Ya no se pide el NIP aquí: la sesión la lleva la vendedora desde que
+  // entró con el suyo, y elegir es pasar el carrito a las medidas.
 
   const item = await loadItem(c.env.DB, s.store, Number(body.item_id))
   if (item.kind !== 'dress') throw badRequest('Hay que elegir un vestido, no un accesorio.')

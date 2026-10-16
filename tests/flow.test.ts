@@ -99,14 +99,6 @@ describe('apartados entre tabletas', () => {
     expect(items.find((i) => i.id === madeToOrder.id)?.held_by_other).toBe(false)
   })
 
-  it('la tableta de la novia no puede elegir vestido sin el NIP de la vendedora', async () => {
-    const refusal = await tabletB.refusal(`/api/sessions/${sessionB}/select`, { item_id: madeToOrder.id })
-    expect(refusal.status).toBe(400)
-    expect(refusal.error).toMatch(/NIP/)
-    const wrong = await tabletB.refusal(`/api/sessions/${sessionB}/select`, { item_id: madeToOrder.id, pin: '9999' })
-    expect(wrong.status).toBe(401)
-  })
-
   it('un modelo por pedido nunca cambia de estado ni se aparta', async () => {
     const refusal = await tabletB.refusal(`/api/items/${madeToOrder.id}/hold`, { session_id: sessionB })
     expect(refusal.status).toBe(409)
