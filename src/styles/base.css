@@ -715,10 +715,10 @@ a.chip, a.btn-main, a.btn-quiet { text-decoration: none; }
 .tbl .mono { font-variant-numeric: tabular-nums; color: var(--ink-soft); }
 .tbl .model { font-family: var(--font-display); font-size: var(--text-lg); }
 
-.tbl td .falta { font-family: var(--font-ui); font-size: var(--text-xs); color: var(--brass); }
-.field--falta input, .field--falta select, .field--falta textarea { border-color: var(--brass); background: var(--brass-soft); }
+.tbl td .falta { font-family: var(--font-ui); font-size: var(--text-xs); color: var(--clay); }
+.field--falta input, .field--falta select, .field--falta textarea { border-color: var(--clay); background: var(--clay-soft); }
 .field--falta label .falta,
-label .falta { margin-left: var(--space-4); font-size: var(--text-xs); color: var(--brass); text-transform: uppercase; letter-spacing: .08em; }
+label .falta { margin-left: var(--space-4); font-size: var(--text-xs); color: var(--clay); text-transform: uppercase; letter-spacing: .08em; }
 /* Distinto de `.field--falta`: eso es un pendiente del catálogo importado,
    esto es un campo obligatorio vacío al intentar guardar — bloquea, no
    espera. Mismo rojo que «Por verificar». */

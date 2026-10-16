@@ -18,11 +18,12 @@ const owner = new Kiosk()
 const seller = new Kiosk()
 
 /** Un vestido por pedido: nunca se aparta, así que lo pueden usar varias sesiones a la vez sin chocar. */
-async function makeDress(code: string, opts: { quantity?: number } = {}): Promise<ItemRow> {
+async function makeDress(code: string, opts: { quantity?: number | null } = {}): Promise<ItemRow> {
   const { id } = await owner.post<{ id: number }>('/api/items', {
     code, name: `Vestido ${code}`, brand: 'Lanesta', kind: 'dress', acquisition: 'pedido',
     condition: 'nuevo', price_cents: 1_000_000,
-    ...(opts.quantity !== undefined ? { quantity: opts.quantity } : {}),
+    // La cantidad es obligatoria: por omisión trae de sobra; `null` la deja en blanco.
+    ...(opts.quantity === null ? {} : { quantity: opts.quantity ?? 50 }),
   })
   const photo = await owner.upload('item_photo')
   await owner.put(`/api/items/${id}/photos`, { photos: [{ file_id: photo, is_primary: true }] })
@@ -128,25 +129,38 @@ describe('un accesorio agregado después de firmado también la descuenta', () =
   })
 })
 
-describe('lo que no se cuenta: un vestido, y un accesorio al que no se le ha puesto cantidad', () => {
-  it('un vestido sin cantidad no se cuenta y siempre está disponible', async () => {
-    const dress = await makeDress('qty-d6')
+describe('sin cantidad no se vende: la cantidad es obligatoria', () => {
+  it('un vestido sin cantidad queda marcado «falta cantidad» y no se agrega al carrito', async () => {
+    const dress = await makeDress('qty-d6', { quantity: null })
     expect(dress.quantity).toBeNull()
-    expect(dress.available).toBe(true)
+    const row = (await owner.get<{ item: ItemRow & { needs_review: number; review_fields: string | null } }>(`/api/items/${dress.id}`)).item
+    expect(row.needs_review).toBe(1)
+    expect(row.review_fields).toBe('quantity')
+
+    const session = (await seller.post<{ id: number }>('/api/sessions', { device_label: 'sin cantidad' })).id
+    const refusal = await seller.refusal(`/api/sessions/${session}/favorites`, { item_id: dress.id })
+    expect(refusal.status).toBe(409)
+    expect(refusal.error).toMatch(/cantidad/)
+    await seller.post(`/api/sessions/${session}/close`, { pin: '1111' })
+
+    // Al contarlo, deja de faltar y ya se puede agregar.
+    await owner.patch(`/api/items/${dress.id}`, { quantity: 4 })
+    const counted = (await owner.get<{ item: { needs_review: number } }>(`/api/items/${dress.id}`)).item
+    expect(counted.needs_review).toBe(0)
   })
 
-  it('un accesorio por pedido sin cantidad (lo importado del sitio) no se cuenta ni se apaga', async () => {
+  it('un accesorio por pedido sin cantidad (lo importado del sitio) tampoco se vende hasta contarlo', async () => {
     const accessory = await makeAccessory('qty-a6', { acquisition: 'pedido', kind: 'cinto' })
     expect(accessory.quantity).toBeNull()
     expect(accessory.available).toBe(true)
 
     const dress = await makeDress('qty-d7')
-    const folio = await sellThrough(dress, [accessory.id])
-    await seller.post(`/api/contracts/${folio}/accessories`, { item_id: accessory.id })
-
-    const after = await owner.get<{ item: ItemRow }>(`/api/items/${accessory.id}`)
-    expect(after.item.quantity).toBeNull()
-    expect(after.item.available).toBe(true)
+    const session = (await seller.post<{ id: number }>('/api/sessions', { device_label: 'accesorio sin cantidad' })).id
+    const refusal = await seller.refusal(`/api/sessions/${session}/select`, {
+      item_id: dress.id, accessory_item_ids: [accessory.id],
+    })
+    expect(refusal.status).toBe(409)
+    await seller.post(`/api/sessions/${session}/close`, { pin: '1111' })
   })
 })
 
@@ -167,14 +181,16 @@ describe('ponerle cantidad a un accesorio que entró por pedido', () => {
     expect(after.available).toBe(false)
   })
 
-  it('vaciarla la deja sin contar otra vez, y vuelve a estar disponible', async () => {
+  it('vaciarla la deja en «falta cantidad»: ya no es «No disponible», pero tampoco se vende', async () => {
     const accessory = await makeAccessory('qty-a8', { acquisition: 'pedido', quantity: 0 })
     expect(accessory.available).toBe(false)
 
     await owner.patch(`/api/items/${accessory.id}`, { quantity: null })
-    const after = (await owner.get<{ item: ItemRow }>(`/api/items/${accessory.id}`)).item
+    const after = (await owner.get<{ item: ItemRow & { needs_review: number; review_fields: string | null } }>(`/api/items/${accessory.id}`)).item
     expect(after.quantity).toBeNull()
     expect(after.available).toBe(true)
+    expect(after.needs_review).toBe(1)
+    expect(after.review_fields).toBe('quantity')
   })
 
   it('algo de unidad no puede quedar sin cantidad', async () => {
