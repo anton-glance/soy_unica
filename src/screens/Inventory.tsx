@@ -61,9 +61,11 @@ export function Inventory() {
   const [sort, setSort] = useState<string>('code')
   const [dir, setDir] = useState<'asc' | 'desc'>('asc')
   const [review, setReview] = useState(false)
+  const [unavailable, setUnavailable] = useState(false)
   const [items, setItems] = useState<Item[]>([])
   const [counts, setCounts] = useState<{ status: string; n: number }[]>([])
   const [reviewCount, setReviewCount] = useState(0)
+  const [unavailableCount, setUnavailableCount] = useState(0)
   const [stale, setStale] = useState(false)
   const [open, setOpen] = useState<Item | null>(null)
   const [adding, setAdding] = useState(false)
@@ -73,19 +75,21 @@ export function Inventory() {
   const load = useCallback(async () => {
     const params = new URLSearchParams({ q, status, kind, sort, dir })
     if (review) params.set('review', '1')
+    if (unavailable) params.set('unavailable', '1')
     try {
       const { data, stale: fromCache } = await get<{
-        items: Item[]; counts: { status: string; n: number }[]; review_count: number
+        items: Item[]; counts: { status: string; n: number }[]; review_count: number; unavailable_count: number
       }>(`/items?${params}`)
       setItems(data.items)
       setCounts(data.counts)
       setReviewCount(data.review_count ?? 0)
+      setUnavailableCount(data.unavailable_count ?? 0)
       setStale(fromCache)
       setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo cargar el inventario.')
     }
-  }, [q, status, kind, sort, dir, review])
+  }, [q, status, kind, sort, dir, review, unavailable])
 
   useEffect(() => { void load() }, [load])
 
@@ -107,11 +111,6 @@ export function Inventory() {
       right={<button type="button" className="btn-main" onClick={() => setAdding(true)}>Agregar al inventario</button>}
     >
       <div className="wrap">
-        <p className="lede">
-          Vestidos y accesorios de esta sucursal. Se busca por código, modelo, marca o corte.
-          Toca cualquier renglón para ver la ficha completa.
-        </p>
-
         {stale && <p className="pill pill--brass" style={{ marginBottom: 'var(--space-8)' }}>Sin conexión: esto es lo último que se alcanzó a guardar en la tableta.</p>}
         {error && <p className="err">{error}</p>}
 
@@ -137,15 +136,18 @@ export function Inventory() {
         <div className="row" style={{ marginBottom: 'var(--space-9)' }}>
           {reviewCount > 0 && (
             <button type="button" className="chip chip--sm chip--danger" aria-pressed={review} onClick={() => setReview(!review)}>
-              Por verificar ({reviewCount})
+              {`Por verificar (${reviewCount})`}
             </button>
           )}
-          <button type="button" className="chip chip--sm" aria-pressed={status === '' && !review} onClick={() => { setStatus(''); setReview(false) }}>
-            Todos ({total})
+          <button type="button" className="chip chip--sm" aria-pressed={status === '' && !review && !unavailable} onClick={() => { setStatus(''); setReview(false); setUnavailable(false) }}>
+            {`Todos (${total})`}
+          </button>
+          <button type="button" className="chip chip--sm" aria-pressed={unavailable} onClick={() => { setUnavailable(!unavailable); setStatus('') }}>
+            {`No disponible (${unavailableCount})`}
           </button>
           {counts.map((c) => (
-            <button key={c.status} type="button" className="chip chip--sm" aria-pressed={status === c.status} onClick={() => setStatus(c.status)}>
-              {ST[c.status]?.[0] ?? c.status} ({c.n})
+            <button key={c.status} type="button" className="chip chip--sm" aria-pressed={status === c.status} onClick={() => { setStatus(c.status); setUnavailable(false) }}>
+              {`${ST[c.status]?.[0] ?? c.status} (${c.n})`}
             </button>
           ))}
         </div>
@@ -158,11 +160,11 @@ export function Inventory() {
         )}
 
         <p className="muted" style={{ fontSize: 'var(--text-label)', margin: '0 0 var(--space-5)' }}>
-          {items.length} de {total} artículos{isOwner ? '' : ' · los vendidos solo los ve la dueña'}
+          {`${items.length} de ${total} artículos`}{isOwner ? '' : ' · los vendidos solo los ve la dueña'}
         </p>
 
-        <div style={{ overflowX: 'auto' }}>
-          <table className="tbl">
+        <div>
+          <table className="tbl tbl--sticky">
             <thead>
               <tr>
                 {COLS.map(([key, label]) => (
@@ -272,7 +274,7 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
     code: item.code,
     name: item.name, brand: item.brand ?? '', size: item.size ?? '', cut: item.cut ?? '',
     color: item.color ?? '', location: item.location ?? '', notes: item.notes ?? '',
-    condition: item.condition, price: String(item.price_cents / 100), cost: String((item.cost_cents ?? 0) / 100),
+    kind: item.kind, price: String(item.price_cents / 100), cost: String((item.cost_cents ?? 0) / 100),
     quantity: item.quantity === null ? '' : String(item.quantity),
     intake_date: item.intake_date ?? '',
   })
@@ -360,12 +362,9 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
                   </Field>
                 </div>
                 <div className="f3">
-                  <Field label="Condición" marked={missing.has('condition')}>{(id) => (
-                    <select id={id} value={form.condition} onChange={set('condition')}>
-                      <option value="nuevo">Nuevo</option>
-                      <option value="muestra">Muestra</option>
-                      <option value="exhibicion">Exhibición</option>
-                      <option value="liquidacion">Liquidación</option>
+                  <Field label="Tipo">{(id) => (
+                    <select id={id} value={form.kind} onChange={set('kind')}>
+                      {(Object.keys(KIND_LABEL) as ItemKind[]).map((k) => <option key={k} value={k}>{KIND_LABEL[k]}</option>)}
                     </select>
                   )}</Field>
                   <Field label="Fecha de ingreso">{(id) => <input id={id} type="date" value={form.intake_date} onChange={set('intake_date')} />}</Field>
@@ -382,7 +381,7 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
                 <Info label="Corte" value={item.cut ?? '—'} />
                 <Info label="Talla" value={missing.has('size') ? 'falta' : (item.size ?? '—')} />
                 <Info label="Color" value={item.color ?? '—'} />
-                <Info label="Condición" value={item.condition} />
+                <Info label="Tipo" value={KIND_LABEL[item.kind]} />
                 <Info label="Precio de venta" value={missing.has('price') ? 'falta' : money(item.price_cents)} />
                 <Info label="Cantidad" value={item.quantity === null ? 'Sin contar' : String(item.quantity)} />
                 <Info label="Ubicación" value={item.location ?? '—'} />
@@ -424,7 +423,7 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
                       code: form.code,
                       name: form.name, brand: form.brand, size: form.size, cut: form.cut,
                       color: form.color, location: form.location, notes: form.notes,
-                      condition: form.condition, intake_date: form.intake_date || undefined,
+                      kind: form.kind, intake_date: form.intake_date || undefined,
                       price_cents: parseMoney(form.price) ?? 0,
                       cost_cents: parseMoney(form.cost) ?? 0,
                       quantity: newQuantity,

@@ -63,6 +63,9 @@ function isAvailable(item: { quantity: number | null }): boolean {
   return item.quantity === null || item.quantity > 0
 }
 
+/** El mismo criterio que `isAvailable`, para filtrar y contar en SQL. */
+const UNAVAILABLE = 'quantity IS NOT NULL AND quantity <= 0'
+
 /**
  * Recomputes `needs_review` from what the row actually holds. Called after
  * every write that can fill one of the gaps; never set by hand.
@@ -118,6 +121,7 @@ app.get('/', async (c) => {
   const acquisition = c.req.query('acquisition') ?? ''
   const condition = c.req.query('condition') ?? ''
   const review = c.req.query('review') === '1'
+  const unavailable = c.req.query('unavailable') === '1'
   const sort = c.req.query('sort') ?? 'code'
 
   // Los filtros que no son «status» son compartidos: la lista los aplica todos,
@@ -141,6 +145,7 @@ app.get('/', async (c) => {
   const args = [...sharedArgs]
   if (status) { where.push('status = ?'); args.push(status) }
   if (review) where.push('needs_review = 1')
+  if (unavailable) where.push(UNAVAILABLE)
 
   const columns: Record<string, string> = {
     code: 'code', name: 'name', kind: 'kind', brand: 'brand', price: 'price_cents',
@@ -172,6 +177,11 @@ app.get('/', async (c) => {
     `SELECT COUNT(*) AS n FROM items WHERE ${shared.join(' AND ')} AND needs_review = 1`,
     ...sharedArgs,
   )
+  const unavailable_count = await one<{ n: number }>(
+    c.env.DB,
+    `SELECT COUNT(*) AS n FROM items WHERE ${shared.join(' AND ')} AND ${UNAVAILABLE}`,
+    ...sharedArgs,
+  )
   const counts = await all<{ status: string; n: number }>(
     c.env.DB,
     `SELECT status, COUNT(*) AS n FROM items WHERE ${shared.join(' AND ')} GROUP BY status`,
@@ -181,6 +191,7 @@ app.get('/', async (c) => {
     items: rows.map(({ photo_ids, ...r }) => ({ ...forRole(r, s.role), photos: photo_ids ? photo_ids.split(',') : [], available: isAvailable(r) })),
     counts,
     review_count: review_count?.n ?? 0,
+    unavailable_count: unavailable_count?.n ?? 0,
   })
 })
 

@@ -706,6 +706,10 @@ a.chip, a.btn-main, a.btn-quiet { text-decoration: none; }
 .tbl tr:last-child td { border-bottom: 0; }
 .tbl tbody tr { cursor: pointer; }
 .tbl tbody tr:active { background: var(--linen); }
+.tbl--sticky { overflow: visible; border-collapse: separate; border-spacing: 0; }
+.tbl--sticky th { position: sticky; top: var(--bar-h); z-index: 5; }
+.tbl--sticky th:first-child { border-top-left-radius: var(--radius); }
+.tbl--sticky th:last-child { border-top-right-radius: var(--radius); }
 .tbl .mono { font-variant-numeric: tabular-nums; color: var(--ink-soft); }
 .tbl .model { font-family: var(--font-display); font-size: var(--text-lg); }
 
