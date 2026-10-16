@@ -148,7 +148,7 @@ function ClientList({ onBack, onOpen }: { onBack: () => void; onOpen: (row: Clie
           ))}
         </div>
 
-        <div style={{ overflowX: 'auto' }}>
+        <div>
           <table className="tbl">
             <thead>
               <tr>

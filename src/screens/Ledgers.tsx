@@ -100,7 +100,7 @@ export function PaymentsLedger() {
           Recibido: <span className="mono">{money(total)}</span>
         </p>
 
-        <div style={{ overflowX: 'auto' }}>
+        <div>
           <table className="tbl">
             <thead>
               <tr>
@@ -171,7 +171,7 @@ export function ExpensesLedger() {
           Gastado: <span className="mono">{money(total)}</span>
         </p>
 
-        <div style={{ overflowX: 'auto' }}>
+        <div>
           <table className="tbl">
             <thead>
               <tr><th>Fecha</th><th>Categoría</th><th>Monto</th><th>Proveedor</th><th>Nota</th></tr>

@@ -691,17 +691,27 @@ a.chip, a.btn-main, a.btn-quiet { text-decoration: none; }
 /* ── inventario ────────────────────────────────────────────────────────── */
 .inv-bar { display: flex; gap: var(--space-5); align-items: flex-end; flex-wrap: wrap; margin-bottom: var(--space-8); }
 .inv-bar .field { margin: 0; }
-.tbl { width: 100%; border-collapse: collapse; font-size: var(--text-md); background: var(--paper); border: 1px solid var(--tape); border-radius: var(--radius); overflow: hidden; }
-.tbl th { text-align: left; font-weight: var(--weight-regular); color: var(--ink-soft); padding: var(--space-6) var(--space-5); border-bottom: 1px solid var(--tape); white-space: nowrap; cursor: pointer; user-select: none; background: var(--linen); }
+.tbl { width: 100%; border-collapse: separate; border-spacing: 0; font-size: var(--text-md); background: var(--paper); border: 1px solid var(--tape); border-radius: var(--radius); }
+/*
+ * El encabezado de toda tabla se queda pegado bajo la barra fija al bajar. Para
+ * que `sticky` funcione la tabla y sus contenedores NO pueden tener `overflow`
+ * (por eso aquí no se recorta con `overflow: hidden` — las esquinas se
+ * redondean a mano — y las pantallas no envuelven la tabla en `overflow-x`).
+ */
+.tbl th { position: sticky; top: var(--bar-h); z-index: 5; text-align: left; font-weight: var(--weight-regular); color: var(--ink-soft); padding: var(--space-6) var(--space-5); border-bottom: 1px solid var(--tape); white-space: nowrap; cursor: pointer; user-select: none; background: var(--linen); }
+.tbl th:first-child { border-top-left-radius: var(--radius); }
+.tbl th:last-child { border-top-right-radius: var(--radius); }
+.tbl tbody tr:last-child td:first-child { border-bottom-left-radius: var(--radius); }
+.tbl tbody tr:last-child td:last-child { border-bottom-right-radius: var(--radius); }
+/* Dentro de un diálogo se desplaza `.sheet-body`, no la página: no hay barra fija arriba. */
+.sheet-body .tbl th { top: 0; }
+/* En el catálogo de la Nueva novia, los filtros también van pegados: el encabezado se queda debajo de ellos. */
+.k-table th { top: calc(var(--bar-h) + var(--space-2) + var(--tap-chip) + var(--space-8)); }
 .tbl th .ar { color: var(--brass); }
 .tbl td { padding: var(--space-7) var(--space-5); border-bottom: 1px solid var(--linen); }
 .tbl tr:last-child td { border-bottom: 0; }
 .tbl tbody tr { cursor: pointer; }
 .tbl tbody tr:active { background: var(--linen); }
-.tbl--sticky { overflow: visible; border-collapse: separate; border-spacing: 0; }
-.tbl--sticky th { position: sticky; top: var(--bar-h); z-index: 5; }
-.tbl--sticky th:first-child { border-top-left-radius: var(--radius); }
-.tbl--sticky th:last-child { border-top-right-radius: var(--radius); }
 .tbl .mono { font-variant-numeric: tabular-nums; color: var(--ink-soft); }
 .tbl .model { font-family: var(--font-display); font-size: var(--text-lg); }
 
