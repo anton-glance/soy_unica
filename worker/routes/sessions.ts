@@ -18,6 +18,11 @@ export type Stage =
   | 'browsing' | 'fitting' | 'selected' | 'bride_data' | 'sheet_printed'
   | 'sheet_signed' | 'terms' | 'contract_printed' | 'signed' | 'payment' | 'closed'
 
+/** Cómo se llama cada dato que falta, en el aviso de «incompleto». */
+const FALTA: Record<string, string> = {
+  price: 'precio', code: 'código', size: 'talla', cost: 'costo', condition: 'condición', photo: 'foto',
+}
+
 /** Ver y probar se alternan libremente; de ahí en adelante el orden es fijo. */
 const ALLOWED_FROM: Record<Stage, Stage[]> = {
   browsing: ['browsing', 'fitting'],
@@ -201,6 +206,22 @@ app.post('/:id{[0-9]+}/favorites', async (c) => {
                       WHERE id = ? AND held_by_session = ? AND status = 'watching'`, nowIso(), itemId, row.id),
     ])
     return c.json({ favorite: false })
+  }
+
+  // Al carrito sólo entra lo que de verdad se puede vender: lo incompleto
+  // (sin precio, sin foto…) o agotado se ve en el catálogo pero no se agrega.
+  const item = await loadItem(c.env.DB, s.store, itemId)
+  if (item.needs_review || item.price_cents <= 0) {
+    const falta = (item.review_fields ?? '').split(',').filter(Boolean)
+    if (item.price_cents <= 0 && !falta.includes('price')) falta.push('price')
+    throw conflict(
+      `«${item.name}» está incompleto (falta ${falta.map((f) => FALTA[f] ?? f).join(', ')}). Complétalo en Inventario antes de agregarlo.`,
+      'needs_review',
+    )
+  }
+  if (item.quantity !== null && item.quantity <= 0) throw conflict(`«${item.name}» ya no tiene existencias.`, 'out_of_stock')
+  if (item.acquisition === 'unidad' && item.held_by_session !== null && item.held_by_session !== row.id) {
+    throw conflict('Ese vestido lo tiene otra novia en este momento.')
   }
 
   await run(c.env.DB, `INSERT OR IGNORE INTO session_favorites (session_id, item_id) VALUES (?,?)`, row.id, itemId)

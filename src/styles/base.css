@@ -325,6 +325,7 @@ a.chip, a.btn-main, a.btn-quiet { text-decoration: none; }
 .k-table-wrap { padding: 0 var(--gutter) var(--space-9); }
 .k-table-wrap:last-child { padding-bottom: 150px; }
 .tbl.k-table td { vertical-align: middle; }
+.tbl.k-table tbody tr.is-blocked td:not(:last-child):not(.k-state) { opacity: .55; }
 .tbl.k-table tbody tr.in-cart { background: var(--brass-soft); }
 .k-thumb { display: block; width: 64px; height: 84px; object-fit: cover; border-radius: var(--radius-sm); background: var(--linen); }
 .k-state { font-size: var(--text-sm); color: var(--clay); white-space: nowrap; }
