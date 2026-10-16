@@ -36,6 +36,29 @@ export interface KioskItem {
   size: string | null; cut: string | null; color: string | null
   price_cents: number; held_by_other: boolean; held_by_me: boolean; favorite: boolean
   photos: string[]; quantity: number | null; available: boolean
+  needs_review: number; review_fields: string | null
+}
+
+/** Cómo se llama cada dato que falta en la etiqueta «Falta: …». */
+const FALTA_LABEL: Record<string, string> = {
+  price: 'precio', code: 'código', size: 'talla', cost: 'costo', condition: 'condición', photo: 'foto',
+}
+
+/** «Falta: precio, foto» si el artículo está incompleto; null si está completo. */
+function missingLabel(item: KioskItem): string | null {
+  const fields = (item.review_fields ?? '').split(',').filter(Boolean)
+  if (item.price_cents <= 0 && !fields.includes('price')) fields.push('price')
+  if (fields.length === 0 && item.needs_review !== 1) return null
+  return `Falta: ${fields.map((f) => FALTA_LABEL[f] ?? f).join(', ')}`
+}
+
+/** Por qué no se puede agregar al carrito, o null si sí se puede. */
+function blockReason(item: KioskItem): string | null {
+  if (!item.available) return 'No disponible'
+  const falta = missingLabel(item)
+  if (falta) return falta
+  if (item.held_by_other) return 'La tiene otra novia'
+  return null
 }
 
 /** La miniatura de una tarjeta: su foto principal, o el dibujo genérico si no tiene. */
@@ -284,16 +307,11 @@ function Kiosk({ sessionId, onChange, onClosed }: {
     }
   }
 
-  // Lo que ya no tiene existencias, o que otra sesión tiene en su carrito, no se
-  // puede agregar — pero si ya estaba en este carrito, se puede seguir quitando.
-  const addBlocked = (item: KioskItem) => !item.favorite && (!item.available || item.held_by_other)
+  // Se muestra todo, pero lo agotado, incompleto o que otra sesión tiene en su
+  // carrito no se puede agregar. Si ya estaba en este carrito, se puede quitar.
+  const addBlocked = (item: KioskItem) => !item.favorite && blockReason(item) !== null
 
-  function statusOf(item: KioskItem): string {
-    if (item.favorite) return 'En el carrito'
-    if (!item.available) return 'No disponible'
-    if (item.held_by_other) return 'La tiene otra novia'
-    return ''
-  }
+  const statusOf = (item: KioskItem): string => (item.favorite ? 'En el carrito' : (blockReason(item) ?? ''))
 
   function renderTable(rows: KioskItem[], withKind: boolean) {
     return (
@@ -316,7 +334,7 @@ function Kiosk({ sessionId, onChange, onClosed }: {
           </thead>
           <tbody>
             {rows.map((item) => (
-              <tr key={item.id} className={item.favorite ? 'in-cart' : undefined} onClick={() => void openDetail(item)}>
+              <tr key={item.id} className={item.favorite ? 'in-cart' : addBlocked(item) ? 'is-blocked' : undefined} onClick={() => void openDetail(item)}>
                 <td><ItemArt item={item} className="k-thumb" /></td>
                 <td className="mono">{item.code}</td>
                 <td className="model">{item.name}</td>
@@ -402,8 +420,8 @@ function Kiosk({ sessionId, onChange, onClosed }: {
       )}
 
       {accessories.length > 0 && (
-        <div className="wrap" style={{ paddingTop: 0 }}>
-          <h2 style={{ margin: 'var(--space-11) 0 var(--space-9)' }}>Accesorios</h2>
+        <div className="wrap" style={{ paddingTop: 0, paddingBottom: 0 }}>
+          <h2 style={{ margin: 'var(--space-11) 0 var(--space-6)' }}>Accesorios</h2>
         </div>
       )}
       {accessories.length > 0 && renderTable(accessories, true)}
@@ -420,8 +438,7 @@ function Kiosk({ sessionId, onChange, onClosed }: {
                 <dt>Talla</dt><dd>{open.size ?? '—'}</dd>
                 <dt>Corte</dt><dd>{open.cut ?? '—'}</dd>
                 <dt>Color</dt><dd>{open.color ?? '—'}</dd>
-                {!open.available && (<><dt>Disponibilidad</dt><dd>No disponible</dd></>)}
-                {open.available && open.held_by_other && (<><dt>Disponibilidad</dt><dd>La tiene otra novia</dd></>)}
+                {blockReason(open) && (<><dt>Estado</dt><dd>{blockReason(open)}</dd></>)}
               </dl>
               <div className="row">
                 <button
@@ -442,7 +459,11 @@ function Kiosk({ sessionId, onChange, onClosed }: {
         <CartReview
           cart={cart}
           showPrices={showPrices}
+          hasAccessories={accessories.length > 0}
           onClose={() => setCartOpen(false)}
+          // Cierra el carrito y deja la tabla de accesorios a la vista: el
+          // carrito se conserva, sólo se sigue agregando.
+          onAddAccessories={() => { setCartOpen(false); setFilter('accesorios'); window.scrollTo({ top: 0 }) }}
           onRemove={toggleCart}
           onContinue={async (dressId, accessoryIds) => {
             await post(`/sessions/${sessionId}/select`, { item_id: dressId, accessory_item_ids: accessoryIds })
@@ -460,16 +481,18 @@ function Kiosk({ sessionId, onChange, onClosed }: {
  * espera a que haya exactamente uno y a que nada de lo que hay ya esté
  * apartado o agotado — dice cuál es el problema en vez de quedarse apagado.
  */
-function CartReview({ cart, showPrices, onClose, onRemove, onContinue }: {
+function CartReview({ cart, showPrices, hasAccessories, onClose, onAddAccessories, onRemove, onContinue }: {
   cart: KioskItem[]
   showPrices: boolean
+  hasAccessories: boolean
   onClose: () => void
+  onAddAccessories: () => void
   onRemove: (item: KioskItem) => Promise<void>
   onContinue: (dressId: number, accessoryIds: number[]) => Promise<void>
 }) {
   const cartDresses = cart.filter((i) => i.kind === 'dress')
   const cartAccessories = cart.filter((i) => i.kind !== 'dress')
-  const blocked = cart.find((i) => !i.available || i.held_by_other)
+  const blocked = cart.find((i) => blockReason(i) !== null)
   const dress = cartDresses.length === 1 ? (cartDresses[0] as KioskItem) : null
 
   const problem = cartDresses.length === 0
@@ -477,7 +500,7 @@ function CartReview({ cart, showPrices, onClose, onRemove, onContinue }: {
     : cartDresses.length > 1
       ? 'Un contrato lleva un solo vestido: quita los demás.'
       : blocked
-        ? `«${blocked.name}» ya no está disponible: quítalo para continuar.`
+        ? `«${blocked.name}» no se puede vender (${(blockReason(blocked) ?? '').toLowerCase()}): quítalo para continuar.`
         : null
 
   const total = cart.reduce((n, i) => n + i.price_cents, 0)
@@ -490,6 +513,11 @@ function CartReview({ cart, showPrices, onClose, onRemove, onContinue }: {
       big
       actions={
         <div className="row" style={{ justifyContent: 'center', width: '100%' }}>
+          {hasAccessories && (
+            <button type="button" className="btn-quiet" onClick={onAddAccessories}>
+              Agregar accesorios
+            </button>
+          )}
           <ActionButton
             done="Listo"
             disabled={problem !== null}
@@ -513,7 +541,7 @@ function CartReview({ cart, showPrices, onClose, onRemove, onContinue }: {
               </td>
               {showPrices && <td className="mono">{money(item.price_cents)}</td>}
               <td>
-                {(!item.available || item.held_by_other) && <span className="state late">No disponible</span>}
+                {blockReason(item) && <span className="state late">{blockReason(item)}</span>}
               </td>
               <td>
                 <button type="button" className="btn-quiet" style={{ minHeight: 44 }} onClick={() => void onRemove(item)}>
