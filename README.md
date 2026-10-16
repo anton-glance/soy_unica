@@ -55,7 +55,7 @@ Este recorrido es el criterio de aceptación y está automatizado en
 `tests/flow.test.ts`, que lo corre completo contra el Worker real con `npm test`.
 Para hacerlo a mano, con `npm run dev` levantado:
 
-1. **Monterrey → Vendedora → NIP 1111 → Nueva sesión.**
+1. **Monterrey → Vendedora → NIP 1111 → Nueva novia.**
 2. Marca como favorito **un vestido único** (por ejemplo `p139`) y **un modelo
    por pedido** (`madelyn`).
 3. En **otro navegador** entra igual y abre una sesión: el vestido único se ve

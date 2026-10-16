@@ -307,38 +307,29 @@ a.chip, a.btn-main, a.btn-quiet { text-decoration: none; }
 .card.busy .art { opacity: .5; }
 .card.mine .tag { background: var(--brass-soft); color: var(--brass); }
 
-.heart {
-  position: absolute; top: var(--space-5); right: var(--space-5);
+.cart-add {
   width: var(--tap-chip); height: var(--tap-chip);
   border-radius: 50%;
   background: var(--paper);
-  border: 1px solid var(--tape);
+  border: 1px solid var(--ink-faint);
   display: grid; place-items: center;
-  font-size: var(--text-key);
-  color: var(--ink-faint);
+  font-size: var(--text-key); line-height: 1;
+  color: var(--ink);
   transition: transform .15s ease;
 }
-.heart:active { transform: scale(.9); }
-.heart[aria-pressed='true'] { color: var(--wine); border-color: var(--wine); background: var(--paper); }
+.cart-add:active { transform: scale(.9); }
+.cart-add:disabled { opacity: .35; }
+.cart-add[aria-pressed='true'] { color: var(--paper); background: var(--wine); border-color: var(--wine); }
 
-/* Se agrega uno: un corazón de más se eleva y se desvanece, como un globo. */
-.heart-pop {
-  position: absolute; top: var(--space-5); right: var(--space-5);
-  width: var(--tap-chip); height: var(--tap-chip);
-  display: grid; place-items: center;
-  font-size: var(--text-key);
-  color: var(--wine);
-  pointer-events: none;
-  animation: heart-pop .65s ease-out forwards;
-}
-@keyframes heart-pop {
-  0%   { transform: scale(.85) translateY(0); opacity: 1; }
-  55%  { transform: scale(1.35) translateY(-10px); opacity: .95; }
-  100% { transform: scale(1.5) translateY(-30px); opacity: 0; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .heart-pop { animation: none; opacity: 0; }
-}
+/* El catálogo del kiosco en tabla: miniatura a la izquierda, (+) a la derecha. */
+.k-table-wrap { padding: 0 var(--gutter) var(--space-9); }
+.k-table-wrap:last-child { padding-bottom: 150px; }
+.tbl.k-table td { vertical-align: middle; }
+.tbl.k-table tbody tr.in-cart { background: var(--brass-soft); }
+.k-thumb { display: block; width: 64px; height: 84px; object-fit: cover; border-radius: var(--radius-sm); background: var(--linen); }
+.k-state { font-size: var(--text-sm); color: var(--clay); white-space: nowrap; }
+.k-state--mine { color: var(--brass); }
+.k-cart { margin-top: var(--space-6); }
 
 .tag { position: absolute; top: var(--space-6); left: var(--space-6); padding: 7px var(--space-5); border-radius: var(--radius-sm); font-size: var(--text-xs); background: var(--clay-soft); color: var(--clay); max-width: 78%; }
 .tag--right { left: auto; right: var(--space-6); }

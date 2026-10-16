@@ -666,7 +666,7 @@ function ClientDetail({ customerId, onBack }: { customerId: number; onBack: () =
           {resumable && (
             <p className="lede" style={{ margin: 'var(--space-8) 0 0' }}>
               Su sesión sigue abierta, en «{STAGE_LABEL[session.stage] ?? session.stage}». «Agregar» la retoma justo ahí,
-              con sus favoritos intactos, en vez de empezar una nueva.
+              con su carrito intacto, en vez de empezar una nueva.
             </p>
           )}
         </div>

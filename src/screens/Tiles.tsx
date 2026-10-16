@@ -10,7 +10,7 @@ import { Screen } from '../components/Screen'
 import { CloseControl, SESSION_KEY, type CloseControlHandle } from './SalesSession'
 
 const TILES = [
-  { to: '/sesion', label: 'Nueva sesión' },
+  { to: '/sesion', label: 'Nueva novia' },
   { to: '/clientes', label: 'Clientes' },
   { to: '/inventario', label: 'Inventario' },
   { to: '/gastos', label: 'Registrar gasto' },
@@ -140,8 +140,8 @@ export function Tiles() {
         >
           <p className="lede">
             Antes de abrir una nueva, dile qué hacer con {openSessions.length === 1 ? 'ésta' : 'cada una'}.
-            «Continuar» la retoma tal como se quedó —etapa, favoritos y selección—; «Cerrarla» pide el
-            resultado, como al cerrar cualquier sesión, y luego abre la nueva.
+            «Continuar» la retoma tal como se quedó —etapa, carrito y selección—; «Cerrarla» pide el
+            NIP, como al cerrar cualquier sesión, y luego abre la nueva.
           </p>
           <div className="stack">
             {openSessions.map((session) => {
