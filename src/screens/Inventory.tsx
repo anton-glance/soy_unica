@@ -164,7 +164,7 @@ export function Inventory() {
         </p>
 
         <div>
-          <table className="tbl tbl--sticky">
+          <table className="tbl">
             <thead>
               <tr>
                 {COLS.map(([key, label]) => (
