@@ -108,31 +108,29 @@ export const NO_CODE_PREFIX = 's/n-'
  * `needs_review` flag: the importer calls it, and so does every write that can
  * fill one of these in, so filling the last gap clears the flag by itself.
  *
- * `cost` and `size` are only meaningful for stock on the rack. A made-to-order
- * model is never bought up front and is cut to the bride's measurements, so a
- * zero cost and a blank size there are facts, not gaps.
+ * Mandatory: price, code, model name, a photo — and the brand, but only on a
+ * dress. Cost, size, cut, colour and notes are never gaps. An item with no
+ * stock left (quantity 0) is never flagged at all: «No disponible» is the only
+ * thing that matters about it, whatever else it is missing.
  */
 export function reviewFields(item: {
   code?: string | null
+  name?: string | null
+  brand?: string | null
+  kind?: string | null
   price_cents?: number | null
-  size?: string | null
-  cost_cents?: number | null
-  condition?: string | null
-  acquisition?: string | null
+  quantity?: number | null
   has_photo?: boolean
 }): string[] {
+  if (item.quantity === 0) return []
   const missing: string[] = []
   // Price first: it is the one that blocks a sale.
   if (!item.price_cents || item.price_cents <= 0) missing.push('price')
   const code = String(item.code ?? '').trim()
   if (!code || code.startsWith(NO_CODE_PREFIX)) missing.push('code')
-  // A photo is never optional, unlike size and cost: made-to-order or not,
-  // the kiosk has nothing to show the bride without one.
+  if (!String(item.name ?? '').trim()) missing.push('name')
+  if (item.kind === 'dress' && !String(item.brand ?? '').trim()) missing.push('brand')
+  // A photo is never optional: the kiosk has nothing to show the bride without one.
   if (!item.has_photo) missing.push('photo')
-  if (item.acquisition !== 'pedido') {
-    if (!String(item.size ?? '').trim()) missing.push('size')
-    if (!item.cost_cents || item.cost_cents <= 0) missing.push('cost')
-  }
-  if (!String(item.condition ?? '').trim()) missing.push('condition')
   return missing
 }

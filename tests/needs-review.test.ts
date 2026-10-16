@@ -29,7 +29,7 @@ beforeAll(async () => {
 })
 
 describe('which fields count as missing', () => {
-  const base = { code: 'p139', price_cents: 100, size: 'M', cost_cents: 50, condition: 'nuevo', acquisition: 'unidad', has_photo: true }
+  const base = { code: 'p139', name: 'Madelyn', brand: 'Lanesta', kind: 'dress', price_cents: 100, has_photo: true }
 
   it('price first, because it is the one that blocks a sale', () => {
     expect(reviewFields({ ...base, price_cents: 0 })).toEqual(['price'])
@@ -40,15 +40,28 @@ describe('which fields count as missing', () => {
     expect(reviewFields({ ...base, code: 'p139' })).toEqual([])
   })
 
-  it('size and cost are not gaps on a made-to-order model', () => {
-    const order = { ...base, acquisition: 'pedido', size: '', cost_cents: 0 }
-    expect(reviewFields(order)).toEqual([])
-    expect(reviewFields({ ...base, size: '', cost_cents: 0 })).toEqual(['size', 'cost'])
+  it('the model name is mandatory', () => {
+    expect(reviewFields({ ...base, name: '  ' })).toEqual(['name'])
   })
 
-  it('a photo is never optional, made-to-order or not — the kiosk has nothing to show without one', () => {
+  it('the brand is mandatory on a dress and only on a dress', () => {
+    expect(reviewFields({ ...base, brand: '' })).toEqual(['brand'])
+    expect(reviewFields({ ...base, brand: null, kind: 'mantilla' })).toEqual([])
+    expect(reviewFields({ ...base, brand: null, kind: 'otros' })).toEqual([])
+  })
+
+  it('a photo is never optional', () => {
     expect(reviewFields({ ...base, has_photo: false })).toEqual(['photo'])
-    expect(reviewFields({ ...base, acquisition: 'pedido', has_photo: false })).toEqual(['photo'])
+  })
+
+  it('cost, size, cut, colour and notes are never gaps', () => {
+    // No hay campo para ninguno en la firma: no pueden marcar nada.
+    expect(reviewFields({ ...base })).toEqual([])
+  })
+
+  it('an item with no stock left is never flagged, whatever it is missing', () => {
+    expect(reviewFields({ code: '', name: '', brand: '', kind: 'dress', price_cents: 0, quantity: 0, has_photo: false })).toEqual([])
+    expect(reviewFields({ ...base, price_cents: 0, quantity: 1 })).toEqual(['price'])
   })
 })
 
@@ -61,13 +74,12 @@ describe('the flag is derived, never typed', () => {
     unpriced = id
     const { item } = await owner.get<{ item: ItemRow }>(`/api/items/${id}`)
     expect(item.needs_review).toBe(1)
-    expect((item.review_fields ?? '').split(',').sort()).toEqual(['cost', 'photo', 'price', 'size'])
+    expect((item.review_fields ?? '').split(',').sort()).toEqual(['photo', 'price'])
   })
 
-  it('shows up under the Por verificar filter, and those rows sort first', async () => {
+  it('shows up under the Por verificar filter', async () => {
     const all = await owner.get<ItemList>('/api/items')
     expect(all.review_count).toBeGreaterThan(0)
-    expect(all.items[0]?.needs_review).toBe(1)
 
     const only = await owner.get<ItemList>('/api/items?review=1')
     expect(only.items.every((i) => i.needs_review === 1)).toBe(true)
@@ -75,7 +87,7 @@ describe('the flag is derived, never typed', () => {
   })
 
   it('clears itself when the last missing field is filled — including a photo', async () => {
-    await owner.patch(`/api/items/${unpriced}`, { price_cents: 90_000, cost_cents: 40_000, size: 'Única' })
+    await owner.patch(`/api/items/${unpriced}`, { price_cents: 90_000 })
     // Todavía falta la foto: el resto de los campos no basta.
     expect((await owner.get<{ item: ItemRow }>(`/api/items/${unpriced}`)).item.review_fields).toBe('photo')
 
@@ -88,7 +100,7 @@ describe('the flag is derived, never typed', () => {
 
   it('lets her replace a placeholder code, which is the only way to clear that flag', async () => {
     const { id } = await owner.post<{ id: number }>('/api/items', {
-      code: `${NO_CODE_PREFIX}vestido-alma`, name: 'Alma', kind: 'dress',
+      code: `${NO_CODE_PREFIX}vestido-alma`, name: 'Alma', brand: 'Lanesta', kind: 'dress',
       acquisition: 'pedido', condition: 'nuevo', price_cents: 1_800_000,
     })
     expect((await owner.get<{ item: ItemRow }>(`/api/items/${id}`)).item.review_fields).toBe('code,photo')
@@ -125,7 +137,7 @@ describe('an incomplete item cannot reach a contract', () => {
 
   it('refuses an accessory with no price, so no line ever lands at zero', async () => {
     const dress = await owner.post<{ id: number }>('/api/items', {
-      code: 'rev-3', name: 'Nova', kind: 'dress',
+      code: 'rev-3', name: 'Nova', brand: 'Lanesta', kind: 'dress',
       acquisition: 'pedido', condition: 'nuevo', price_cents: 1_950_000,
     })
     // Sin foto, el vestido mismo quedaría marcado por verificar y la prueba

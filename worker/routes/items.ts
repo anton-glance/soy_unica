@@ -157,11 +157,10 @@ app.get('/', async (c) => {
   const orderBy = columns[sort] ?? 'code'
   const dir = c.req.query('dir') === 'desc' ? 'DESC' : 'ASC'
 
-  /*
-   * Rows that need attention float to the top of whatever order is chosen, and
-   * within those the ones with no price come first: a priceless item is the one
-   * that cannot be sold at all, so it is the one worth fixing next.
-   */
+  // Se ordena por lo que se eligió y nada más: lo vacío (sin cantidad, sin marca…)
+  // va al final en cualquiera de los dos sentidos, y el código desempata. Antes
+  // los «por verificar» subían siempre al principio y el orden elegido no se
+  // notaba; ya tienen su propio filtro.
   const rows = await all<ItemRow & { photo_ids: string | null }>(
     c.env.DB,
     `SELECT items.*,
@@ -169,9 +168,9 @@ app.get('/', async (c) => {
                SELECT file_id FROM item_photos WHERE item_id = items.id ORDER BY is_primary DESC, sort
              )) AS photo_ids
        FROM items WHERE ${where.join(' AND ')}
-      ORDER BY needs_review DESC,
-               (needs_review = 1 AND price_cents <= 0) DESC,
-               ${orderBy} ${dir}
+      ORDER BY (${orderBy} IS NULL OR ${orderBy} = '') ASC,
+               ${orderBy} ${dir},
+               code ASC
       LIMIT 500`,
     ...args,
   )

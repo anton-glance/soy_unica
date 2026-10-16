@@ -20,7 +20,7 @@ export type Stage =
 
 /** Cómo se llama cada dato que falta, en el aviso de «incompleto». */
 const FALTA: Record<string, string> = {
-  price: 'precio', code: 'código', size: 'talla', cost: 'costo', condition: 'condición', photo: 'foto',
+  price: 'precio', code: 'código', name: 'modelo', brand: 'marca', photo: 'foto',
 }
 
 /** Ver y probar se alternan libremente; de ahí en adelante el orden es fijo. */
@@ -211,6 +211,8 @@ app.post('/:id{[0-9]+}/favorites', async (c) => {
   // Al carrito sólo entra lo que de verdad se puede vender: lo incompleto
   // (sin precio, sin foto…) o agotado se ve en el catálogo pero no se agrega.
   const item = await loadItem(c.env.DB, s.store, itemId)
+  // Sin existencias manda sobre todo lo demás, aunque tampoco tenga precio.
+  if (item.quantity !== null && item.quantity <= 0) throw conflict(`«${item.name}» ya no tiene existencias.`, 'out_of_stock')
   if (item.needs_review || item.price_cents <= 0) {
     const falta = (item.review_fields ?? '').split(',').filter(Boolean)
     if (item.price_cents <= 0 && !falta.includes('price')) falta.push('price')
@@ -219,7 +221,6 @@ app.post('/:id{[0-9]+}/favorites', async (c) => {
       'needs_review',
     )
   }
-  if (item.quantity !== null && item.quantity <= 0) throw conflict(`«${item.name}» ya no tiene existencias.`, 'out_of_stock')
   if (item.acquisition === 'unidad' && item.held_by_session !== null && item.held_by_session !== row.id) {
     throw conflict('Ese vestido lo tiene otra novia en este momento.')
   }
@@ -273,6 +274,11 @@ app.post('/:id{[0-9]+}/select', async (c) => {
   const item = await loadItem(c.env.DB, s.store, Number(body.item_id))
   if (item.kind !== 'dress') throw badRequest('Hay que elegir un vestido, no un accesorio.')
 
+  // Sin existencias manda sobre todo lo demás, también sobre un precio que falte.
+  if (item.quantity !== null && item.quantity <= 0) {
+    throw conflict(`«${item.name}» ya no tiene existencias.`, 'out_of_stock')
+  }
+
   // An item with no price would hand the plan generator a total of zero and
   // print a contract full of nonsense. The catalogue import brings in rows the
   // website never priced on purpose, so this is a real case, not a corrupt one:
@@ -288,11 +294,6 @@ app.post('/:id{[0-9]+}/select', async (c) => {
       `«${item.name}» está marcado por verificar. Revísalo en Inventario y completa lo que le falta antes de elegirlo.`,
       'needs_review',
     )
-  }
-
-  // Un vestido con cantidad en cero no se puede vender otra vez.
-  if (item.quantity !== null && item.quantity <= 0) {
-    throw conflict(`«${item.name}» ya no tiene existencias.`, 'out_of_stock')
   }
 
   if (item.acquisition === 'unidad') {
