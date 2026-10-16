@@ -66,6 +66,7 @@ export function Inventory() {
   const [counts, setCounts] = useState<{ status: string; n: number }[]>([])
   const [reviewCount, setReviewCount] = useState(0)
   const [unavailableCount, setUnavailableCount] = useState(0)
+  const [total, setTotal] = useState(0)
   const [stale, setStale] = useState(false)
   const [open, setOpen] = useState<Item | null>(null)
   const [adding, setAdding] = useState(false)
@@ -78,12 +79,13 @@ export function Inventory() {
     if (unavailable) params.set('unavailable', '1')
     try {
       const { data, stale: fromCache } = await get<{
-        items: Item[]; counts: { status: string; n: number }[]; review_count: number; unavailable_count: number
+        items: Item[]; counts: { status: string; n: number }[]; review_count: number; unavailable_count: number; total: number
       }>(`/items?${params}`)
       setItems(data.items)
       setCounts(data.counts)
       setReviewCount(data.review_count ?? 0)
       setUnavailableCount(data.unavailable_count ?? 0)
+      setTotal(data.total ?? 0)
       setStale(fromCache)
       setError(null)
     } catch (err) {
@@ -92,8 +94,6 @@ export function Inventory() {
   }, [q, status, kind, sort, dir, review, unavailable])
 
   useEffect(() => { void load() }, [load])
-
-  const total = counts.reduce((a, c) => a + c.n, 0)
 
   function say(message: string) {
     setToast(message)
