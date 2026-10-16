@@ -24,7 +24,7 @@ interface Item {
 
 /** What the record sheet calls each field the importer left empty. */
 const FALTA: Record<string, string> = {
-  price: 'precio', code: 'código', size: 'talla', cost: 'costo', condition: 'condición', photo: 'foto',
+  price: 'precio', code: 'código', name: 'modelo', brand: 'marca', photo: 'foto',
 }
 
 /** Vestido, o cuál de los cuatro tipos que no son vestido. */
@@ -37,7 +37,7 @@ function missingOf(item: Item): Set<string> {
 }
 
 /** These have a column of their own in the table, marked there instead. */
-const HAS_COLUMN = new Set(['size', 'price', 'cost', 'photo'])
+const HAS_COLUMN = new Set(['price', 'brand', 'photo'])
 
 /** Etiqueta y color de cada estado, como en el prototipo. */
 const ST: Record<string, [string, string]> = {
@@ -205,18 +205,19 @@ export function Inventory() {
                       {KIND_LABEL[item.kind]}
                     </span>
                   </td>
-                  <td>{item.brand ?? '—'}</td>
-                  <td>{missing.has('size') ? <span className="falta">falta</span> : (item.size ?? '—')}</td>
+                  {/* Lo que no es obligatorio y está vacío no se pinta: ni guion ni «falta». */}
+                  <td>{missing.has('brand') ? <span className="falta">falta</span> : (item.brand ?? '')}</td>
+                  <td>{item.size ?? ''}</td>
                   <td className="mono">{missing.has('price') ? <span className="falta">falta</span> : money(item.price_cents)}</td>
-                  <td className="mono">{item.quantity === null ? '—' : item.quantity}</td>
+                  <td className="mono">{item.quantity === null ? '' : item.quantity}</td>
                   <td>
                     {!item.available
                       ? <span className="bdg mute">No disponible</span>
                       : <span className={`bdg ${ST[item.status]?.[1] ?? 'mute'}`}>{ST[item.status]?.[0] ?? item.status}</span>}
                   </td>
-                  <td className="mono">{dateMX(item.intake_date)}</td>
+                  <td className="mono">{item.intake_date ? dateMX(item.intake_date) : ''}</td>
                   {isOwner && (
-                    <td className="mono">{missing.has('cost') ? <span className="falta">falta</span> : money(item.cost_cents ?? 0)}</td>
+                    <td className="mono">{item.cost_cents ? money(item.cost_cents) : ''}</td>
                   )}
                 </tr>
                 )
@@ -273,7 +274,7 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
   const [form, setForm] = useState({
     code: item.code,
     name: item.name, brand: item.brand ?? '', size: item.size ?? '', cut: item.cut ?? '',
-    color: item.color ?? '', location: item.location ?? '', notes: item.notes ?? '',
+    color: item.color ?? '', notes: item.notes ?? '',
     kind: item.kind, price: String(item.price_cents / 100), cost: String((item.cost_cents ?? 0) / 100),
     quantity: item.quantity === null ? '' : String(item.quantity),
     intake_date: item.intake_date ?? '',
@@ -281,6 +282,40 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setForm({ ...form, [k]: e.target.value })
   const [confirming, setConfirming] = useState(false)
+  // Lo que traía la ficha al abrirse: si algo cambió, la (X) guarda antes de cerrar.
+  const [initialForm] = useState(form)
+  const dirty = isOwner && JSON.stringify(form) !== JSON.stringify(initialForm)
+  const [closeError, setCloseError] = useState<string | null>(null)
+
+  // Guarda todo lo de la ficha. Lo comparten «Guardar cambios» y la (X).
+  async function save(): Promise<string> {
+    // Vacía: sin contar.
+    const newQuantity = form.quantity.trim() === ''
+      ? null
+      : Math.max(0, Math.trunc(Number(form.quantity) || 0))
+    await patch(`/items/${item.id}`, {
+      code: form.code,
+      name: form.name, brand: form.brand, size: form.size, cut: form.cut,
+      color: form.color, notes: form.notes,
+      kind: form.kind, intake_date: form.intake_date || undefined,
+      price_cents: parseMoney(form.price) ?? 0,
+      cost_cents: parseMoney(form.cost) ?? 0,
+      quantity: newQuantity,
+    })
+    const label = newQuantity === 0 ? 'no disponible' : (ST[item.status]?.[0] ?? item.status).toLowerCase()
+    return `${form.name} guardado como ${label}.`
+  }
+
+  // La (X) guarda lo que se cambió; si no se pudo guardar, la ficha se queda
+  // abierta con el motivo en vez de tirar el cambio sin avisar.
+  async function closeSheet() {
+    if (!dirty) { onClose(); return }
+    try {
+      await onChanged(await save())
+    } catch (err) {
+      setCloseError(err instanceof Error ? err.message : 'No se pudo guardar. Vuelve a intentar.')
+    }
+  }
 
   // Las fotos del artículo, si ya tiene. La dueña las cambia aquí mismo.
   const [photos, setPhotos] = useState<Shot[]>([])
@@ -294,7 +329,7 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
   }, [item.id])
 
   return (
-    <Dialog title={item.name} onCancel={onClose} closeLabel="Cerrar la ficha" full big>
+    <Dialog title={item.name} onCancel={() => void closeSheet()} closeLabel={dirty ? 'Guardar y cerrar la ficha' : 'Cerrar la ficha'} full big>
       <p className="muted" style={{ textAlign: 'center', margin: '0 0 var(--space-8)' }}>
         código {item.code} · {KIND_LABEL[item.kind].toLowerCase()} · {item.quantity === null ? 'sin contar' : `${item.quantity} en existencia`}
       </p>
@@ -305,6 +340,8 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
           {missing.has('price') && ' Sin precio no se puede elegir en una sesión.'}
         </p>
       )}
+
+      {closeError && <p className="err" role="alert" style={{ textAlign: 'center' }}>{closeError}</p>}
 
       {!item.available && (
         <p className="pill pill--brass" style={{ display: 'block', textAlign: 'center', margin: '0 0 var(--space-10)' }}>
@@ -346,17 +383,17 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
                   <Field label="Código" marked={missing.has('code')} hint={missing.has('code') ? 'El catálogo no traía código. Pon el tuyo: p139, A12, s14.' : undefined}>
                     {(id) => <input id={id} type="text" value={form.code} onChange={set('code')} />}
                   </Field>
-                  <Field label="Modelo">{(id) => <input id={id} type="text" value={form.name} onChange={set('name')} />}</Field>
-                  <Field label="Marca">{(id) => <input id={id} type="text" value={form.brand} onChange={set('brand')} />}</Field>
+                  <Field label="Modelo" marked={missing.has('name')}>{(id) => <input id={id} type="text" value={form.name} onChange={set('name')} />}</Field>
+                  <Field label="Marca" marked={missing.has('brand')}>{(id) => <input id={id} type="text" value={form.brand} onChange={set('brand')} />}</Field>
                 </div>
                 <div className="f3">
-                  <Field label="Talla" marked={missing.has('size')}>{(id) => <input id={id} type="text" value={form.size} onChange={set('size')} />}</Field>
+                  <Field label="Talla">{(id) => <input id={id} type="text" value={form.size} onChange={set('size')} />}</Field>
                   <Field label="Corte">{(id) => <input id={id} type="text" value={form.cut} onChange={set('cut')} />}</Field>
                   <Field label="Color">{(id) => <input id={id} type="text" value={form.color} onChange={set('color')} />}</Field>
                 </div>
                 <div className="f3">
                   <Field label="Precio de venta" marked={missing.has('price')}>{(id) => <input id={id} type="text" inputMode="decimal" value={form.price} onChange={set('price')} />}</Field>
-                  <Field label="Costo" marked={missing.has('cost')}>{(id) => <input id={id} type="text" inputMode="decimal" value={form.cost} onChange={set('cost')} />}</Field>
+                  <Field label="Costo">{(id) => <input id={id} type="text" inputMode="decimal" value={form.cost} onChange={set('cost')} />}</Field>
                   <Field label="Cantidad" hint="Cuántos hay. Cada venta firmada descuenta uno; en cero deja de poder venderse. Vacío = todavía no se cuenta.">
                     {(id) => <input id={id} type="number" inputMode="numeric" min={0} step={1} placeholder="sin contar" value={form.quantity} onChange={set('quantity')} />}
                   </Field>
@@ -368,7 +405,6 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
                     </select>
                   )}</Field>
                   <Field label="Fecha de ingreso">{(id) => <input id={id} type="date" value={form.intake_date} onChange={set('intake_date')} />}</Field>
-                  <Field label="Ubicación">{(id) => <input id={id} type="text" value={form.location} onChange={set('location')} />}</Field>
                 </div>
                 <Field label="Notas">
                   {(id) => <textarea id={id} value={form.notes} onChange={set('notes')} placeholder="Con quién está, pruebas pendientes, detalles de la tela" />}
@@ -379,12 +415,11 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
                 <Info label="Estado" value={!item.available ? 'No disponible' : (ST[item.status]?.[0] ?? item.status)} />
                 <Info label="Marca" value={item.brand ?? '—'} />
                 <Info label="Corte" value={item.cut ?? '—'} />
-                <Info label="Talla" value={missing.has('size') ? 'falta' : (item.size ?? '—')} />
+                <Info label="Talla" value={item.size ?? '—'} />
                 <Info label="Color" value={item.color ?? '—'} />
                 <Info label="Tipo" value={KIND_LABEL[item.kind]} />
                 <Info label="Precio de venta" value={missing.has('price') ? 'falta' : money(item.price_cents)} />
                 <Info label="Cantidad" value={item.quantity === null ? 'Sin contar' : String(item.quantity)} />
-                <Info label="Ubicación" value={item.location ?? '—'} />
                 <Info label="Fecha de ingreso" value={dateMX(item.intake_date)} />
               </div>
             )}
@@ -414,37 +449,37 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
               <div className="row" style={{ marginTop: 'var(--space-11)' }}>
                 <ActionButton
                   done="Guardado"
-                  onAction={async () => {
-                    // Vacía: sin contar.
-                    const newQuantity = form.quantity.trim() === ''
-                      ? null
-                      : Math.max(0, Math.trunc(Number(form.quantity) || 0))
-                    await patch(`/items/${item.id}`, {
-                      code: form.code,
-                      name: form.name, brand: form.brand, size: form.size, cut: form.cut,
-                      color: form.color, location: form.location, notes: form.notes,
-                      kind: form.kind, intake_date: form.intake_date || undefined,
-                      price_cents: parseMoney(form.price) ?? 0,
-                      cost_cents: parseMoney(form.cost) ?? 0,
-                      quantity: newQuantity,
-                    })
-                    const label = newQuantity === 0 ? 'no disponible' : (ST[item.status]?.[0] ?? item.status).toLowerCase()
-                    await onChanged(`${form.name} guardado como ${label}.`)
-                  }}
+                  onAction={async () => { await onChanged(await save()) }}
                 >
                   Guardar cambios
                 </ActionButton>
-                {/* Igual que en el prototipo: se toca dos veces para confirmar. */}
-                <ActionButton
-                  className="danger"
-                  onAction={async () => {
-                    if (!confirming) { setConfirming(true); return }
-                    await del(`/items/${item.id}`)
-                    await onChanged(`${item.name} eliminado. Queda registrado quién lo borró y cuándo.`)
-                  }}
-                >
-                  {confirming ? 'Toca otra vez para confirmar' : 'Eliminar del inventario'}
-                </ActionButton>
+                {/*
+                  Se toca dos veces para confirmar. El primer toque NO es una
+                  acción terminada —antes pasaba por el botón de acciones y
+                  mostraba «Listo», como si ya se hubiera borrado—: sólo
+                  cambia el botón; el borrado va en el segundo.
+                */}
+                {confirming ? (
+                  <ActionButton
+                    className="danger"
+                    done="Eliminado"
+                    onAction={async () => {
+                      await del(`/items/${item.id}`)
+                      await onChanged(`${item.name} eliminado. Queda registrado quién lo borró y cuándo.`)
+                    }}
+                  >
+                    Sí, eliminar del inventario
+                  </ActionButton>
+                ) : (
+                  <button type="button" className="danger" onClick={() => setConfirming(true)}>
+                    Eliminar del inventario
+                  </button>
+                )}
+                {confirming && (
+                  <button type="button" className="btn-quiet" onClick={() => setConfirming(false)}>
+                    No eliminar
+                  </button>
+                )}
               </div>
             ) : (
               <p className="muted" style={{ fontSize: 'var(--text-label)', marginTop: 'var(--space-9)' }}>
@@ -482,6 +517,8 @@ function AddItem({ isOwner, onClose, onAdded }: { isOwner: boolean; onClose: () 
 
   const missingName = attempted && !form.name.trim()
   const missingCode = attempted && !form.code.trim()
+  // La marca sólo es obligatoria en un vestido.
+  const missingBrand = attempted && form.kind === 'dress' && !form.brand.trim()
   const missingPrice = attempted && (parseMoney(form.price) ?? 0) <= 0
   const missingPhoto = attempted && photos.length === 0
 
@@ -489,7 +526,7 @@ function AddItem({ isOwner, onClose, onAdded }: { isOwner: boolean; onClose: () 
     <Dialog title="Nuevo artículo" onCancel={onClose} closeLabel="Cerrar sin guardar" full big>
       <div className="f3">
         <Field label="Modelo" invalid={missingName}>{(id) => <input id={id} type="text" value={form.name} onChange={set('name')} placeholder="Madelyn" />}</Field>
-        <Field label="Marca">{(id) => <input id={id} type="text" value={form.brand} onChange={set('brand')} placeholder="Lanesta" />}</Field>
+        <Field label="Marca" invalid={missingBrand}>{(id) => <input id={id} type="text" value={form.brand} onChange={set('brand')} placeholder="Lanesta" />}</Field>
         <Field label="Tipo">{(id) => (
           <select id={id} value={form.kind} onChange={set('kind')}>
             <option value="dress">Vestido</option>
@@ -536,7 +573,7 @@ function AddItem({ isOwner, onClose, onAdded }: { isOwner: boolean; onClose: () 
       <div className="row" style={{ marginTop: 'var(--space-2)' }}>
         <ActionButton
           onAction={async () => {
-            if (!form.name.trim() || !form.code.trim() || (parseMoney(form.price) ?? 0) <= 0 || photos.length === 0) {
+            if (!form.name.trim() || !form.code.trim() || (form.kind === 'dress' && !form.brand.trim()) || (parseMoney(form.price) ?? 0) <= 0 || photos.length === 0) {
               setAttempted(true)
               throw new ApiError('Completa lo marcado en rojo antes de guardar.', 400, 'incomplete')
             }

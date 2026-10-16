@@ -20,7 +20,7 @@ const seller = new Kiosk()
 /** Un vestido por pedido: nunca se aparta, así que lo pueden usar varias sesiones a la vez sin chocar. */
 async function makeDress(code: string, opts: { quantity?: number } = {}): Promise<ItemRow> {
   const { id } = await owner.post<{ id: number }>('/api/items', {
-    code, name: `Vestido ${code}`, kind: 'dress', acquisition: 'pedido',
+    code, name: `Vestido ${code}`, brand: 'Lanesta', kind: 'dress', acquisition: 'pedido',
     condition: 'nuevo', price_cents: 1_000_000,
     ...(opts.quantity !== undefined ? { quantity: opts.quantity } : {}),
   })
@@ -238,5 +238,48 @@ describe('filtro rápido «No disponible» y cambio de tipo', () => {
     const after = (await owner.get<{ item: ItemRow }>(`/api/items/${accessory.id}`)).item
     expect(after.kind).toBe('tiara')
     expect(after.quantity).toBe(2)
+  })
+})
+
+describe('ordenar por cantidad y el cero que manda sobre lo demás', () => {
+  it('ordena de verdad por cantidad, con lo que no se cuenta al final en los dos sentidos', async () => {
+    const five = await makeAccessory('qty-s1', { quantity: 5 })
+    const zero = await makeAccessory('qty-s2', { quantity: 0 })
+    const two = await makeAccessory('qty-s3', { quantity: 2 })
+    const blank = await makeAccessory('qty-s4', { acquisition: 'pedido' })
+    // Un artículo incompleto ya no sube al principio por encima del orden elegido.
+    const { id: incomplete } = await owner.post<{ id: number }>('/api/items', {
+      code: 'qty-s5', name: 'Sin precio', kind: 'tiara', acquisition: 'unidad', condition: 'nuevo',
+      price_cents: 0, quantity: 1,
+    })
+
+    const ids = (r: { items: ItemRow[] }) => r.items.map((i) => i.id)
+    const asc = await owner.get<{ items: ItemRow[] }>('/api/items?q=qty-s&sort=quantity&dir=asc')
+    expect(ids(asc)).toEqual([zero.id, incomplete, two.id, five.id, blank.id])
+    const desc = await owner.get<{ items: ItemRow[] }>('/api/items?q=qty-s&sort=quantity&dir=desc')
+    expect(ids(desc)).toEqual([five.id, two.id, incomplete, zero.id, blank.id])
+  })
+
+  it('en cero no se marca «falta» aunque no tenga precio, y se rechaza por existencias', async () => {
+    const { id } = await owner.post<{ id: number }>('/api/items', {
+      code: 'qty-z1', name: 'Agotado sin precio', kind: 'cinto', acquisition: 'unidad', condition: 'nuevo',
+      price_cents: 0, quantity: 0,
+    })
+    const item = (await owner.get<{ item: ItemRow & { needs_review: number; review_fields: string | null } }>(`/api/items/${id}`)).item
+    expect(item.needs_review).toBe(0)
+    expect(item.review_fields).toBeNull()
+    expect(item.available).toBe(false)
+
+    const session = (await seller.post<{ id: number }>('/api/sessions', { device_label: 'cero' })).id
+    const refusal = await seller.refusal(`/api/sessions/${session}/favorites`, { item_id: id })
+    expect(refusal.status).toBe(409)
+    expect(refusal.error).toMatch(/existencias/)
+    await seller.post(`/api/sessions/${session}/close`, { pin: '1111' })
+
+    // Al volver a haber existencia, lo que faltaba vuelve a contar.
+    await owner.patch(`/api/items/${id}`, { quantity: 3 })
+    const back = (await owner.get<{ item: { needs_review: number; review_fields: string | null } }>(`/api/items/${id}`)).item
+    expect(back.needs_review).toBe(1)
+    expect(back.review_fields).toMatch(/price/)
   })
 })

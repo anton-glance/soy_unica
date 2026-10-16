@@ -41,7 +41,7 @@ export interface KioskItem {
 
 /** Cómo se llama cada dato que falta en la etiqueta «Falta: …». */
 const FALTA_LABEL: Record<string, string> = {
-  price: 'precio', code: 'código', size: 'talla', cost: 'costo', condition: 'condición', photo: 'foto',
+  price: 'precio', code: 'código', name: 'modelo', brand: 'marca', photo: 'foto',
 }
 
 /** «Falta: precio, foto» si el artículo está incompleto; null si está completo. */
@@ -328,6 +328,7 @@ function Kiosk({ sessionId, onChange, onClosed }: {
               {!withKind && <th>Corte</th>}
               <th>Color</th>
               {showPrices && <th>Precio</th>}
+              <th>Cant.</th>
               <th>Estado</th>
               <th aria-label="Carrito" />
             </tr>
@@ -338,12 +339,13 @@ function Kiosk({ sessionId, onChange, onClosed }: {
                 <td><ItemArt item={item} className="k-thumb" /></td>
                 <td className="mono">{item.code}</td>
                 <td className="model">{item.name}</td>
-                {withKind && <td>{item.kind !== 'dress' ? KIND_LABEL[item.kind] : '—'}</td>}
-                <td>{item.brand ?? '—'}</td>
-                <td>{item.size ?? '—'}</td>
-                {!withKind && <td>{item.cut ?? '—'}</td>}
-                <td>{item.color ?? '—'}</td>
+                {withKind && <td>{item.kind !== 'dress' ? KIND_LABEL[item.kind] : ''}</td>}
+                <td>{item.brand ?? ''}</td>
+                <td>{item.size ?? ''}</td>
+                {!withKind && <td>{item.cut ?? ''}</td>}
+                <td>{item.color ?? ''}</td>
                 {showPrices && <td className="mono">{money(item.price_cents)}</td>}
+                <td className="mono">{item.quantity === null ? '' : item.quantity}</td>
                 <td className={item.favorite ? 'k-state k-state--mine' : 'k-state'}>{statusOf(item)}</td>
                 <td>
                   <button
