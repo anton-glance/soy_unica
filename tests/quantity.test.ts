@@ -210,3 +210,25 @@ describe('un vestido también puede llevar cantidad', () => {
     expect(mid.available).toBe(true)
   })
 })
+
+describe('filtro rápido «No disponible» y cambio de tipo', () => {
+  it('la lista filtra y cuenta lo que está en cero', async () => {
+    const zero = await makeAccessory('qty-f1', { quantity: 0 })
+    const counted = await makeAccessory('qty-f2', { quantity: 4 })
+
+    const all = await owner.get<{ items: ItemRow[]; unavailable_count: number }>('/api/items?q=qty-f')
+    expect(all.items.map((i) => i.id)).toEqual(expect.arrayContaining([zero.id, counted.id]))
+    expect(all.unavailable_count).toBe(1)
+
+    const only = await owner.get<{ items: ItemRow[] }>('/api/items?q=qty-f&unavailable=1')
+    expect(only.items.map((i) => i.id)).toEqual([zero.id])
+  })
+
+  it('el tipo se puede cambiar desde la ficha', async () => {
+    const accessory = await makeAccessory('qty-f3', { quantity: 2 })
+    await owner.patch(`/api/items/${accessory.id}`, { kind: 'tiara' })
+    const after = (await owner.get<{ item: ItemRow }>(`/api/items/${accessory.id}`)).item
+    expect(after.kind).toBe('tiara')
+    expect(after.quantity).toBe(2)
+  })
+})
