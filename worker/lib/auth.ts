@@ -150,11 +150,22 @@ export const requireOwner: MiddlewareHandler<AppEnv> = async (c, next) => {
  * Las vendedoras sólo insertan y consultan. Ningún PATCH ni DELETE genérico es
  * alcanzable con su token; los cambios de estado pasan por endpoints con
  * nombre, que son POST y validan el estado de origen.
+ *
+ * Dos excepciones, ambas del inventario, y cada ruta acota lo que la vendedora
+ * puede hacer en ella: `PATCH /api/items/:id` (sólo la cantidad) y
+ * `PUT /api/items/:id/photos` (sólo para ponerle fotos a un artículo que
+ * todavía no tiene, que es dar de alta uno nuevo).
  */
 export const sellersInsertAndSelectOnly: MiddlewareHandler<AppEnv> = async (c, next) => {
   const method = c.req.method
   if ((method === 'PATCH' || method === 'PUT' || method === 'DELETE') && c.get('session').role === 'seller') {
-    throw forbidden('Las vendedoras no pueden modificar ni borrar registros. Pídeselo a la dueña.')
+    const path = new URL(c.req.url).pathname
+    const inventoryAllowance =
+      (method === 'PATCH' && /^\/api\/items\/\d+$/.test(path)) ||
+      (method === 'PUT' && /^\/api\/items\/\d+\/photos$/.test(path))
+    if (!inventoryAllowance) {
+      throw forbidden('Las vendedoras no pueden modificar ni borrar registros. Pídeselo a la dueña.')
+    }
   }
   await next()
 }
