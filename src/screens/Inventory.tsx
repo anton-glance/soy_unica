@@ -17,7 +17,7 @@ interface Item {
   cut: string | null; color: string | null; kind: ItemKind
   acquisition: 'unidad' | 'pedido'; condition: string; status: string
   cost_cents?: number; price_cents: number; quantity: number | null; location: string | null; notes: string | null
-  intake_date: string | null; contract_id: number | null
+  intake_date: string | null; modified_at: string | null; contract_id: number | null
   tailoring_done_at: string | null; ready_notified_at: string | null; delivered_at: string | null
   needs_review: number; review_fields: string | null; photos: string[]; available: boolean
 }
@@ -30,6 +30,20 @@ const FALTA: Record<string, string> = {
 /** Vestido, o cuál de los cuatro tipos que no son vestido. */
 const KIND_LABEL: Record<ItemKind, string> = {
   dress: 'Vestido', mantilla: 'Mantilla', tiara: 'Tiara', cinto: 'Cinto', otros: 'Otro',
+}
+
+/**
+ * La fecha de «Mod.»: un instante (con hora, UTC) se pasa al día de la tableta
+ * —si no, un cambio hecho de noche amanece en el día siguiente—; una fecha sola
+ * (la de ingreso, cuando no hay registro de cambios) se muestra tal cual.
+ */
+function modifiedMX(value: string | null | undefined): string {
+  if (!value) return ''
+  if (value.length <= 10) return dateMX(value)
+  const at = new Date(value)
+  if (Number.isNaN(at.getTime())) return dateMX(value)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${pad(at.getDate())}/${pad(at.getMonth() + 1)}/${at.getFullYear()}`
 }
 
 function missingOf(item: Item): Set<string> {
@@ -48,7 +62,7 @@ const ST: Record<string, [string, string]> = {
 
 const COLS = [
   ['photo', 'Fotos'], ['code', 'Código'], ['name', 'Modelo'], ['kind', 'Tipo'], ['brand', 'Marca'],
-  ['size', 'Talla'], ['price', 'Precio'], ['quantity', 'Cant.'], ['status', 'Estado'], ['intake', 'Ingreso'],
+  ['size', 'Talla'], ['price', 'Precio'], ['quantity', 'Cant.'], ['status', 'Estado'], ['modified', 'Mod.'],
 ] as const
 
 export function Inventory() {
@@ -215,7 +229,7 @@ export function Inventory() {
                       ? <span className="bdg mute">No disponible</span>
                       : <span className={`bdg ${ST[item.status]?.[1] ?? 'mute'}`}>{ST[item.status]?.[0] ?? item.status}</span>}
                   </td>
-                  <td className="mono">{item.intake_date ? dateMX(item.intake_date) : ''}</td>
+                  <td className="mono">{modifiedMX(item.modified_at ?? item.intake_date)}</td>
                   {isOwner && (
                     <td className="mono">{item.cost_cents ? money(item.cost_cents) : ''}</td>
                   )}
