@@ -30,3 +30,15 @@ export async function del(bucket: R2Bucket, key: string): Promise<void> {
 export function objectKey(store: string, kind: string, uploadedAt: Date, extension: string): string {
   return `${store}/${kind}/${uploadedAt.getUTCFullYear()}/${crypto.randomUUID()}.${extension}`
 }
+
+/**
+ * La foto «gemela» de la otra sucursal. El importador del catálogo guarda cada
+ * foto dos veces, una por sucursal, con los mismos bytes:
+ * `cdmx/item_photo/cdmx-5642-0.webp` ↔ `mty/item_photo/mty-5642-0.webp`.
+ * Devuelve null si la llave no sigue ese patrón (una foto subida a mano).
+ */
+export function twinPhotoKey(key: string, store: string, otherStore: string): string | null {
+  const own = `${store}/item_photo/${store}-`
+  if (!key.startsWith(own)) return null
+  return `${otherStore}/item_photo/${otherStore}-${key.slice(own.length)}`
+}

@@ -2,9 +2,10 @@ import { Hono } from 'hono'
 import type { AppEnv } from '../lib/env'
 import { all, one, stmt } from '../lib/db'
 import { auditStmt } from '../lib/audit'
-import { conflict, notFound } from '../lib/errors'
+import { badRequest, conflict, notFound } from '../lib/errors'
+import { readJson } from '../lib/http'
 import { requireOwner } from '../lib/auth'
-import { del } from '../lib/storage'
+import { del, put, twinPhotoKey } from '../lib/storage'
 
 const app = new Hono<AppEnv>()
 app.use('*', requireOwner)
@@ -116,6 +117,59 @@ app.post('/retention/run', async (c) => {
     auditStmt(c.env.DB, { session: s, entity: 'file', entityId: null, action: 'retention_delete', before: { ids: deletable.map((f) => f.id) } }),
   ])
   return c.json({ deleted: deletable.length, bytes: deletable.reduce((sum, f) => sum + f.bytes, 0) })
+})
+
+/**
+ * Restaura las fotos del catálogo importado que están en la base pero no en el
+ * almacén de archivos (R2). El importador guarda cada foto dos veces, una por
+ * sucursal; si la copia de ésta nunca se subió, se copia de la otra, que trae
+ * los mismos bytes.
+ *
+ * Trabaja por tandas, con un cursor (`after`): cada llamada toca a lo mucho
+ * `BATCH` fotos para no pasarse del límite de operaciones de una sola petición
+ * del Worker. La pantalla repite hasta que `next` es null. Sólo agrega lo que
+ * falta: nunca sobrescribe una foto que ya está.
+ */
+const OTHER_STORE: Record<string, string> = { mty: 'cdmx', cdmx: 'mty' }
+const PHOTO_BATCH = 14
+
+app.post('/catalog-photos/restore', async (c) => {
+  const s = c.get('session')
+  const other = OTHER_STORE[s.store]
+  if (!other) throw badRequest('Esta sucursal no tiene una sucursal gemela de dónde copiar.')
+  const body = await readJson<{ after?: string }>(c)
+  const after = String(body.after ?? '')
+
+  const rows = await all<{ id: string; r2_key: string }>(
+    c.env.DB,
+    `SELECT id, r2_key FROM files
+      WHERE store_id = ? AND kind = 'item_photo' AND id LIKE ? AND id > ?
+      ORDER BY id LIMIT ?`,
+    s.store, `${s.store}-%`, after, PHOTO_BATCH,
+  )
+  const total = (await one<{ n: number }>(
+    c.env.DB, `SELECT COUNT(*) AS n FROM files WHERE store_id = ? AND kind = 'item_photo' AND id LIKE ?`, s.store, `${s.store}-%`,
+  ))?.n ?? 0
+
+  let copied = 0
+  let already = 0
+  const noSource: string[] = []
+  for (const row of rows) {
+    if (await c.env.R2.head(row.r2_key)) { already++; continue }
+    const twin = twinPhotoKey(row.r2_key, s.store, other)
+    const source = twin ? await c.env.R2.get(twin) : null
+    if (!source) { noSource.push(row.id); continue }
+    await put(c.env.R2, row.r2_key, await source.arrayBuffer(), 'image/webp')
+    copied++
+  }
+  if (copied > 0) {
+    await auditStmt(c.env.DB, { session: s, entity: 'file', entityId: null, action: 'restore_catalog_photos', after: { copied } }).run()
+  }
+
+  return c.json({
+    checked: rows.length, copied, already, no_source: noSource, total,
+    next: rows.length === PHOTO_BATCH ? (rows[rows.length - 1] as { id: string }).id : null,
+  })
 })
 
 export default app

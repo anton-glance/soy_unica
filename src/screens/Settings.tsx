@@ -69,6 +69,7 @@ export function Settings() {
         <Pins users={data.users} />
         <StoreRules store={data.store} onSaved={load} />
         <Retention store={data.store} floors={data.retention_floors} onSaved={load} />
+        <CatalogPhotos />
         <Template store={data.store} onSaved={load} />
         <Catalogs data={data} onSaved={load} />
       </div>
@@ -328,6 +329,62 @@ function Retention({ store, floors, onSaved }: { store: Store; floors: Record<st
           {dry.held.slice(0, 10).map((f) => (
             <div key={f.id}><span>{f.kind}</span><span className="muted">{f.reason}</span></div>
           ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Fotos del catálogo importado que la base conoce pero que nunca llegaron al
+ * almacén de archivos: se ven rotas. Copia las que faltan de la sucursal
+ * gemela, por tandas, hasta terminar.
+ */
+function CatalogPhotos() {
+  const [result, setResult] = useState<{ checked: number; total: number; copied: number; already: number; noSource: number } | null>(null)
+
+  return (
+    <div className="panel">
+      <h3 style={{ marginBottom: 'var(--space-6)' }}>Fotos del catálogo importado</h3>
+      <p className="lede">
+        Si las fotos de los artículos importados del sitio se ven rotas en esta sucursal, este botón copia las que
+        faltan desde la otra sucursal (son las mismas imágenes). Sólo agrega las que faltan; no toca las que ya están.
+        Tarda un poco: déjalo terminar.
+      </p>
+      <div className="row">
+        <ActionButton
+          className="btn-quiet"
+          done="Listo"
+          onAction={async () => {
+            let after = ''
+            const sum = { checked: 0, total: 0, copied: 0, already: 0, noSource: 0 }
+            for (;;) {
+              const batch = await post<{ checked: number; total: number; copied: number; already: number; no_source: string[]; next: string | null }>(
+                '/maintenance/catalog-photos/restore', { after },
+              )
+              sum.checked += batch.checked
+              sum.total = batch.total
+              sum.copied += batch.copied
+              sum.already += batch.already
+              sum.noSource += batch.no_source.length
+              setResult({ ...sum })
+              if (!batch.next) break
+              after = batch.next
+            }
+          }}
+        >
+          Restaurar fotos faltantes
+        </ActionButton>
+      </div>
+      {result && (
+        <div className="hist" style={{ marginTop: 'var(--space-9)' }}>
+          <div><span>Revisadas</span><span className="mono">{result.checked} de {result.total}</span></div>
+          <div><span>Copiadas ahora</span><span className="mono">{result.copied}</span></div>
+          <div><span>Ya estaban</span><span className="mono">{result.already}</span></div>
+          <div>
+            <span>Sin foto de dónde copiar</span>
+            <span className="mono">{result.noSource}</span>
+          </div>
         </div>
       )}
     </div>
