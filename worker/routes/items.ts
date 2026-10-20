@@ -3,7 +3,7 @@ import { readJson } from '../lib/http'
 import type { AppEnv } from '../lib/env'
 import { all, one, run, stmt } from '../lib/db'
 import { auditStmt } from '../lib/audit'
-import { badRequest, conflict, notFound } from '../lib/errors'
+import { badRequest, conflict, forbidden, notFound } from '../lib/errors'
 import { requireOwner } from '../lib/auth'
 import { canTransition, deriveStatus, reviewFields, type ItemAction, type ItemStatus } from '../lib/items'
 import { balanceOf } from '../lib/payments'
@@ -366,6 +366,12 @@ app.put('/:id{[0-9]+}/photos', async (c) => {
   const item = await loadItem(c.env.DB, s.store, Number(c.req.param('id')))
   const body = await readJson<{ photos?: { file_id?: string; is_primary?: boolean }[] }>(c)
   const photos = Array.isArray(body.photos) ? body.photos : []
+  // La vendedora sólo puede ponerle fotos a un artículo recién dado de alta (que
+  // todavía no tiene ninguna); cambiarlas después es de la dueña.
+  if (s.role !== 'owner') {
+    const has = await one<{ n: number }>(c.env.DB, `SELECT COUNT(*) AS n FROM item_photos WHERE item_id = ?`, item.id)
+    if ((has?.n ?? 0) > 0) throw forbidden('Una vez guardado el artículo, sólo la dueña puede cambiar sus fotos.')
+  }
 
   const ids: string[] = []
   for (const photo of photos) {
@@ -394,10 +400,18 @@ app.put('/:id{[0-9]+}/photos', async (c) => {
   return c.json({ photos: ids.length })
 })
 
-app.patch('/:id{[0-9]+}', requireOwner, async (c) => {
+app.patch('/:id{[0-9]+}', async (c) => {
   const s = c.get('session')
   const item = await loadItem(c.env.DB, s.store, Number(c.req.param('id')))
   const body = await readJson<ItemInput>(c)
+  // La dueña edita todo. La vendedora, una vez guardado el artículo, sólo
+  // ajusta la cantidad: cualquier otro campo se rechaza entero, no se ignora.
+  if (s.role !== 'owner') {
+    const others = Object.keys(body).filter((key) => key !== 'quantity')
+    if (others.length > 0 || body.quantity === undefined) {
+      throw forbidden('Una vez guardado el artículo, sólo la dueña puede editarlo. Tú puedes ajustar la cantidad.')
+    }
+  }
   const validated = validateItem({
     code: body.code ?? item.code,
     name: body.name ?? item.name,

@@ -298,26 +298,33 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
   const [confirming, setConfirming] = useState(false)
   // Lo que traía la ficha al abrirse: si algo cambió, la (X) guarda antes de cerrar.
   const [initialForm] = useState(form)
-  const dirty = isOwner && JSON.stringify(form) !== JSON.stringify(initialForm)
+  // La dueña guarda toda la ficha; la vendedora sólo la cantidad.
+  const dirty = isOwner
+    ? JSON.stringify(form) !== JSON.stringify(initialForm)
+    : form.quantity !== initialForm.quantity
   const [closeError, setCloseError] = useState<string | null>(null)
 
-  // Guarda todo lo de la ficha. Lo comparten «Guardar cambios» y la (X).
+  // Guarda lo de la ficha que a cada quien le toca. Lo comparten «Guardar cambios» y la (X).
   async function save(): Promise<string> {
     // Vacía: falta cantidad (queda marcado, no se puede vender).
     const newQuantity = form.quantity.trim() === ''
       ? null
       : Math.max(0, Math.trunc(Number(form.quantity) || 0))
-    await patch(`/items/${item.id}`, {
-      code: form.code,
-      name: form.name, brand: form.brand, size: form.size, cut: form.cut,
-      color: form.color, notes: form.notes,
-      kind: form.kind, intake_date: form.intake_date || undefined,
-      price_cents: parseMoney(form.price) ?? 0,
-      cost_cents: parseMoney(form.cost) ?? 0,
-      quantity: newQuantity,
-    })
+    if (isOwner) {
+      await patch(`/items/${item.id}`, {
+        code: form.code,
+        name: form.name, brand: form.brand, size: form.size, cut: form.cut,
+        color: form.color, notes: form.notes,
+        kind: form.kind, intake_date: form.intake_date || undefined,
+        price_cents: parseMoney(form.price) ?? 0,
+        cost_cents: parseMoney(form.cost) ?? 0,
+        quantity: newQuantity,
+      })
+    } else {
+      await patch(`/items/${item.id}`, { quantity: newQuantity })
+    }
     const label = newQuantity === 0 ? 'no disponible' : (ST[item.status]?.[0] ?? item.status).toLowerCase()
-    return `${form.name} guardado como ${label}.`
+    return `${item.name} guardado como ${label}.`
   }
 
   // La (X) guarda lo que se cambió; si no se pudo guardar, la ficha se queda
@@ -433,7 +440,9 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
                 <Info label="Color" value={item.color ?? '—'} />
                 <Info label="Tipo" value={KIND_LABEL[item.kind]} />
                 <Info label="Precio de venta" value={missing.has('price') ? 'falta' : money(item.price_cents)} />
-                <Info label="Cantidad" value={item.quantity === null ? 'falta' : String(item.quantity)} />
+                <Field label="Cantidad" marked={missing.has('quantity')} hint="Es lo único que puedes cambiar de un artículo ya guardado.">
+                  {(id) => <input id={id} type="number" inputMode="numeric" min={0} step={1} placeholder="falta" value={form.quantity} onChange={set('quantity')} />}
+                </Field>
                 <Info label="Fecha de ingreso" value={dateMX(item.intake_date)} />
               </div>
             )}
@@ -496,9 +505,16 @@ function RecordSheet({ item, isOwner, onClose, onChanged }: {
                 )}
               </div>
             ) : (
-              <p className="muted" style={{ fontSize: 'var(--text-label)', marginTop: 'var(--space-9)' }}>
-                Solo la dueña puede editar o eliminar.
-              </p>
+              <>
+                <div className="row" style={{ marginTop: 'var(--space-9)' }}>
+                  <ActionButton done="Guardado" disabled={!dirty} onAction={async () => { await onChanged(await save()) }}>
+                    Guardar cantidad
+                  </ActionButton>
+                </div>
+                <p className="muted" style={{ fontSize: 'var(--text-label)', marginTop: 'var(--space-6)' }}>
+                  Solo la dueña puede editar el resto de la ficha o eliminar el artículo.
+                </p>
+              </>
             )}
         </div>
       </div>
