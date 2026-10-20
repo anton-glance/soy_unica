@@ -38,6 +38,9 @@ export interface ItemRow {
   location: string | null
   notes: string | null
   intake_date: string | null
+  // Última vez que cambió un dato del artículo (lo mantienen los triggers de la
+  // migración 0014; no lo mueve que alguien lo esté viendo).
+  modified_at: string | null
   held_by_session: number | null
   contract_id: number | null
   tailoring_started_at: string | null
@@ -152,7 +155,7 @@ app.get('/', async (c) => {
 
   const columns: Record<string, string> = {
     code: 'code', name: 'name', kind: 'kind', brand: 'brand', price: 'price_cents',
-    status: 'status', size: 'size', intake: 'intake_date', quantity: 'quantity',
+    status: 'status', size: 'size', intake: 'intake_date', modified: 'modified_at', quantity: 'quantity',
   }
   const orderBy = columns[sort] ?? 'code'
   const dir = c.req.query('dir') === 'desc' ? 'DESC' : 'ASC'
@@ -214,7 +217,7 @@ app.get('/export', async (c) => {
   const columns = [
     'code', 'name', 'kind', 'acquisition', 'condition', 'brand', 'size', 'cut', 'color',
     ...(s.role === 'owner' ? ['cost_cents'] : []),
-    'price_cents', 'quantity', 'status', 'location', 'notes', 'intake_date', 'needs_review', 'review_fields',
+    'price_cents', 'quantity', 'status', 'location', 'notes', 'intake_date', 'modified_at', 'needs_review', 'review_fields',
   ]
   return csvResponse('inventario.csv', toCsv(columns, rows))
 })
